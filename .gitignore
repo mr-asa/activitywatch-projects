@@ -25,3 +25,4 @@
 !/.github/
 !/.github/workflows/
 !/.github/workflows/tests.yml
+!/deploy.ps1

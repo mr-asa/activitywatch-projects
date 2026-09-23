@@ -97,3 +97,21 @@ npm test
 No npm dependencies are required. Tests cover time attribution, idle filtering, URL matching, duplicate intervals, conflicts, regex, dates, manual assignments, grouped rules and application filters. GitHub Actions runs these tests on pushes and pull requests. Browser UI checks were also performed locally; they are not part of this portable test suite.
 
 After editing the static files, refresh the dashboard with **Ctrl+F5**. Existing project settings are reused.
+
+## Separate development and deployment (Windows)
+
+Keep the Git checkout in your development directory and serve a separate runtime folder through ActivityWatch. From the repository, run:
+
+```sh
+npm run deploy
+```
+
+The default destination is `%USERPROFILE%/Documents/ActivityWatch/okko-dashboard`. For a different destination:
+
+```powershell
+./deploy.ps1 -Destination 'C:/path/to/runtime-folder'
+```
+
+Point ActivityWatch's custom-static mapping at that runtime folder. The script runs tests, backs up the existing runtime files in a sibling `deployment-backups` folder, copies only the twelve runtime files, and verifies their hashes. It refuses a destination containing `.git`. It never copies development files or modifies ActivityWatch settings or recorded activity. Deployment is one-way: edit code in the repository, then deploy; edit project rules in the dashboard as usual. Refresh with Ctrl+F5 afterward.
+
+Git commits and pushes save source changes to GitHub; deployment updates the local dashboard. These are separate actions. Personal settings and local archives belong outside the Git checkout.
