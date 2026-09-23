@@ -100,3 +100,31 @@ assert.equal(
 console.log(
   "PASS: unassigned duration reconciliation, URL split, AFK, interval filter, missing browser data, duplicate intervals, and safe suggestions",
 );
+
+// Cached lists are scoped to immutable data/result snapshots and preserve first-source precedence.
+const overlapData = {
+  windows: [e(0, 20, { app: "chrome.exe", title: "Overlap" })],
+  afk: [e(0, 20, { status: "not-afk" })],
+  browsers: [
+    {
+      family: "chrome",
+      events: [
+        e(10, 10, { url: "https://example.com/first" }),
+        e(0, 20, { url: "https://example.com/second" }),
+      ],
+    },
+  ],
+};
+const overlapResult = analyze(overlapData, [], 0, 20000);
+const grouped = unassignedActivities(overlapData, overlapResult);
+assert.equal(grouped.find((r) => r.url.endsWith("/first")).seconds, 10);
+assert.equal(grouped.find((r) => r.url.endsWith("/second")).seconds, 10);
+assert.strictEqual(unassignedActivities(overlapData, overlapResult), grouped);
+assert.equal(
+  unassignedActivities(overlapData, overlapResult, [15000, 20000])[0].seconds,
+  5,
+);
+assert.equal(
+  unassignedActivities(overlapData, { ...overlapResult, segments: [] }).length,
+  0,
+);

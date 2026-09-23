@@ -150,3 +150,7 @@ An unassigned row can combine many separate visits. **Assign time only** default
 **Needs review** is active time where two or more categories match simultaneously, including non-project categories. It is excluded from category totals until the ambiguity is resolved. Multiple matching rules inside the same category do not create a conflict. Manual interval assignments override automatic conflicts.
 
 In **All occurrences** mode, **From** starts at the earliest occurrence and **Until** ends at the latest. Edit either field to clip the row's intervals to those limits. The selected count and active duration update immediately. An interval crossing a limit is shortened; gaps and unrelated activity remain excluded. Empty or reversed limits cannot be saved. Subsecond timestamps are preserved.
+
+### Responsiveness
+
+The interval engine uses sorted interval lookups and indexes browser events by time. Unassigned rows are cached for the current immutable report snapshot; data refreshes and configuration changes invalidate the cache. Lists show 50 rows initially, with **Show more** and search over all rows. Assignment explanations are computed when a row is expanded. Save previews reuse the current report as their baseline; they still calculate the proposed configuration. No AI model or inference service is used.

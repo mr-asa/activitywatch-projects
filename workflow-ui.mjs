@@ -6,7 +6,7 @@ import {
   validateConfig,
 } from "./workflow-core.mjs";
 import { unassignedActivities } from "./unassigned-core.mjs";
-import { intersect, duration } from "./projects-core.mjs";
+import { clipSorted } from "./projects-core.mjs";
 
 export function setupWorkflow({
   state,
@@ -96,6 +96,7 @@ export function setupWorkflow({
     '<label>Category type<select id="project-kind"><option value="project">Project work</option><option value="non-project">Non-project / intentionally ignored</option></select></label><label class="check-label"><input type="checkbox" id="project-archived"> Archived (hide from cards)</label><label>Automatic rules end on<input type="date" id="project-rules-through"></label><p class="field-help">Archiving keeps historical totals. The optional end date stops automatic rules after that day; manual assignments still apply.</p>';
   $("rule-editor").before(fields);
   const activity = dialog("activity-explanations", "Why was this assigned?");
+  const explanationCache = new WeakMap();
   function explain(projectId = null) {
     activity.body.replaceChildren();
     const help = node(
@@ -113,9 +114,19 @@ export function setupWorkflow({
     const segments = state.result.segments.filter(
       (s) => !projectId || s.project === projectId || s.ids.includes(projectId),
     );
-    const rows = unassignedActivities(state.data, {
-      segments: segments.map((s) => ({ ...s, project: "unassigned" })),
-    });
+    let cached = explanationCache.get(state.result);
+    if (!cached) {
+      cached = new Map();
+      explanationCache.set(state.result, cached);
+    }
+    if (!cached.has(projectId))
+      cached.set(
+        projectId,
+        unassignedActivities(state.data, {
+          segments: segments.map((s) => ({ ...s, project: "unassigned" })),
+        }),
+      );
+    const rows = cached.get(projectId);
     let limit = 50;
     function draw() {
       list.replaceChildren();
@@ -129,40 +140,48 @@ export function setupWorkflow({
         detail.append(
           node("summary", `${row.title} · ${row.app} · ${time(row.seconds)}`),
         );
-        if (row.url) detail.append(node("p", row.url));
-        const allocations = new Map();
-        for (const s of state.result.segments) {
-          const sec = duration(intersect(row.ranges, [[s.start, s.end]]));
-          if (sec) {
-            const name =
-              state.config.projects.find((p) => p.id === s.project)?.name ||
-              (s.project === "conflict" ? "Needs review" : "Not assigned");
-            allocations.set(name, (allocations.get(name) || 0) + sec);
+        let populated = false;
+        detail.addEventListener("toggle", () => {
+          if (!detail.open || populated) return;
+          populated = true;
+          if (row.url) detail.append(node("p", row.url));
+          const allocations = new Map();
+          for (const s of state.result.segments) {
+            const sec = clipSorted(row.ranges, s.start, s.end).reduce(
+              (sum, [a, b]) => sum + (b - a) / 1000,
+              0,
+            );
+            if (sec) {
+              const name =
+                state.config.projects.find((p) => p.id === s.project)?.name ||
+                (s.project === "conflict" ? "Needs review" : "Not assigned");
+              allocations.set(name, (allocations.get(name) || 0) + sec);
+            }
           }
-        }
-        detail.append(
-          node(
-            "p",
-            "Final allocation: " +
-              [...allocations]
-                .map(([name, sec]) => `${name}: ${time(sec)}`)
-                .join("; "),
-          ),
-        );
-        const seen = new Set();
-        for (const e of state.result.evidence || []) {
-          if (!intersect(row.ranges, [[e.s, e.e]]).length) continue;
-          const p = state.config.projects.find((p) => p.id === e.project);
-          const label = e.manual
-            ? `${p.name} — manual assignment: ${e.assignment.note || "No note"} (${new Date(e.assignment.start).toLocaleString()} – ${new Date(e.assignment.end).toLocaleString()})`
-            : `${p.name} — ${e.rule.type} / ${e.rule.mode}: ${e.rule.pattern}; app: ${e.rule.appFilter || "any"}; dates: ${e.rule.from || "unlimited"} → ${e.rule.through || "unlimited"}`;
-          if (!seen.has(label)) {
-            detail.append(node("p", label));
-            seen.add(label);
+          detail.append(
+            node(
+              "p",
+              "Final allocation: " +
+                [...allocations]
+                  .map(([name, sec]) => `${name}: ${time(sec)}`)
+                  .join("; "),
+            ),
+          );
+          const seen = new Set();
+          for (const e of state.result.evidence || []) {
+            if (!clipSorted(row.ranges, e.s, e.e).length) continue;
+            const p = state.config.projects.find((p) => p.id === e.project);
+            const label = e.manual
+              ? `${p.name} — manual assignment: ${e.assignment.note || "No note"} (${new Date(e.assignment.start).toLocaleString()} – ${new Date(e.assignment.end).toLocaleString()})`
+              : `${p.name} — ${e.rule.type} / ${e.rule.mode}: ${e.rule.pattern}; app: ${e.rule.appFilter || "any"}; dates: ${e.rule.from || "unlimited"} → ${e.rule.through || "unlimited"}`;
+            if (!seen.has(label)) {
+              detail.append(node("p", label));
+              seen.add(label);
+            }
           }
-        }
-        if (!seen.size)
-          detail.append(node("p", "No matching rule or manual assignment."));
+          if (!seen.size)
+            detail.append(node("p", "No matching rule or manual assignment."));
+        });
         list.append(detail);
       }
       if (!filtered.length)
@@ -197,8 +216,9 @@ export function setupWorkflow({
       state.config,
       next,
       state.start,
-      Math.min(state.end, Date.now()),
+      state.resultEnd,
       state.host,
+      state.result,
     );
     preview.body.replaceChildren(
       node(

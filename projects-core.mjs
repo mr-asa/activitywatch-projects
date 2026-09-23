@@ -170,6 +170,23 @@ export function matchTitle(title, keyword) {
   const normalized = clean(rule);
   return Boolean(normalized) && clean(raw).includes(normalized);
 }
+// Input must be sorted, disjoint ranges (as returned by merge).
+export function clipSorted(ranges, start, end) {
+  const out = [];
+  let lo = 0,
+    hi = ranges.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (ranges[mid][1] <= start) lo = mid + 1;
+    else hi = mid;
+  }
+  for (let i = lo; i < ranges.length && ranges[i][0] < end; i++) {
+    const s = Math.max(start, ranges[i][0]),
+      e = Math.min(end, ranges[i][1]);
+    if (e > s) out.push([s, e]);
+  }
+  return out;
+}
 export function analyze(data, projects, start, end, options = {}) {
   const range = (e) => [
     Math.max(start, Date.parse(e.timestamp)),
@@ -179,9 +196,17 @@ export function analyze(data, projects, start, end, options = {}) {
     data.afk.filter((e) => e.data.status === "not-afk").map(range),
   );
   const windows = data.windows
-    .map((e) => ({ ...e, ranges: intersect([range(e)], active) }))
+    .map((e) => ({ ...e, ranges: clipSorted(active, ...range(e)) }))
     .filter((e) => e.ranges.length);
   const tracked = merge(windows.flatMap((e) => e.ranges));
+  const focusByFamily = new Map();
+  for (const w of windows) {
+    const family = browserFamily(w.data.app);
+    if (!focusByFamily.has(family)) focusByFamily.set(family, []);
+    focusByFamily.get(family).push(...w.ranges);
+  }
+  for (const [family, ranges] of focusByFamily)
+    focusByFamily.set(family, merge(ranges));
   const evidence = [];
   const add = (project, ranges, kind, label, manual = false, details = {}) => {
     for (const [s, e] of ranges)
@@ -217,16 +242,12 @@ export function analyze(data, projects, start, end, options = {}) {
         }
       else
         for (const source of data.browsers || []) {
-          const focus = windows
-            .filter(
-              (w) => browserFamily(w.data.app, w.data.title) === source.family,
-            )
-            .flatMap((w) => w.ranges);
+          const focus = focusByFamily.get(source.family) || [];
           for (const event of source.events)
             if (ruleMatches(rule, event.data.url, matchTitle, matchUrl))
               add(
                 project,
-                clipRule(intersect([range(event)], focus), rule),
+                clipRule(clipSorted(focus, ...range(event)), rule),
                 "browser",
                 event.data.url,
                 false,
@@ -239,17 +260,23 @@ export function analyze(data, projects, start, end, options = {}) {
     if (assignment.host !== options.host) continue;
     const project = projects.find((p) => p.id === assignment.projectId);
     if (!project) continue;
-    for (const w of windows)
+    const assignmentStart = Date.parse(assignment.start),
+      assignmentEnd = Date.parse(assignment.end);
+    for (const w of windows) {
+      if (
+        w.ranges[0][0] >= assignmentEnd ||
+        w.ranges.at(-1)[1] <= assignmentStart
+      )
+        continue;
       add(
         project,
-        intersect(w.ranges, [
-          [Date.parse(assignment.start), Date.parse(assignment.end)],
-        ]),
+        clipSorted(w.ranges, assignmentStart, assignmentEnd),
         browserFamily(w.data.app) ? "browser" : "desktop",
         w.data.title || w.data.app,
         true,
         { assignment, app: w.data.app },
       );
+    }
   }
   const changes = [];
   for (const [s, e] of tracked) {

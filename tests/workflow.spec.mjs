@@ -83,6 +83,9 @@ test("explanations, previews and categories survive reload", async ({
 }) => {
   const { settings, errors } = await setup(page);
   await page.getByRole("button", { name: "Explain time", exact: true }).click();
+  await expect(page.locator("#activity-explanations")).not.toContainText(
+    "title / text: Demo",
+  );
   await page.locator("#activity-explanations summary").first().click();
   await expect(page.locator("#activity-explanations")).toContainText(
     "title / text: Demo",
@@ -453,4 +456,34 @@ test("all-occurrence limits clip boundary visits, preserve gaps and subsecond pr
   await expect(
     page.locator(".unassigned-row").filter({ hasText: "Gap example" }),
   ).toContainText("0h 1m 0s");
+});
+
+test("unassigned pagination keeps all rows searchable", async ({
+  page,
+}) => {
+  await setup(page, sample(), (fixture) => {
+    const base = Date.parse("2026-09-22T11:00:00Z");
+    for (let i = 0; i < 75; i++)
+      fixture.windows.push({
+        timestamp: new Date(base + i * 2000).toISOString(),
+        duration: 1,
+        data: {
+          app: "maya.exe",
+          title: "Activity " + String(i).padStart(2, "0"),
+        },
+      });
+    fixture.afk[0].duration = 4000;
+  });
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  await expect(page.locator(".unassigned-row")).toHaveCount(50);
+  await page.getByLabel("Search unassigned activities").fill("Activity 74");
+  await expect(page.locator(".unassigned-row")).toHaveCount(1);
+  await page.getByLabel("Search unassigned activities").fill("");
+  await page
+    .locator("#unassigned-rows")
+    .getByRole("button", { name: /Show more/ })
+    .click();
+  await expect(page.locator(".unassigned-row")).toHaveCount(77);
 });

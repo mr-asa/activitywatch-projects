@@ -52,13 +52,21 @@ export function reportBounds(date, period = "day", startOfDay = "04:00") {
   else end.setDate(end.getDate() + (period === "week" ? 7 : 1));
   return [+start, +end];
 }
-export function compareConfigs(data, before, after, start, end, host) {
+export function compareConfigs(
+  data,
+  before,
+  after,
+  start,
+  end,
+  host,
+  previousResult = null,
+) {
   const run = (config) =>
     analyze(data, config.projects, start, end, {
       host,
       manualAssignments: config.manualAssignments || [],
     });
-  const previous = run(before),
+  const previous = previousResult || run(before),
     next = run(after);
   const changes = [
     ...new Set([...previous.projects, ...next.projects].map((p) => p.id)),

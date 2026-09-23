@@ -100,6 +100,7 @@ export function setupUnassigned({
     $("all-unassigned").hidden = !scope;
     drawRows();
   }
+  let visibleLimit = 50;
   function drawRows() {
     const term = $("unassigned-search").value.trim().toLocaleLowerCase();
     const filtered = rows.filter((r) =>
@@ -108,7 +109,7 @@ export function setupUnassigned({
     $("unassigned-count").textContent =
       `${filtered.length} activities · ${time(filtered.reduce((n, r) => n + r.seconds, 0))}`;
     $("unassigned-rows").replaceChildren();
-    for (const row of filtered) {
+    for (const row of filtered.slice(0, visibleLimit)) {
       const card = node("article", "unassigned-row");
       const content = node("div", "activity-description");
       content.append(
@@ -127,6 +128,18 @@ export function setupUnassigned({
       action.append(manual);
       card.append(content, action);
       $("unassigned-rows").append(card);
+    }
+    if (filtered.length > visibleLimit) {
+      const more = node(
+        "button",
+        "",
+        `Show more (${filtered.length - visibleLimit} remaining)`,
+      );
+      more.onclick = () => {
+        visibleLimit += 50;
+        drawRows();
+      };
+      $("unassigned-rows").append(more);
     }
     if (!filtered.length)
       $("unassigned-rows").append(
@@ -261,7 +274,10 @@ export function setupUnassigned({
     panel.hidden = true;
     resizeFrame();
   };
-  $("unassigned-search").oninput = drawRows;
+  $("unassigned-search").oninput = () => {
+    visibleLimit = 50;
+    drawRows();
+  };
   $("all-unassigned").onclick = () => show();
   return { update };
 }

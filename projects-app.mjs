@@ -205,18 +205,38 @@ async function load() {
     resizeFrame();
   }
 }
+let analysisCache = null;
 function render() {
   if (!state.data || !state.config) return;
-  const result = analyze(
-    state.data,
-    state.config.projects,
-    state.start,
-    Math.min(state.end, Date.now()),
-    {
+  if (
+    !analysisCache ||
+    analysisCache.data !== state.data ||
+    analysisCache.config !== state.config ||
+    analysisCache.start !== state.start ||
+    analysisCache.end !== state.end ||
+    analysisCache.host !== state.host
+  ) {
+    state.resultEnd = Math.min(state.end, Date.now());
+    const result = analyze(
+      state.data,
+      state.config.projects,
+      state.start,
+      state.resultEnd,
+      {
+        host: state.host,
+        manualAssignments: state.config.manualAssignments || [],
+      },
+    );
+    analysisCache = {
+      data: state.data,
+      config: state.config,
+      start: state.start,
+      end: state.end,
       host: state.host,
-      manualAssignments: state.config.manualAssignments || [],
-    },
-  );
+      result,
+    };
+  }
+  const result = analysisCache.result;
   state.result = result;
   for (const [id, value] of [
     ["assigned", result.assigned],
