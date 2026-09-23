@@ -332,7 +332,7 @@ test("grouped activity assigns every occurrence without assigning gaps", async (
     .click();
   await expect(page.locator("#manual-occurrence")).toHaveValue("all");
   await expect(page.locator("#manual-scope")).toContainText("0h 30m 0s");
-  await expect(page.locator("#manual-start")).toBeDisabled();
+  await expect(page.locator("#manual-start")).toBeEnabled();
   await page.locator("#manual-occurrence").selectOption("0");
   await expect(page.locator("#manual-start")).toBeEnabled();
   await expect(
@@ -340,7 +340,7 @@ test("grouped activity assigns every occurrence without assigning gaps", async (
   ).toBeVisible();
   await page.locator("#manual-occurrence").selectOption("all");
   await page
-    .getByRole("button", { name: "Assign all occurrences", exact: true })
+    .getByRole("button", { name: "Assign selected occurrences", exact: true })
     .click();
   await expect(page.locator("#change-preview")).toContainText(
     "Project time: 0h 1m 0s → 0h 31m 0s",
@@ -363,4 +363,94 @@ test("grouped activity assigns every occurrence without assigning gaps", async (
   ).toContainText("0h 0m 30s");
   await page.reload();
   await expect(page.locator("#assigned")).toHaveText("0h 31m");
+});
+
+test("all-occurrence limits clip boundary visits, preserve gaps and subsecond precision", async ({
+  page,
+}) => {
+  const start = Date.parse("2026-09-22T10:00:00Z");
+  const { settings } = await setup(page, sample(), (fixture) => {
+    const e = (s, d, title) => ({
+      timestamp: new Date(start + s * 1000).toISOString(),
+      duration: d,
+      data: { app: "chrome.exe", title },
+    });
+    fixture.windows.push(
+      e(180.1, 0.2, "Clip example"),
+      e(240, 60, "Clip example"),
+      e(300, 60, "Gap example"),
+      e(360, 60, "Clip example"),
+    );
+    fixture.afk[0].duration = 420;
+  });
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  await page
+    .locator(".unassigned-row")
+    .filter({ hasText: "Clip example" })
+    .getByRole("button", { name: "Assign time only", exact: true })
+    .click();
+  const values = await page.evaluate(() => [
+    +new Date(document.getElementById("manual-start").value),
+    +new Date(document.getElementById("manual-end").value),
+  ]);
+  expect(values).toEqual([start + 180100, start + 420000]);
+  await page.locator("#manual-occurrence").selectOption("0");
+  const single = await page.evaluate(() => [
+    +new Date(document.getElementById("manual-start").value),
+    +new Date(document.getElementById("manual-end").value),
+  ]);
+  expect(single[1] - single[0]).toBe(200);
+  await page.locator("#manual-occurrence").selectOption("all");
+  async function bounds(a, b) {
+    await page.evaluate(
+      ([a, b]) => {
+        const local = (ms) => {
+          const d = new Date(ms);
+          return new Date(ms - d.getTimezoneOffset() * 60000)
+            .toISOString()
+            .slice(0, -1);
+        };
+        for (const [id, value] of [
+          ["manual-start", a],
+          ["manual-end", b],
+        ]) {
+          const el = document.getElementById(id);
+          el.value = local(value);
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      },
+      [start + a * 1000, start + b * 1000],
+    );
+  }
+  await bounds(310, 350);
+  await expect(page.locator("#manual-scope")).toContainText("No occurrences");
+  await expect(page.locator("#save-manual")).toBeDisabled();
+  await bounds(390, 270);
+  await expect(page.locator("#manual-scope")).toContainText("later than");
+  await bounds(270, 390);
+  await expect(page.locator("#manual-scope")).toContainText(
+    "2 of 3 occurrences selected · 0h 1m 0s",
+  );
+  await page
+    .getByRole("button", { name: "Assign selected occurrences", exact: true })
+    .click();
+  await expect(page.locator("#change-preview")).toContainText(
+    "Project time: 0h 1m 0s → 0h 2m 0s",
+  );
+  await confirm(page);
+  await expect(page.locator("#manual-dialog")).not.toBeVisible();
+  expect(
+    settings.project_tracker.manualAssignments.map((a) => [
+      Date.parse(a.start) - start,
+      Date.parse(a.end) - start,
+    ]),
+  ).toEqual([
+    [270000, 300000],
+    [360000, 390000],
+  ]);
+  await expect(
+    page.locator(".unassigned-row").filter({ hasText: "Gap example" }),
+  ).toContainText("0h 1m 0s");
 });

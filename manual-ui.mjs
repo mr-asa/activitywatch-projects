@@ -1,3 +1,4 @@
+import { intersect } from "./projects-core.mjs";
 import { normalizeAssignment } from "./rule-engine.mjs";
 export function setupManual({ state, persist, render, notice }) {
   const $ = (id) => document.getElementById(id);
@@ -14,34 +15,61 @@ export function setupManual({ state, persist, render, notice }) {
   const dialog = document.createElement("dialog");
   dialog.id = "manual-dialog";
   dialog.innerHTML =
-    '<form id="manual-form"><div class="dialog-heading"><h2>Assign a time interval</h2><button type="button" id="close-manual" aria-label="Close manual assignment">×</button></div><label for="manual-project">Project</label><select id="manual-project" required></select><div id="manual-occurrences" hidden><label for="manual-occurrence">Recorded interval</label><select id="manual-occurrence"></select><p class="field-help">Assign all occurrences from this row, or choose one interval to adjust. Gaps between occurrences are not included.</p></div><p id="manual-scope" class="field-help" role="status"></p><label for="manual-start">From (local time)</label><input id="manual-start" type="datetime-local" step="1" required><label for="manual-end">Until (local time)</label><input id="manual-end" type="datetime-local" step="1" required><label for="manual-note">Note (optional)</label><input id="manual-note" maxlength="200" placeholder="e.g. TEAM CHAT discussion for Demo"><p class="field-help">All occurrences assigns only the listed intervals. A custom interval assigns recorded active time inside it, including other applications. Neither option creates a future matching rule.</p><p id="manual-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-manual" type="button">Cancel</button><button id="save-manual" type="submit" class="primary">Assign time</button></div></form>';
+    '<form id="manual-form"><div class="dialog-heading"><h2>Assign a time interval</h2><button type="button" id="close-manual" aria-label="Close manual assignment">×</button></div><label for="manual-project">Project</label><select id="manual-project" required></select><div id="manual-occurrences" hidden><label for="manual-occurrence">Recorded interval</label><select id="manual-occurrence"></select><p class="field-help">Assign all occurrences from this row, or choose one interval to adjust. From and Until trim the selected occurrences. Gaps are not included.</p></div><p id="manual-scope" class="field-help" role="status"></p><label for="manual-start">From (local time)</label><input id="manual-start" type="datetime-local" step="0.001" required><label for="manual-end">Until (local time)</label><input id="manual-end" type="datetime-local" step="0.001" required><label for="manual-note">Note (optional)</label><input id="manual-note" maxlength="200" placeholder="e.g. TEAM CHAT discussion for Demo"><p class="field-help">All occurrences assigns only the listed intervals. A custom interval assigns recorded active time inside it, including other applications. Neither option creates a future matching rule.</p><p id="manual-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-manual" type="button">Cancel</button><button id="save-manual" type="submit" class="primary">Assign time</button></div></form>';
   document.body.append(dialog);
   function local(ms) {
     const d = new Date(ms);
     const z = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}`;
+    return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}:${z(d.getSeconds())}.${String(d.getMilliseconds()).padStart(3, "0")}`;
   }
   let occurrences = [];
   function times(range) {
     $("manual-start").value = local(range[0]);
     $("manual-end").value = local(range[1]);
   }
-  function selectionChanged() {
-    const all =
-      occurrences.length > 1 && $("manual-occurrence").value === "all";
-    $("manual-start").disabled = all;
-    $("manual-end").disabled = all;
-    if (!all && occurrences.length)
-      times(occurrences[Number($("manual-occurrence").value) || 0]);
-    const seconds = Math.round(
-      occurrences.reduce((sum, [start, end]) => sum + (end - start) / 1000, 0),
-    );
-    $("manual-scope").textContent = all
-      ? `All ${occurrences.length} occurrences · ${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s. Only this row's intervals in the selected report are included; gaps stay unchanged.`
-      : "One editable interval. The save preview shows the active time that will be assigned.";
-    $("save-manual").textContent = all
-      ? "Assign all occurrences"
+  function isAll() {
+    return occurrences.length > 1 && $("manual-occurrence").value === "all";
+  }
+  function selectedRanges() {
+    const start = +new Date($("manual-start").value),
+      end = +new Date($("manual-end").value);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start)
+      throw Error("Until must be later than From.");
+    const ranges = isAll()
+      ? intersect(occurrences, [[start, end]])
+      : [[start, end]];
+    if (!ranges.length)
+      throw Error("No occurrences inside these limits. Widen From or Until.");
+    return ranges;
+  }
+  function updateScope() {
+    $("save-manual").textContent = isAll()
+      ? "Assign selected occurrences"
       : "Assign time";
+    try {
+      const ranges = selectedRanges();
+      const seconds = Math.round(
+        ranges.reduce((sum, [start, end]) => sum + (end - start) / 1000, 0),
+      );
+      $("manual-scope").textContent = isAll()
+        ? `${ranges.length} of ${occurrences.length} occurrences selected · ${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s. From and Until trim this row only; gaps stay unchanged.`
+        : "One editable interval. The save preview shows the active time that will be assigned.";
+      $("manual-error").textContent = "";
+      $("save-manual").disabled = state.saving;
+    } catch (e) {
+      $("manual-scope").textContent = e.message;
+      $("save-manual").disabled = true;
+    }
+  }
+  function selectionChanged() {
+    if (isAll())
+      times([
+        Math.min(...occurrences.map((r) => r[0])),
+        Math.max(...occurrences.map((r) => r[1])),
+      ]);
+    else if (occurrences.length)
+      times(occurrences[Number($("manual-occurrence").value) || 0]);
+    updateScope();
   }
   function open(ranges = null, note = "") {
     if (!state.config || !state.result) return;
@@ -87,6 +115,8 @@ export function setupManual({ state, persist, render, notice }) {
     if (!state.saving) dialog.close();
   };
   $("manual-occurrence").onchange = selectionChanged;
+  $("manual-start").oninput = updateScope;
+  $("manual-end").oninput = updateScope;
   $("close-manual").onclick = close;
   $("cancel-manual").onclick = close;
   dialog.addEventListener("cancel", (e) => {
@@ -97,11 +127,7 @@ export function setupManual({ state, persist, render, notice }) {
     e.preventDefault();
     if (state.saving) return;
     try {
-      const all =
-        occurrences.length > 1 && $("manual-occurrence").value === "all";
-      const ranges = all
-        ? occurrences
-        : [[$("manual-start").value, $("manual-end").value]];
+      const ranges = selectedRanges();
       const items = [];
       for (const [start, end] of ranges)
         items.push(
