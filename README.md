@@ -94,7 +94,7 @@ Local backups, activity exports, screenshots and machine-specific migration scri
 npm test
 ```
 
-No npm dependencies are required. Tests cover time attribution, idle filtering, URL matching, duplicate intervals, conflicts, regex, dates, manual assignments, grouped rules and application filters. GitHub Actions runs these tests on pushes and pull requests. Browser UI checks were also performed locally; they are not part of this portable test suite.
+The runtime has no npm dependencies. Development uses pinned Playwright and Prettier versions (`npm ci`). Tests cover time attribution, idle filtering, URL matching, duplicate intervals, conflicts, regex, dates, manual assignments, grouped rules and application filters. GitHub Actions runs these tests on pushes and pull requests. Portable browser tests use synthetic data and intercept every API request; they never access real ActivityWatch settings. Run `npx playwright install chromium` once, then `npm run test:ui`. Both suites run in GitHub Actions.
 
 After editing the static files, refresh the dashboard with **Ctrl+F5**. Existing project settings are reused.
 
@@ -112,7 +112,7 @@ With no local preferences, the default destination is `%USERPROFILE%/Documents/A
 ./deploy.ps1 -Destination 'C:/path/to/runtime-folder'
 ```
 
-Point ActivityWatch's custom-static mapping at that runtime folder. The script runs tests, backs up the existing runtime files in a sibling `deployment-backups` folder, copies only the twelve runtime files, and verifies their hashes. It refuses a destination containing `.git`. It never copies development files or modifies ActivityWatch settings or recorded activity. Deployment is one-way: edit code in the repository, then deploy; edit project rules in the dashboard as usual. Refresh with Ctrl+F5 afterward.
+Point ActivityWatch's custom-static mapping at that runtime folder. The script runs tests, backs up the existing runtime files in a sibling `deployment-backups` folder, copies only the fourteen runtime files, and verifies their hashes. It refuses a destination containing `.git`. It never copies development files or modifies ActivityWatch settings or recorded activity. Deployment is one-way: edit code in the repository, then deploy; edit project rules in the dashboard as usual. Refresh with Ctrl+F5 afterward.
 
 Git commits and pushes save source changes to GitHub; deployment updates the local dashboard. These are separate actions. Personal settings and local archives belong outside the Git checkout.
 
@@ -129,3 +129,16 @@ An explicit `-Destination` overrides this file. This lets an existing installati
 ```
 
 Examples and fixtures use invented project and chat names and reserved `example.com` URLs. Keep real client names, project links and exported settings outside the repository.
+
+## Daily workflow tools
+
+- **Explain activities** lists recorded titles, applications and URLs. Expand an activity to see final allocation and the exact matching rules or manual override. **Explain time** on a category narrows this list.
+- **Preview changes** in the editor compares the draft against the current configuration. Saving any configuration change opens a before/after preview and requires **Confirm save**. The preview covers only the currently loaded period, not every historical date.
+- **Category type → Non-project / intentionally ignored** classifies personal browsing, general administration or other time outside project totals. These categories use the same rules and colors. Conflicting project/non-project rules still require review. Start from **Add to project → Create new project** in the unassigned list, then choose the category type.
+- **Archived** hides a category from cards without altering past totals or matching. **Show archived** reveals it again. Set **Automatic rules end on** separately when the category should stop matching after an inclusive local date. Manual overrides continue to apply after this cutoff.
+- **Report period** selects day, Monday-based week or calendar month. Arrows move by the selected period. **Reports & export** shows daily totals and downloads CSV or Markdown for spreadsheets or Obsidian. Report days respect ActivityWatch's start-of-day setting. Exports include archived categories, non-project time, conflicts and unassigned time; they do not contain raw titles or URLs.
+- **Settings & recovery** exports/imports project settings and restores previous versions. Each save retains up to 20 prior configurations in the local `project_tracker_history` setting. Restoring is itself a new save, so it can be undone by restoring the prior version. Imports are validated and previewed before replacing settings. Export a separate JSON file for protection against loss of the ActivityWatch database itself.
+
+These changes do not add offline time: manual assignments still classify recorded active time only. Existing projects remain project-work categories with no archive state or cutoff until you edit them.
+
+The code is formatted with `npm run format`. Browser screenshots and test results stay outside version control.

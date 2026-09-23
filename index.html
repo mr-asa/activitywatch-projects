@@ -1,16 +1,180 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Projects · ActivityWatch</title><link rel="stylesheet" href="./projects.css"></head>
-<body><main>
-<header><div><p class="eyebrow">ACTIVITYWATCH / YOUR WORK</p><h1>Projects<span class="dot"></span></h1><p class="muted">Your day, organized by what you worked on.</p></div><button id="add-project" class="primary" disabled>+ Add project</button></header>
-<section class="toolbar" aria-label="Date controls"><div class="date-controls"><button id="prev-day" aria-label="Previous day">←</button><input id="date" type="date" aria-label="Report date"><button id="next-day" aria-label="Next day">→</button><button id="today">Today</button></div><div class="tools"><span id="period-label" class="muted"></span><button id="refresh">Refresh</button><a id="full-page" target="_blank" rel="noopener">Open full page ↗</a></div></section>
-<div id="notice" role="status" class="notice" hidden></div>
-<section class="stats" aria-label="Time summary"><div><span>Project time</span><strong id="assigned">—</strong></div><div><span>Not assigned</span><strong id="unassigned">—</strong></div><div><span>Needs review</span><strong id="conflicts">—</strong></div><div class="stat-note">Only active time.<br>Background tabs and idle time are excluded.</div></section>
-<section class="timeline-panel"><div class="section-heading"><h2>Your timeline</h2><span id="range-label" class="muted"></span></div><div id="timeline" role="img" aria-label="Project activity over the selected period"></div><div id="legend"></div></section>
-<div class="section-heading"><h2>Your projects <span id="project-count"></span></h2><span id="updated" class="muted">Loading…</span></div>
-<section id="projects" class="project-grid" aria-label="Projects"></section>
-<section id="review" class="review" hidden><h2>Some time matches more than one project</h2><p>These minutes stay outside project totals until the rules are made more specific.</p><ul id="review-list"></ul></section>
-<details class="help"><summary>How do I track a new project?</summary><div class="help-content"><p><b>1. Add a project</b> and choose its color.</p><p><b>2. Add a rule.</b> Choose Window title or Browser URL, then Plain text or Regex. Use Preview matches to check the current report.</p><p><b>3. Set dates when needed.</b> Valid from and Valid through limit that individual rule to local calendar dates. End dates are inclusive. Blank dates mean no limit.</p><p>For a reused chat title, end the old project's rule before the new project's rule begins. Identical chat titles used simultaneously need manual assignment.</p><p><b>Assign interval</b> overrides automatic matching for recorded active time within that interval only. Double-click a timeline segment or use Assign time only on an unassigned activity. Remove an override under Manual assignments to restore automatic matching.</p><p>Regex uses JavaScript syntax without / delimiters. It matches original titles; plain text retains the existing [modified] handling.</p><p>Rules and colors apply on this Projects page. ActivityWatch's standard Summary uses separate categories.</p></div></details>
-<footer><span id="sources">Checking tracking sources…</span><span>Saved locally in ActivityWatch</span></footer>
-</main>
-<dialog id="editor"><form id="project-form"><div class="dialog-heading"><h2 id="editor-title">Add project</h2><button type="button" id="close-editor" class="icon-button" aria-label="Close editor">×</button></div><label for="project-name">Project name</label><input id="project-name" maxlength="80" required placeholder="e.g. DEMO"><label for="project-color">Project color</label><div class="color-row"><input id="project-color" type="color" value="#65d6b4"><div id="swatches" aria-label="Suggested colors"></div><span id="color-preview">Preview</span></div><label for="project-keywords">Window title keywords</label><p class="field-help">One per line. Matching ignores capitalization and the [modified] status marker.</p><textarea id="project-keywords" rows="3" placeholder="DEMO&#10;project-notes"></textarea><label for="project-urls">Project links</label><p class="field-help">Paste full links, one per line. Subpages are included. Links to a shared service’s homepage match the whole site.</p><textarea id="project-urls" rows="4" placeholder="https://example.com/projects/your-project"></textarea><p id="form-error" class="error" role="alert"></p><div class="dialog-actions"><button id="delete-project" type="button" class="danger" hidden>Delete project</button><span class="spacer"></span><button id="cancel-editor" type="button">Cancel</button><button id="save-project" type="submit" class="primary">Save project</button></div><div id="delete-confirm" hidden><p>Delete this project and its rules? Recorded activity will remain.</p><button type="button" id="confirm-delete" class="danger">Yes, delete project</button><button type="button" id="cancel-delete">Keep project</button></div></form></dialog>
-<script type="module" src="./projects-app.mjs"></script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Projects · ActivityWatch</title>
+    <link rel="stylesheet" href="./projects.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">ACTIVITYWATCH / YOUR WORK</p>
+          <h1>Projects<span class="dot"></span></h1>
+          <p class="muted">Your day, organized by what you worked on.</p>
+        </div>
+        <button id="add-project" class="primary" disabled>+ Add project</button>
+      </header>
+      <section class="toolbar" aria-label="Date controls">
+        <div class="date-controls">
+          <button id="prev-day" aria-label="Previous day">←</button
+          ><input id="date" type="date" aria-label="Report date" /><button
+            id="next-day"
+            aria-label="Next day"
+          >
+            →</button
+          ><button id="today">Today</button>
+        </div>
+        <div class="tools">
+          <span id="period-label" class="muted"></span
+          ><button id="refresh">Refresh</button
+          ><a id="full-page" target="_blank" rel="noopener">Open full page ↗</a>
+        </div>
+      </section>
+      <div id="notice" role="status" class="notice" hidden></div>
+      <section class="stats" aria-label="Time summary">
+        <div><span>Project time</span><strong id="assigned">—</strong></div>
+        <div><span>Not assigned</span><strong id="unassigned">—</strong></div>
+        <div><span>Needs review</span><strong id="conflicts">—</strong></div>
+        <div class="stat-note">
+          Only active time.<br />Background tabs and idle time are excluded.
+        </div>
+      </section>
+      <section class="timeline-panel">
+        <div class="section-heading">
+          <h2>Your timeline</h2>
+          <span id="range-label" class="muted"></span>
+        </div>
+        <div
+          id="timeline"
+          role="img"
+          aria-label="Project activity over the selected period"
+        ></div>
+        <div id="legend"></div>
+      </section>
+      <div class="section-heading">
+        <h2>Your projects <span id="project-count"></span></h2>
+        <span id="updated" class="muted">Loading…</span>
+      </div>
+      <section
+        id="projects"
+        class="project-grid"
+        aria-label="Projects"
+      ></section>
+      <section id="review" class="review" hidden>
+        <h2>Some time matches more than one project</h2>
+        <p>
+          These minutes stay outside project totals until the rules are made
+          more specific.
+        </p>
+        <ul id="review-list"></ul>
+      </section>
+      <details class="help">
+        <summary>How do I track a new project?</summary>
+        <div class="help-content">
+          <p><b>1. Add a project</b> and choose its color.</p>
+          <p>
+            <b>2. Add a rule.</b> Choose Window title or Browser URL, then Plain
+            text or Regex. Use Preview matches to check the current report.
+          </p>
+          <p>
+            <b>3. Set dates when needed.</b> Valid from and Valid through limit
+            that individual rule to local calendar dates. End dates are
+            inclusive. Blank dates mean no limit.
+          </p>
+          <p>
+            For a reused chat title, end the old project's rule before the new
+            project's rule begins. Identical chat titles used simultaneously
+            need manual assignment.
+          </p>
+          <p>
+            <b>Assign interval</b> overrides automatic matching for recorded
+            active time within that interval only. Double-click a timeline
+            segment or use Assign time only on an unassigned activity. Remove an
+            override under Manual assignments to restore automatic matching.
+          </p>
+          <p>
+            Regex uses JavaScript syntax without / delimiters. It matches
+            original titles; plain text retains the existing [modified]
+            handling.
+          </p>
+          <p>
+            Rules and colors apply on this Projects page. ActivityWatch's
+            standard Summary uses separate categories.
+          </p>
+        </div>
+      </details>
+      <footer>
+        <span id="sources">Checking tracking sources…</span
+        ><span>Saved locally in ActivityWatch</span>
+      </footer>
+    </main>
+    <dialog id="editor">
+      <form id="project-form">
+        <div class="dialog-heading">
+          <h2 id="editor-title">Add project</h2>
+          <button
+            type="button"
+            id="close-editor"
+            class="icon-button"
+            aria-label="Close editor"
+          >
+            ×
+          </button>
+        </div>
+        <label for="project-name">Project name</label
+        ><input
+          id="project-name"
+          maxlength="80"
+          required
+          placeholder="e.g. DEMO"
+        /><label for="project-color">Project color</label>
+        <div class="color-row">
+          <input id="project-color" type="color" value="#65d6b4" />
+          <div id="swatches" aria-label="Suggested colors"></div>
+          <span id="color-preview">Preview</span>
+        </div>
+        <label for="project-keywords">Window title keywords</label>
+        <p class="field-help">
+          One per line. Matching ignores capitalization and the [modified]
+          status marker.
+        </p>
+        <textarea
+          id="project-keywords"
+          rows="3"
+          placeholder="DEMO&#10;project-notes"
+        ></textarea
+        ><label for="project-urls">Project links</label>
+        <p class="field-help">
+          Paste full links, one per line. Subpages are included. Links to a
+          shared service’s homepage match the whole site.
+        </p>
+        <textarea
+          id="project-urls"
+          rows="4"
+          placeholder="https://example.com/projects/your-project"
+        ></textarea>
+        <p id="form-error" class="error" role="alert"></p>
+        <div class="dialog-actions">
+          <button id="delete-project" type="button" class="danger" hidden>
+            Delete project</button
+          ><span class="spacer"></span
+          ><button id="cancel-editor" type="button">Cancel</button
+          ><button id="save-project" type="submit" class="primary">
+            Save project
+          </button>
+        </div>
+        <div id="delete-confirm" hidden>
+          <p>
+            Delete this project and its rules? Recorded activity will remain.
+          </p>
+          <button type="button" id="confirm-delete" class="danger">
+            Yes, delete project</button
+          ><button type="button" id="cancel-delete">Keep project</button>
+        </div>
+      </form>
+    </dialog>
+    <script type="module" src="./projects-app.mjs"></script>
+  </body>
+</html>

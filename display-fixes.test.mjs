@@ -1,13 +1,22 @@
-import assert from 'node:assert/strict';
-import {matchTitle} from './projects-core.mjs';
-import {timeShares} from './time-charts.mjs';
-assert(matchTitle('comps.nk [modified] - Nuke','comps.nk - Nuke'));
-assert(matchTitle('COMPS.NK [MODIFIED] - Nuke','comps.nk - nuke'));
-assert(matchTitle('comps.nk - Nuke','comps.nk [modified] - Nuke'));
-assert(!matchTitle('other.nk [modified] - Nuke','comps.nk - Nuke'));
-assert(!matchTitle('comps.nk [v2] - Nuke','comps.nk - Nuke'));
-assert(!matchTitle('unrelated','[modified]'));
-const result={projects:[{id:'demo',name:'Demo',color:'#65d6b4',total:3000}],unassigned:1020,conflict:0};
-const shares=timeShares(result);assert.equal(shares.length,2);assert(Math.abs(shares[0].percent-3000/4020*100)<1e-9);assert(Math.abs(shares.reduce((n,s)=>n+s.percent,0)-100)<1e-9);
-assert.deepEqual(timeShares({projects:[],unassigned:0,conflict:0}),[]);
-console.log('PASS: Nuke status markers, unrelated titles, and exact 50m/17m proportions');
+import assert from "node:assert/strict";
+import { matchTitle } from "./projects-core.mjs";
+import { timeShares } from "./time-charts.mjs";
+assert(matchTitle("comps.nk [modified] - Nuke", "comps.nk - Nuke"));
+assert(matchTitle("COMPS.NK [MODIFIED] - Nuke", "comps.nk - nuke"));
+assert(matchTitle("comps.nk - Nuke", "comps.nk [modified] - Nuke"));
+assert(!matchTitle("other.nk [modified] - Nuke", "comps.nk - Nuke"));
+assert(!matchTitle("comps.nk [v2] - Nuke", "comps.nk - Nuke"));
+assert(!matchTitle("unrelated", "[modified]"));
+const result = {
+  projects: [{ id: "demo", name: "Demo", color: "#65d6b4", total: 3000 }],
+  unassigned: 1020,
+  conflict: 0,
+};
+const shares = timeShares(result);
+assert.equal(shares.length, 2);
+assert(Math.abs(shares[0].percent - (3000 / 4020) * 100) < 1e-9);
+assert(Math.abs(shares.reduce((n, s) => n + s.percent, 0) - 100) < 1e-9);
+assert.deepEqual(timeShares({ projects: [], unassigned: 0, conflict: 0 }), []);
+console.log(
+  "PASS: Nuke status markers, unrelated titles, and exact 50m/17m proportions",
+);

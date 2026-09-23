@@ -1,6 +1,6 @@
 {
   "name": "activitywatch-projects",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Project time tracking dashboard for ActivityWatch",
   "type": "module",
@@ -8,7 +8,13 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test projects.test.mjs display-fixes.test.mjs unassigned.test.mjs advanced-rules.test.mjs compact-rules.test.mjs",
-    "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy.ps1"
+    "test": "node --test projects.test.mjs display-fixes.test.mjs unassigned.test.mjs advanced-rules.test.mjs compact-rules.test.mjs workflow.test.mjs",
+    "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy.ps1",
+    "test:ui": "playwright test",
+    "format": "prettier --write \"*.mjs\" \"*.css\" \"*.html\" \"tests/*.mjs\""
+  },
+  "devDependencies": {
+    "@playwright/test": "1.58.2",
+    "prettier": "3.8.1"
   }
 }

@@ -26,3 +26,14 @@
 !/.github/workflows/
 !/.github/workflows/tests.yml
 !/deploy.ps1
+
+!/workflow-core.mjs
+!/workflow-ui.mjs
+!/workflow.test.mjs
+!/package-lock.json
+!/playwright.config.mjs
+!/tests/
+!/tests/**
+!/docs/
+!/docs/**
+!/.prettierrc.json
