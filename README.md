@@ -106,7 +106,7 @@ Keep the Git checkout in your development directory and serve a separate runtime
 npm run deploy
 ```
 
-The default destination is `%USERPROFILE%/Documents/ActivityWatch/okko-dashboard`. For a different destination:
+With no local preferences, the default destination is `%USERPROFILE%/Documents/ActivityWatch/projects-dashboard`. For a different destination:
 
 ```powershell
 ./deploy.ps1 -Destination 'C:/path/to/runtime-folder'
@@ -115,3 +115,17 @@ The default destination is `%USERPROFILE%/Documents/ActivityWatch/okko-dashboard
 Point ActivityWatch's custom-static mapping at that runtime folder. The script runs tests, backs up the existing runtime files in a sibling `deployment-backups` folder, copies only the twelve runtime files, and verifies their hashes. It refuses a destination containing `.git`. It never copies development files or modifies ActivityWatch settings or recorded activity. Deployment is one-way: edit code in the repository, then deploy; edit project rules in the dashboard as usual. Refresh with Ctrl+F5 afterward.
 
 Git commits and pushes save source changes to GitHub; deployment updates the local dashboard. These are separate actions. Personal settings and local archives belong outside the Git checkout.
+
+Local deployment preferences can be kept outside the checkout in `%LOCALAPPDATA%/ActivityWatchProjects/deployment.json`:
+
+```json
+{"destination": "C:/path/to/existing-runtime"}
+```
+
+An explicit `-Destination` overrides this file. This lets an existing installation keep its original runtime path without putting that path in Git. To run tests and check the resolved destination without copying files:
+
+```powershell
+./deploy.ps1 -ValidateOnly
+```
+
+Examples and fixtures use invented project and chat names and reserved `example.com` URLs. Keep real client names, project links and exported settings outside the repository.

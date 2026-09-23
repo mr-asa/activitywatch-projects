@@ -1,7 +1,17 @@
 param(
-    [string]$Destination = (Join-Path $env:USERPROFILE 'Documents\ActivityWatch\okko-dashboard')
+    [string]$Destination,
+    [switch]$ValidateOnly
 )
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($Destination)) {
+    $preferences = Join-Path $env:LOCALAPPDATA 'ActivityWatchProjects\deployment.json'
+    if (Test-Path -LiteralPath $preferences) {
+        $Destination = (Get-Content -LiteralPath $preferences -Raw -Encoding UTF8 | ConvertFrom-Json).destination
+        if ([string]::IsNullOrWhiteSpace($Destination)) { throw 'Local deployment preferences must contain a destination.' }
+    } else {
+        $Destination = Join-Path $env:USERPROFILE 'Documents\ActivityWatch\projects-dashboard'
+    }
+}
 function Get-RuntimeHash([string]$Path) {
     $sha = [Security.Cryptography.SHA256]::Create()
     try { return [BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes($Path))) }
@@ -20,6 +30,10 @@ try {
     node --test projects.test.mjs display-fixes.test.mjs unassigned.test.mjs advanced-rules.test.mjs compact-rules.test.mjs
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed; deployment cancelled.' }
 } finally { Pop-Location }
+if ($ValidateOnly) {
+    Write-Output "Validation passed. Deployment destination: $targetRoot"
+    return
+}
 $backupRoot = Join-Path (Split-Path $targetRoot -Parent) ('deployment-backups\' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
 New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $targetRoot -Force | Out-Null
