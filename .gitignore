@@ -1,0 +1,27 @@
+# Track only the reusable dashboard and synthetic tests.
+# Local settings, screenshots, old migrations and backups stay local.
+/*
+!/index.html
+!/projects.html
+!/projects.css
+!/projects-app.mjs
+!/projects-core.mjs
+!/compact-rule-editor.mjs
+!/rule-engine.mjs
+!/rule-groups.mjs
+!/manual-ui.mjs
+!/time-charts.mjs
+!/unassigned-core.mjs
+!/unassigned-ui.mjs
+!/projects.test.mjs
+!/display-fixes.test.mjs
+!/unassigned.test.mjs
+!/advanced-rules.test.mjs
+!/compact-rules.test.mjs
+!/README.md
+!/package.json
+!/.gitignore
+!/.gitattributes
+!/.github/
+!/.github/workflows/
+!/.github/workflows/tests.yml

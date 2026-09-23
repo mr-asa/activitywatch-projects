@@ -1,0 +1,13 @@
+{
+  "name": "activitywatch-projects",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project time tracking dashboard for ActivityWatch",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test projects.test.mjs display-fixes.test.mjs unassigned.test.mjs advanced-rules.test.mjs compact-rules.test.mjs"
+  }
+}
