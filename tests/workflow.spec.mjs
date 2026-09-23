@@ -15,7 +15,7 @@ const sample = () => ({
   ],
   manualAssignments: [],
 });
-async function setup(page, config = sample()) {
+async function setup(page, config = sample(), transform = () => {}) {
   const settings = { startOfDay: "04:00", project_tracker: config };
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -34,6 +34,7 @@ async function setup(page, config = sample()) {
     afk: [{ timestamp: t, duration: 180, data: { status: "not-afk" } }],
     web0: [],
   };
+  transform(fixture);
   await page.route("http://127.0.0.1:5719/**", async (route) => {
     const name =
       new URL(route.request().url()).pathname.slice(1) || "index.html";
@@ -300,4 +301,66 @@ test("unassigned rule creation and manual overrides use previews", async ({
     .filter({ hasText: "Shared task" });
   await detail.locator("summary").click();
   await expect(detail).toContainText("manual assignment");
+});
+
+test("grouped activity assigns every occurrence without assigning gaps", async ({
+  page,
+}) => {
+  const { settings } = await setup(page, sample(), (fixture) => {
+    const start = Date.parse("2026-09-22T10:00:00Z");
+    const event = (offset, duration, title) => ({
+      timestamp: new Date(start + offset * 1000).toISOString(),
+      duration,
+      data: { app: "chrome.exe", title },
+    });
+    fixture.windows.push(
+      event(180, 30, "Example tutorial"),
+      event(210, 30, "Unrelated gap"),
+      event(240, 1770, "Example tutorial"),
+    );
+    fixture.afk[0].duration = 2010;
+  });
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  const row = page
+    .locator(".unassigned-row")
+    .filter({ hasText: "Example tutorial" });
+  await expect(row).toContainText("0h 30m 0s");
+  await row
+    .getByRole("button", { name: "Assign time only", exact: true })
+    .click();
+  await expect(page.locator("#manual-occurrence")).toHaveValue("all");
+  await expect(page.locator("#manual-scope")).toContainText("0h 30m 0s");
+  await expect(page.locator("#manual-start")).toBeDisabled();
+  await page.locator("#manual-occurrence").selectOption("0");
+  await expect(page.locator("#manual-start")).toBeEnabled();
+  await expect(
+    page.getByRole("button", { name: "Assign time", exact: true }),
+  ).toBeVisible();
+  await page.locator("#manual-occurrence").selectOption("all");
+  await page
+    .getByRole("button", { name: "Assign all occurrences", exact: true })
+    .click();
+  await expect(page.locator("#change-preview")).toContainText(
+    "Project time: 0h 1m 0s → 0h 31m 0s",
+  );
+  await confirm(page);
+  await expect(page.locator("#manual-dialog")).not.toBeVisible();
+  expect(settings.project_tracker.manualAssignments).toHaveLength(2);
+  expect(
+    settings.project_tracker.manualAssignments.reduce(
+      (sum, a) => sum + (Date.parse(a.end) - Date.parse(a.start)) / 1000,
+      0,
+    ),
+  ).toBe(1800);
+  expect(settings.project_tracker.projects[0].keywords).toEqual(["Demo"]);
+  await expect(
+    page.locator(".unassigned-row").filter({ hasText: "Example tutorial" }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".unassigned-row").filter({ hasText: "Unrelated gap" }),
+  ).toContainText("0h 0m 30s");
+  await page.reload();
+  await expect(page.locator("#assigned")).toHaveText("0h 31m");
 });

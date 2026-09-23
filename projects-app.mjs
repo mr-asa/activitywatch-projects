@@ -224,7 +224,11 @@ function render() {
     ["conflicts", result.conflict],
   ]) {
     $(id).textContent = fmt(value);
-    $(id).title = precise(value);
+    $(id).title =
+      precise(value) +
+      (id === "conflicts"
+        ? " · Matches two or more categories; excluded from their totals until resolved."
+        : "");
   }
   const visibleProjects = result.projects.filter(
     (p) => !p.archived || $("show-archived")?.checked,

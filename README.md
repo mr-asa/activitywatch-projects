@@ -142,3 +142,9 @@ Examples and fixtures use invented project and chat names and reserved `example.
 These changes do not add offline time: manual assignments still classify recorded active time only. Existing projects remain project-work categories with no archive state or cutoff until you edit them.
 
 The code is formatted with `npm run format`. Browser screenshots and test results stay outside version control.
+
+### Assigning a grouped activity once
+
+An unassigned row can combine many separate visits. **Assign time only** defaults to **All occurrences in this row** when there is more than one visit, shows their combined duration, and saves each interval separately. It does not assign the gaps or create a rule for future visits. The selection covers the currently displayed report (or a selected timeline interval), not every historical occurrence. Choose an individual occurrence to edit only that interval. Already assigned portions are absent from the unassigned row, so assigning the remainder does not duplicate them.
+
+**Needs review** is active time where two or more categories match simultaneously, including non-project categories. It is excluded from category totals until the ambiguity is resolved. Multiple matching rules inside the same category do not create a conflict. Manual interval assignments override automatic conflicts.

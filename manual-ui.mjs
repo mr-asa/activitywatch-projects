@@ -14,7 +14,7 @@ export function setupManual({ state, persist, render, notice }) {
   const dialog = document.createElement("dialog");
   dialog.id = "manual-dialog";
   dialog.innerHTML =
-    '<form id="manual-form"><div class="dialog-heading"><h2>Assign a time interval</h2><button type="button" id="close-manual" aria-label="Close manual assignment">×</button></div><label for="manual-project">Project</label><select id="manual-project" required></select><div id="manual-occurrences" hidden><label for="manual-occurrence">Recorded interval</label><select id="manual-occurrence"></select><p class="field-help">Choose one occurrence, then adjust its times if needed. Other occurrences are unchanged.</p></div><label for="manual-start">From (local time)</label><input id="manual-start" type="datetime-local" step="1" required><label for="manual-end">Until (local time)</label><input id="manual-end" type="datetime-local" step="1" required><label for="manual-note">Note (optional)</label><input id="manual-note" maxlength="200" placeholder="e.g. TEAM CHAT discussion for Demo"><p class="field-help">This assigns the recorded active time in this interval, including any applications you switched to. It creates no rule for future activity.</p><p id="manual-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-manual" type="button">Cancel</button><button id="save-manual" type="submit" class="primary">Assign time</button></div></form>';
+    '<form id="manual-form"><div class="dialog-heading"><h2>Assign a time interval</h2><button type="button" id="close-manual" aria-label="Close manual assignment">×</button></div><label for="manual-project">Project</label><select id="manual-project" required></select><div id="manual-occurrences" hidden><label for="manual-occurrence">Recorded interval</label><select id="manual-occurrence"></select><p class="field-help">Assign all occurrences from this row, or choose one interval to adjust. Gaps between occurrences are not included.</p></div><p id="manual-scope" class="field-help" role="status"></p><label for="manual-start">From (local time)</label><input id="manual-start" type="datetime-local" step="1" required><label for="manual-end">Until (local time)</label><input id="manual-end" type="datetime-local" step="1" required><label for="manual-note">Note (optional)</label><input id="manual-note" maxlength="200" placeholder="e.g. TEAM CHAT discussion for Demo"><p class="field-help">All occurrences assigns only the listed intervals. A custom interval assigns recorded active time inside it, including other applications. Neither option creates a future matching rule.</p><p id="manual-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-manual" type="button">Cancel</button><button id="save-manual" type="submit" class="primary">Assign time</button></div></form>';
   document.body.append(dialog);
   function local(ms) {
     const d = new Date(ms);
@@ -25,6 +25,23 @@ export function setupManual({ state, persist, render, notice }) {
   function times(range) {
     $("manual-start").value = local(range[0]);
     $("manual-end").value = local(range[1]);
+  }
+  function selectionChanged() {
+    const all =
+      occurrences.length > 1 && $("manual-occurrence").value === "all";
+    $("manual-start").disabled = all;
+    $("manual-end").disabled = all;
+    if (!all && occurrences.length)
+      times(occurrences[Number($("manual-occurrence").value) || 0]);
+    const seconds = Math.round(
+      occurrences.reduce((sum, [start, end]) => sum + (end - start) / 1000, 0),
+    );
+    $("manual-scope").textContent = all
+      ? `All ${occurrences.length} occurrences · ${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s. Only this row's intervals in the selected report are included; gaps stay unchanged.`
+      : "One editable interval. The save preview shows the active time that will be assigned.";
+    $("save-manual").textContent = all
+      ? "Assign all occurrences"
+      : "Assign time";
   }
   function open(ranges = null, note = "") {
     if (!state.config || !state.result) return;
@@ -44,8 +61,15 @@ export function setupManual({ state, persist, render, notice }) {
           ),
       ),
     );
+    if (occurrences.length > 1) {
+      $("manual-occurrence").prepend(
+        new Option("All occurrences in this row", "all"),
+      );
+      $("manual-occurrence").value = "all";
+    }
     const end = Math.min(state.end, Date.now());
     times(occurrences[0] || [Math.max(state.start, end - 15 * 60000), end]);
+    selectionChanged();
     if (window.frameElement) {
       dialog.style.top = "16px";
       dialog.style.bottom = "auto";
@@ -62,8 +86,7 @@ export function setupManual({ state, persist, render, notice }) {
   const close = () => {
     if (!state.saving) dialog.close();
   };
-  $("manual-occurrence").onchange = () =>
-    times(occurrences[Number($("manual-occurrence").value)]);
+  $("manual-occurrence").onchange = selectionChanged;
   $("close-manual").onclick = close;
   $("cancel-manual").onclick = close;
   dialog.addEventListener("cancel", (e) => {
@@ -74,26 +97,38 @@ export function setupManual({ state, persist, render, notice }) {
     e.preventDefault();
     if (state.saving) return;
     try {
-      const item = normalizeAssignment(
-        {
-          projectId: $("manual-project").value,
-          host: state.host,
-          start: $("manual-start").value,
-          end: $("manual-end").value,
-          note: $("manual-note").value,
-        },
-        state.config.projects,
-        state.config.manualAssignments || [],
-      );
+      const all =
+        occurrences.length > 1 && $("manual-occurrence").value === "all";
+      const ranges = all
+        ? occurrences
+        : [[$("manual-start").value, $("manual-end").value]];
+      const items = [];
+      for (const [start, end] of ranges)
+        items.push(
+          normalizeAssignment(
+            {
+              projectId: $("manual-project").value,
+              host: state.host,
+              start,
+              end,
+              note: $("manual-note").value,
+            },
+            state.config.projects,
+            [...(state.config.manualAssignments || []), ...items],
+          ),
+        );
       state.saving = true;
       $("save-manual").disabled = true;
       await persist(state.config.projects, [
         ...(state.config.manualAssignments || []),
-        item,
+        ...items,
       ]);
       dialog.close();
       render();
-      notice("Time assigned. Automatic rules are unchanged.", "success");
+      notice(
+        `${items.length} interval${items.length === 1 ? "" : "s"} assigned. Automatic rules are unchanged.`,
+        "success",
+      );
     } catch (e) {
       $("manual-error").textContent = e.message;
     } finally {
