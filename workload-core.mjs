@@ -3,7 +3,13 @@ export function projectWorkload(result, projectId, startOfDay = "04:00") {
   const totals = new Map(),
     [h, m] = startOfDay.split(":").map(Number);
   for (const s of result.segments) {
-    if (s.project !== projectId) continue;
+    const included =
+      projectId === null
+        ? result.projects.some(
+            (p) => p.id === s.project && p.kind !== "non-project",
+          )
+        : s.project === projectId;
+    if (!included) continue;
     let cursor = s.start;
     while (cursor < s.end) {
       const day = new Date(cursor);
@@ -108,4 +114,30 @@ export function workloadLayers(
       : null,
     overtime: targetHours > 0 ? sum("overtime") : null,
   };
+}
+
+export function stackedWorkload(result, summary, startOfDay = "04:00") {
+  const accumulated = summary.days.map(() => 0);
+  return result.projects
+    .filter((p) => p.kind !== "non-project")
+    .map((p) => {
+      const totals = new Map(
+        projectWorkload(result, p.id, startOfDay).days.map((d) => [
+          d.date,
+          d.seconds,
+        ]),
+      );
+      return {
+        id: p.id,
+        name: p.name,
+        color: p.color,
+        days: summary.days.map((d, i) => {
+          const seconds = totals.get(d.date) || 0,
+            bottom = accumulated[i];
+          accumulated[i] += seconds;
+          return { date: d.date, seconds, bottom, top: accumulated[i] };
+        }),
+      };
+    })
+    .filter((p) => p.days.some((d) => d.seconds > 0));
 }

@@ -247,6 +247,15 @@ export function setupWorkflow({
           `${p.name}: ${time(p.before)} → ${time(p.after)} (${p.delta > 0 ? "+" : ""}${time(p.delta)})`,
         ),
       );
+    if (diff.activityChanges.length) {
+      preview.body.append(
+        node("h3", "Activity types · independent of projects"),
+      );
+      for (const t of diff.activityChanges)
+        preview.body.append(
+          node("p", `${t.name}: ${time(t.before)} → ${time(t.after)}`),
+        );
+    }
     if (!diff.changes.length)
       preview.body.append(
         node(
@@ -326,7 +335,11 @@ export function setupWorkflow({
     try {
       const validated = validateConfig(config);
       state.saving = true;
-      await persist(validated.projects, validated.manualAssignments);
+      await persist(
+        validated.projects,
+        validated.manualAssignments,
+        validated.activityTypes,
+      );
       settings.dialog.close();
       render();
       notice("Settings restored. Raw activity was not changed.", "success");
@@ -351,6 +364,7 @@ export function setupWorkflow({
             {
               version: 1,
               projects: state.config.projects,
+              activityTypes: state.config.activityTypes || [],
               manualAssignments: state.config.manualAssignments || [],
             },
             null,

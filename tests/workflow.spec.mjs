@@ -521,6 +521,7 @@ test("project workload loads full history on demand and reuses it across project
       data: { status: "not-afk" },
     }));
   });
+  await page.getByLabel("Workload project").selectOption("demo");
   expect(historyQueries).toBe(0);
   await page
     .getByRole("button", { name: "Load full history", exact: true })
@@ -589,6 +590,7 @@ test("workload line overlays use distinct units and an editable whole-day target
       data: { status: "not-afk" },
     }));
   });
+  await page.getByLabel("Workload project").selectOption("demo");
   await page
     .getByRole("button", { name: "Load full history", exact: true })
     .click();
@@ -615,4 +617,56 @@ test("workload line overlays use distinct units and an editable whole-day target
   );
   await page.locator("#workload-all").uncheck();
   await expect(page.locator('[data-series="work"]')).toHaveCount(0);
+});
+
+test("activity types remain independent and all projects stack without double counting", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.projects[0].keywords.push("Shared task");
+  cfg.projects.push({
+    id: "other",
+    name: "Other",
+    color: "#edb96d",
+    keywords: ["Personal"],
+  });
+  const { settings, errors } = await setup(page, cfg);
+  await page
+    .getByRole("button", { name: "Set up Messaging", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Save activity type", exact: true })
+    .click();
+  await expect(page.locator("#change-preview")).toContainText("Activity types");
+  await confirm(page);
+  await expect(page.locator("#activity-type-editor")).not.toBeVisible();
+  expect(settings.project_tracker.activityTypes).toHaveLength(1);
+  expect(settings.project_tracker.projects).toEqual(cfg.projects);
+  await expect(page.locator("#activity-type-totals")).toContainText(
+    "Messaging",
+  );
+  await page.getByLabel("Activity project scope").selectOption("demo");
+  await expect(page.locator("#activity-type-totals")).toContainText("50.0%");
+  await page
+    .getByRole("button", { name: "Load full history", exact: true })
+    .click();
+  await expect(page.getByLabel("Workload project")).toHaveValue("");
+  await expect(page.locator("#workload-stats")).toContainText("0.05 h");
+  await expect(page.locator("#workload-chart [data-stack]")).toHaveCount(2);
+  await page
+    .getByLabel("Workload activity type")
+    .selectOption(settings.project_tracker.activityTypes[0].id);
+  await expect(
+    page.locator('#workload-chart [data-series="activitySeconds"]'),
+  ).toHaveCount(1);
+  await expect(page.locator("#workload-stats")).toContainText("0.05 h");
+  await page.screenshot({
+    path: "test-results/activity-types-stack.png",
+    fullPage: true,
+  });
+  await page.reload();
+  await expect(page.locator("#activity-type-totals")).toContainText(
+    "Messaging",
+  );
+  expect(errors).toEqual([]);
 });

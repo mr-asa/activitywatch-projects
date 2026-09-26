@@ -163,3 +163,76 @@ assert.equal(
   ).overtime,
   null,
 );
+
+const {
+  normalizeActivityType,
+  analyzeActivityTypes,
+  scopedActivityTypes,
+  activitySegments,
+} = await import("./activity-core.mjs");
+const { stackedWorkload } = await import("./workload-core.mjs");
+const activity = normalizeActivityType({
+  id: "creation",
+  name: "Creation",
+  color: "#abcdef",
+  applications: ["maya"],
+  titles: ["Demo"],
+});
+const projectResult = analyze(data, [p], t, t + 60000);
+const typeResult = analyzeActivityTypes(data, [activity], t, t + 60000);
+assert.equal(
+  scopedActivityTypes(projectResult, typeResult, "demo").types[0].total,
+  60,
+);
+assert.equal(projectResult.assigned, 60);
+assert.equal(
+  activitySegments(projectResult, typeResult, "creation", "demo").reduce(
+    (n, s) => n + (s.end - s.start) / 1000,
+    0,
+  ),
+  60,
+);
+const typeConflict = analyzeActivityTypes(
+  data,
+  [activity, { ...activity, id: "duplicate" }],
+  t,
+  t + 60000,
+);
+assert.equal(scopedActivityTypes(projectResult, typeConflict).conflict, 60);
+assert.equal(projectResult.conflict, 0);
+assert.equal(
+  scopedActivityTypes(projectResult, typeResult, "unassigned").total,
+  0,
+);
+assert.equal(
+  analyzeActivityTypes(
+    data,
+    [{ ...activity, applications: ["telegram"] }],
+    t,
+    t + 60000,
+  ).assigned,
+  0,
+);
+assert.throws(() =>
+  normalizeActivityType({ ...activity, mode: "regex", titles: ["["] }),
+);
+assert.throws(() =>
+  normalizeActivityType({ ...activity, applications: [], titles: [] }),
+);
+assert.equal(
+  validateConfig({ ...cfg, activityTypes: [activity] }).activityTypes[0].name,
+  "Creation",
+);
+assert.throws(() =>
+  validateConfig({ ...cfg, activityTypes: [activity, activity] }),
+);
+const allSummary = projectWorkload(layeredResult, null);
+const stack = stackedWorkload(layeredResult, allSummary);
+assert.equal(
+  allSummary.total,
+  layeredResult.segments
+    .filter((s) => ["p", "q"].includes(s.project))
+    .reduce((n, s) => n + (s.end - s.start) / 1000, 0),
+);
+for (let i = 0; i < allSummary.days.length; i++)
+  assert.equal(stack.at(-1).days[i].top, allSummary.days[i].seconds);

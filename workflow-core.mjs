@@ -1,3 +1,7 @@
+import {
+  normalizeActivityType,
+  analyzeActivityTypes,
+} from "./activity-core.mjs";
 import { normalizeProject, analyze } from "./projects-core.mjs";
 import { normalizeAssignment, localDate } from "./rule-engine.mjs";
 
@@ -38,7 +42,15 @@ export function validateConfig(input) {
       normalizeAssignment(raw, projects, manualAssignments),
     );
   }
-  return { version: 1, projects, manualAssignments };
+  if (!Array.isArray(input.activityTypes ?? []))
+    throw Error("Activity types must be a list.");
+  const activityTypes = [];
+  for (const raw of input.activityTypes || []) {
+    if (activityTypes.some((t) => t.id === raw.id))
+      throw Error("Duplicate activity type ID.");
+    activityTypes.push(normalizeActivityType(raw, activityTypes));
+  }
+  return { version: 1, projects, manualAssignments, activityTypes };
 }
 export function reportBounds(date, period = "day", startOfDay = "04:00") {
   const start = new Date(date + "T00:00:00");
@@ -83,7 +95,41 @@ export function compareConfigs(
       };
     })
     .filter((p) => p.delta !== 0);
-  return { previous, next, changes };
+  let activityChanges = [];
+  if (
+    JSON.stringify(before.activityTypes || []) !==
+    JSON.stringify(after.activityTypes || [])
+  ) {
+    const oldTypes = analyzeActivityTypes(
+        data,
+        before.activityTypes || [],
+        start,
+        end,
+      ),
+      newTypes = analyzeActivityTypes(
+        data,
+        after.activityTypes || [],
+        start,
+        end,
+      );
+    for (const id of new Set(
+      [...oldTypes.projects, ...newTypes.projects].map((t) => t.id),
+    )) {
+      const a = oldTypes.projects.find((t) => t.id === id),
+        b = newTypes.projects.find((t) => t.id === id);
+      activityChanges.push({
+        name: b?.name || a.name,
+        before: a?.total || 0,
+        after: b?.total || 0,
+      });
+    }
+    activityChanges.push({
+      name: "Type needs review",
+      before: oldTypes.conflict,
+      after: newTypes.conflict,
+    });
+  }
+  return { previous, next, changes, activityChanges };
 }
 export function dailyReport(result, start, end, startOfDay = "04:00") {
   const [hours, minutes] = startOfDay.split(":").map(Number);
@@ -166,6 +212,7 @@ export function revisionHistory(
       config: {
         version: 1,
         projects: config.projects,
+        activityTypes: config.activityTypes || [],
         manualAssignments: config.manualAssignments || [],
       },
     },

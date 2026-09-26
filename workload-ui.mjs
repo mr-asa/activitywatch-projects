@@ -1,16 +1,22 @@
+import { analyzeActivityTypes, activitySegments } from "./activity-core.mjs";
 import { analyze, discoverBrowsers } from "./projects-core.mjs";
 import { stable } from "./rule-engine.mjs";
-import { projectWorkload, workloadLayers } from "./workload-core.mjs";
+import {
+  projectWorkload,
+  workloadLayers,
+  stackedWorkload,
+} from "./workload-core.mjs";
 export function setupWorkload({ state, api, resizeFrame }) {
   const section = document.createElement("section");
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · first to latest tracked day · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Load full history</button></div></div><p id="workload-status" class="muted" role="status">Load recorded history once to explore every project. This chart is independent of the report period above.</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-legend" class="workload-legend"></div><div id="workload-stats" class="workload-stats"></div><p id="workload-detail" class="workload-detail" role="status"></p><div id="workload-chart" class="workload-chart"></div><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p>';
+    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · first to latest tracked day · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Load full history</button></div></div><p id="workload-status" class="muted" role="status">Load recorded history once to explore every project. This chart is independent of the report period above.</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><label>Activity overlay<select id="workload-activity" aria-label="Workload activity type"><option value="">No activity overlay</option></select></label><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-legend" class="workload-legend"></div><div id="workload-stats" class="workload-stats"></div><p id="workload-detail" class="workload-detail" role="status"></p><div id="workload-chart" class="workload-chart"></div><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p>';
   document.getElementById("projects").previousElementSibling.before(section);
   const $ = (id) => document.getElementById(id);
   let data = null,
     result = null,
+    typeResult = null,
     key = null,
     host = null,
     busy = false,
@@ -26,8 +32,12 @@ export function setupWorkload({ state, api, resizeFrame }) {
   const chartCache = new WeakMap();
   function chart() {
     if (!result) return;
-    const project = state.config.projects.find(
-      (p) => p.id === $("workload-project").value,
+    const aggregate = $("workload-project").value === "";
+    const project = aggregate
+      ? { id: null, name: "All projects", color: "#65d6b4" }
+      : state.config.projects.find((p) => p.id === $("workload-project").value);
+    const activityType = (state.config.activityTypes || []).find(
+      (t) => t.id === $("workload-activity").value,
     );
     if (!project) {
       $("workload-stats").replaceChildren();
@@ -45,6 +55,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
       project.id,
       state.settings.startOfDay,
       target,
+      activityType?.id,
     ]);
     if (!cached.has(cacheKey)) {
       const summary = projectWorkload(
@@ -55,6 +66,29 @@ export function setupWorkload({ state, api, resizeFrame }) {
       if (cached.size >= 30) cached.clear();
       cached.set(cacheKey, {
         summary,
+        stack: aggregate
+          ? stackedWorkload(
+              result,
+              summary,
+              state.settings.startOfDay || "04:00",
+            )
+          : [],
+        activity: activityType
+          ? new Map(
+              projectWorkload(
+                {
+                  segments: activitySegments(
+                    result,
+                    typeResult,
+                    activityType.id,
+                    project.id,
+                  ),
+                },
+                activityType.id,
+                state.settings.startOfDay || "04:00",
+              ).days.map((d) => [d.date, d.seconds]),
+            )
+          : new Map(),
         layers: workloadLayers(
           result,
           summary,
@@ -63,13 +97,14 @@ export function setupWorkload({ state, api, resizeFrame }) {
         ),
       });
     }
-    const { summary, layers } = cached.get(cacheKey);
+    const { summary, layers, stack, activity } = cached.get(cacheKey);
+    for (const d of layers.days) d.activitySeconds = activity.get(d.date) || 0;
     $("workload-stats").replaceChildren();
     $("workload-chart").replaceChildren();
     $("workload-detail").textContent = "";
     const percent = (value) => (value === null ? "—" : `${value.toFixed(1)}%`);
     for (const [label, value] of [
-      ["Project total", hours(summary.total)],
+      [aggregate ? "All project time" : "Project total", hours(summary.total)],
       [
         project.kind === "non-project"
           ? "Share of recorded time"
@@ -102,10 +137,22 @@ export function setupWorkload({ state, api, resizeFrame }) {
       return;
     }
     const trend = $("workload-trend").checked,
-      all = $("workload-all").checked,
+      all = $("workload-all").checked && !aggregate,
       nonProject = $("workload-nonproject").checked;
     for (const [name, color, dashed] of [
-      [project.name, project.color, false],
+      ...(aggregate
+        ? stack.map((p) => [p.name, p.color, false])
+        : [[project.name, project.color, false]]),
+      ...(activityType
+        ? [
+            [
+              activityType.name +
+                (aggregate ? " · all active time" : " · within project"),
+              "#d6a3ee",
+              true,
+            ],
+          ]
+        : []),
       ...(trend ? [["7-day trend", "#d6e2ee", true]] : []),
       ...(all ? [["All project work", "#8495ad", false]] : []),
       ...(nonProject ? [["Non-project % · right axis", "#e6b56d", true]] : []),
@@ -136,6 +183,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
             (d) =>
               Math.max(
                 d.seconds,
+                activityType ? d.activitySeconds : 0,
                 all || target ? d.work : 0,
                 trend ? d.trend || 0 : 0,
               ) / 3600,
@@ -221,15 +269,37 @@ export function setupWorkload({ state, api, resizeFrame }) {
       }
     };
     // Straight segments retain measured day-to-day values; no decorative smoothing.
-    for (const indexes of runs) {
-      const points = indexes
-        .map((i) => `${x(i)} ${y(days[i].seconds)}`)
-        .join(" L ");
-      shape("path", {
-        d: `M ${x(indexes[0])} ${y(0)} L ${points} L ${x(indexes.at(-1))} ${y(0)} Z`,
-        fill: project.color,
-        opacity: 0.09,
-      });
+    if (aggregate) {
+      for (const layer of stack)
+        for (const indexes of runs) {
+          const upper = indexes.map((i) => `${x(i)} ${y(layer.days[i].top)}`),
+            lower = [...indexes]
+              .reverse()
+              .map((i) => `${x(i)} ${y(layer.days[i].bottom)}`);
+          shape("path", {
+            d: "M " + upper.join(" L ") + " L " + lower.join(" L ") + " Z",
+            fill: layer.color,
+            opacity: 0.28,
+            "data-stack": layer.id,
+          });
+          shape("path", {
+            d: "M " + upper.join(" L "),
+            fill: "none",
+            stroke: layer.color,
+            "stroke-width": 1.5,
+          });
+        }
+    } else {
+      for (const indexes of runs) {
+        const points = indexes
+          .map((i) => `${x(i)} ${y(days[i].seconds)}`)
+          .join(" L ");
+        shape("path", {
+          d: `M ${x(indexes[0])} ${y(0)} L ${points} L ${x(indexes.at(-1))} ${y(0)} Z`,
+          fill: project.color,
+          opacity: 0.09,
+        });
+      }
     }
     if (target) {
       const yy = y(target * 3600);
@@ -270,6 +340,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
     if (all) line("work", "#8495ad", 1.5);
     if (trend) line("trend", "#d6e2ee", 1.7, "5 5");
     line("seconds", project.color, 3);
+    if (activityType) line("activitySeconds", "#d6a3ee", 2, "7 4");
     if (nonProject) line("nonProjectPercent", "#e6b56d", 2, "3 5", true);
     days.forEach((d, i) => {
       if (d.tracked)
@@ -298,6 +369,16 @@ export function setupWorkload({ state, api, resizeFrame }) {
       $("workload-detail").textContent = d.tracked
         ? `${d.date} · ${project.name}: ${hours(d.seconds)} · all project work: ${hours(d.work)} · non-project: ${percent(d.nonProjectPercent)} · unclassified: ${hours(d.unclassified)}${target ? " · above target: " + hours(d.overtime) : ""}`
         : `${d.date} · No recorded active time — workload unknown.`;
+      if (d.tracked && aggregate)
+        $("workload-detail").textContent +=
+          " · " +
+          stack
+            .filter((p) => p.days[i].seconds > 0)
+            .map((p) => `${p.name}: ${hours(p.days[i].seconds)}`)
+            .join(" · ");
+      if (d.tracked && activityType)
+        $("workload-detail").textContent +=
+          ` · ${activityType.name}: ${hours(d.activitySeconds)} (overlay, not additional time)`;
     };
     days.forEach((d, i) => {
       const left = i === 0 ? L : (x(i - 1) + x(i)) / 2,
@@ -342,6 +423,12 @@ export function setupWorkload({ state, api, resizeFrame }) {
         host: state.host,
         manualAssignments: state.config.manualAssignments || [],
       });
+      typeResult = analyzeActivityTypes(
+        data,
+        state.config.activityTypes || [],
+        0,
+        loadedAt,
+      );
       key = nextKey;
     }
     chart();
@@ -406,6 +493,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
     "workload-all",
     "workload-nonproject",
     "workload-target",
+    "workload-activity",
   ])
     $(id).oninput = () => {
       if ($("workload-target").validity.valid) chart();
@@ -420,6 +508,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
       .join("|");
     if (section.dataset.projects !== signature) {
       $("workload-project").replaceChildren(
+        new Option("All projects", ""),
         ...projects.map(
           (p) => new Option(p.name + (p.archived ? " (archived)" : ""), p.id),
         ),
@@ -427,6 +516,21 @@ export function setupWorkload({ state, api, resizeFrame }) {
       if (projects.some((p) => p.id === selected))
         $("workload-project").value = selected;
       section.dataset.projects = signature;
+    }
+    const selectedType = $("workload-activity").value;
+    const typeSignature = JSON.stringify(
+      (state.config.activityTypes || []).map((t) => [t.id, t.name]),
+    );
+    if (section.dataset.activityTypes !== typeSignature) {
+      $("workload-activity").replaceChildren(
+        new Option("No activity overlay", ""),
+        ...(state.config.activityTypes || []).map(
+          (t) => new Option(t.name, t.id),
+        ),
+      );
+      if ((state.config.activityTypes || []).some((t) => t.id === selectedType))
+        $("workload-activity").value = selectedType;
+      section.dataset.activityTypes = typeSignature;
     }
     if (host && host !== state.host) {
       data = null;

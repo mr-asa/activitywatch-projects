@@ -112,7 +112,7 @@ With no local preferences, the default destination is `%USERPROFILE%/Documents/A
 ./deploy.ps1 -Destination 'C:/path/to/runtime-folder'
 ```
 
-Point ActivityWatch's custom-static mapping at that runtime folder. The script runs tests, backs up the existing runtime files in a sibling `deployment-backups` folder, copies only the sixteen runtime files, and verifies their hashes. It refuses a destination containing `.git`. It never copies development files or modifies ActivityWatch settings or recorded activity. Deployment is one-way: edit code in the repository, then deploy; edit project rules in the dashboard as usual. Refresh with Ctrl+F5 afterward.
+Point ActivityWatch's custom-static mapping at that runtime folder. The script runs tests, backs up the existing runtime files in a sibling `deployment-backups` folder, copies only the eighteen runtime files, and verifies their hashes. It refuses a destination containing `.git`. It never copies development files or modifies ActivityWatch settings or recorded activity. Deployment is one-way: edit code in the repository, then deploy; edit project rules in the dashboard as usual. Refresh with Ctrl+F5 afterward.
 
 Git commits and pushes save source changes to GitHub; deployment updates the local dashboard. These are separate actions. Personal settings and local archives belong outside the Git checkout.
 
@@ -170,3 +170,12 @@ The workload chart uses a project-colored line and light area fill, with optiona
 The editable daily target defaults to **8 hours**. Pink shading and the target line show recorded project work above that threshold, summed across all projects. The excess total sums daily excess; shorter days do not offset longer days. Clear the target to disable it. This is a personal workload comparison, not a legal definition of overtime; unclassified work cannot be counted until assigned.
 
 Non-project share is non-project category time divided by **all recorded active time**, including unassigned/conflicting time. It is not a procrastination score: administration or other legitimate activity may be classified as non-project. **Classified time** shows the share attributed to project/non-project categories so incomplete classification is visible. Idle time is excluded from both measures. The project-share card uses all project work as its denominator, across the displayed project-history range. Overlays apply to that range, not days outside the selected project's recorded span. Overlay controls are view-only and do not change rules or assignments.
+
+
+### Independent activity types
+
+Use **Activity types** to track Messaging, Videos, or your own categories independently of projects. **Set up Messaging** and **Set up Videos** open editable starter rules; review and save them to begin classification. Application and optional title filters match together; website rules provide alternatives and require browser tracking. Text and regex title matching are supported.
+
+The activity table shows hours and a percentage of the selected scope: all active time, one project, unassigned time, or project conflicts. A minute can belong to both a project and an activity type without adding another minute to your day. Overlapping activity types go into **Type needs review**, independently of project conflicts. Types are included in settings exports, imports, previews, and revision recovery.
+
+**Daily workload → All projects** stacks each project's daily hours in its own color, with a total line. Non-project categories and unresolved project conflicts are excluded from the stack. Select an activity overlay to compare its hours with workload: across all active time in the All projects view, or within the selected individual project. The overlay is a separate measure, never added to the project total.

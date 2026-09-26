@@ -40,3 +40,6 @@
 
 !/workload-core.mjs
 !/workload-ui.mjs
+
+!/activity-core.mjs
+!/activity-ui.mjs

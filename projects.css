@@ -1012,3 +1012,41 @@ button.share-segment:hover {
 .workload-legend span.dashed:before {
   border-top-style: dashed;
 }
+
+.activity-type-row {
+  display: grid;
+  grid-template-columns: 160px 160px 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid #34404b;
+}
+.activity-type-bar {
+  height: 6px;
+  background: #111820;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.activity-type-bar span {
+  display: block;
+  height: 100%;
+}
+.activity-rule-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin: 16px 0;
+}
+.activity-rule-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+@media (max-width: 650px) {
+  .activity-type-row {
+    grid-template-columns: 1fr auto;
+  }
+  .activity-rule-fields {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,3 +1,4 @@
+import { setupActivities } from "./activity-ui.mjs";
 import { setupWorkload } from "./workload-ui.mjs";
 import { setupWorkflow } from "./workflow-ui.mjs";
 import { reportBounds, revisionHistory } from "./workflow-core.mjs";
@@ -384,6 +385,7 @@ function render() {
   manual.update();
   workflow.update();
   workload.update();
+  activities.update();
   resizeFrame();
 }
 function setColor(color) {
@@ -421,9 +423,11 @@ function closeEditor() {
 async function persist(
   projects,
   manualAssignments = state.config.manualAssignments || [],
+  activityTypes = state.config.activityTypes || [],
 ) {
   const candidate = {
     ...state.config,
+    activityTypes,
     projects,
     manualAssignments: manualAssignments.filter((a) =>
       projects.some((p) => p.id === a.projectId),
@@ -440,6 +444,7 @@ async function persist(
     ...state.config,
     version: 1,
     revision: crypto.randomUUID(),
+    activityTypes,
     projects,
     manualAssignments: manualAssignments.filter((a) =>
       projects.some((p) => p.id === a.projectId),
@@ -601,6 +606,13 @@ previewButton.onclick = () => {
   }
 };
 $("save-project").before(previewButton);
+const activities = setupActivities({
+  state,
+  persist,
+  render,
+  notice,
+  resizeFrame,
+});
 const workload = setupWorkload({ state, api, resizeFrame });
 const inspector = setupUnassigned({
   state,
