@@ -919,3 +919,64 @@ button.share-segment:hover {
     padding: 14px;
   }
 }
+
+.workload-controls {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.workload-controls label {
+  margin: 0;
+  min-width: 180px;
+}
+.workload-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin: 22px 0;
+}
+.workload-stats span {
+  display: block;
+  color: #9dadbd;
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+.workload-stats strong {
+  font-size: 22px;
+  font-weight: 600;
+  color: #dfeaf3;
+}
+.workload-detail {
+  min-height: 24px;
+  color: #65d6b4;
+  font-variant-numeric: tabular-nums;
+}
+.workload-chart {
+  overflow-x: auto;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #182029, #12191f);
+  scrollbar-color: #566171 #182029;
+}
+.workload-chart svg {
+  width: 100%;
+  height: 280px;
+  display: block;
+}
+.workload-chart [role="button"] {
+  cursor: crosshair;
+  outline: none;
+}
+.workload-chart [role="button"]:focus {
+  fill: #ffffff12;
+  stroke: #90a8bc;
+}
+@media (max-width: 700px) {
+  .workload-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workload-panel > .section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+}

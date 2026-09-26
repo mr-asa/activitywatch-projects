@@ -1,3 +1,4 @@
+import { setupWorkload } from "./workload-ui.mjs";
 import { setupWorkflow } from "./workflow-ui.mjs";
 import { reportBounds, revisionHistory } from "./workflow-core.mjs";
 import { projectRules, stable } from "./rule-engine.mjs";
@@ -382,6 +383,7 @@ function render() {
   inspector.update();
   manual.update();
   workflow.update();
+  workload.update();
   resizeFrame();
 }
 function setColor(color) {
@@ -599,6 +601,7 @@ previewButton.onclick = () => {
   }
 };
 $("save-project").before(previewButton);
+const workload = setupWorkload({ state, api, resizeFrame });
 const inspector = setupUnassigned({
   state,
   persist,

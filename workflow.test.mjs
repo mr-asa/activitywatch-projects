@@ -89,3 +89,38 @@ assert.equal(revisionHistory(Array(20).fill({}), cfg).length, 20);
 console.log(
   "PASS: evidence, categories, archive boundaries, manual precedence, previews, report splitting, exports, import validation, revisions",
 );
+
+// Workload uses report-day boundaries, fills zero-work days, and excludes other allocations.
+const { projectWorkload } = await import("./workload-core.mjs");
+const at = (s) => +new Date(s);
+const workload = projectWorkload(
+  {
+    segments: [
+      {
+        project: "demo",
+        start: at("2026-09-20T03:59:30"),
+        end: at("2026-09-20T04:00:30"),
+      },
+      {
+        project: "demo",
+        start: at("2026-09-22T10:00:00"),
+        end: at("2026-09-22T12:00:00"),
+      },
+      {
+        project: "conflict",
+        start: at("2026-09-22T12:00:00"),
+        end: at("2026-09-22T13:00:00"),
+      },
+    ],
+  },
+  "demo",
+);
+assert.deepEqual(
+  workload.days.map((d) => d.seconds),
+  [30, 30, 0, 7200],
+);
+assert.equal(workload.total, 7260);
+assert.equal(workload.activeDays, 3);
+assert.equal(workload.average, 2420);
+assert.equal(workload.busiest.date, "2026-09-22");
+assert.equal(projectWorkload({ segments: [] }, "demo").days.length, 0);

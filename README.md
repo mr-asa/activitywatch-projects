@@ -112,7 +112,7 @@ With no local preferences, the default destination is `%USERPROFILE%/Documents/A
 ./deploy.ps1 -Destination 'C:/path/to/runtime-folder'
 ```
 
-Point ActivityWatch's custom-static mapping at that runtime folder. The script runs tests, backs up the existing runtime files in a sibling `deployment-backups` folder, copies only the fourteen runtime files, and verifies their hashes. It refuses a destination containing `.git`. It never copies development files or modifies ActivityWatch settings or recorded activity. Deployment is one-way: edit code in the repository, then deploy; edit project rules in the dashboard as usual. Refresh with Ctrl+F5 afterward.
+Point ActivityWatch's custom-static mapping at that runtime folder. The script runs tests, backs up the existing runtime files in a sibling `deployment-backups` folder, copies only the sixteen runtime files, and verifies their hashes. It refuses a destination containing `.git`. It never copies development files or modifies ActivityWatch settings or recorded activity. Deployment is one-way: edit code in the repository, then deploy; edit project rules in the dashboard as usual. Refresh with Ctrl+F5 afterward.
 
 Git commits and pushes save source changes to GitHub; deployment updates the local dashboard. These are separate actions. Personal settings and local archives belong outside the Git checkout.
 
@@ -154,3 +154,11 @@ In **All occurrences** mode, **From** starts at the earliest occurrence and **Un
 ### Responsiveness
 
 The interval engine uses sorted interval lookups and indexes browser events by time. Unassigned rows are cached for the current immutable report snapshot; data refreshes and configuration changes invalidate the cache. Lists show 50 rows initially, with **Show more** and search over all rows. Assignment explanations are computed when a row is expanded. Save previews reuse the current report as their baseline; they still calculate the proposed configuration. No AI model or inference service is used.
+
+### Project workload chart
+
+**Daily workload** shows daily tracked hours from the selected project's first attributed report day to its latest, including zero-work days in between. Select a project and click **Load full history**. Total hours, active days, average hours per active day, and the busiest day summarize its recorded workload. Hover, focus or tap a day for its date and hours; longer histories scroll horizontally.
+
+This chart uses all available window, AFK and connected browser history for the current device, independently of the report period above. It applies all current project rules, conflict handling and manual overrides, including archived categories. Dates use ActivityWatch's start-of-day setting. Missing recording and days with no assigned time both appear as zero; the chart cannot reconstruct work recorded before tracking began or after data was deleted.
+
+History is loaded only on request and kept in memory. Switching projects reuses it. Rule changes recalculate the cached history; **Refresh history** fetches newer events. Very large histories may take longer on first load. No personal data is written to the repository.

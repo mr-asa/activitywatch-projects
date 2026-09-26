@@ -37,3 +37,6 @@
 !/docs/
 !/docs/**
 !/.prettierrc.json
+
+!/workload-core.mjs
+!/workload-ui.mjs

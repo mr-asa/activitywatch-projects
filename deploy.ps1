@@ -21,7 +21,7 @@ $sourceRoot = [IO.Path]::GetFullPath($PSScriptRoot)
 $targetRoot = [IO.Path]::GetFullPath($Destination)
 if ($sourceRoot.TrimEnd('\') -eq $targetRoot.TrimEnd('\')) { throw 'Choose a deployment folder different from the repository.' }
 if (Test-Path -LiteralPath (Join-Path $targetRoot '.git')) { throw 'Destination contains a Git repository; use a runtime-only folder.' }
-$files = @('index.html','projects.html','projects.css','projects-app.mjs','projects-core.mjs','compact-rule-editor.mjs','rule-engine.mjs','rule-groups.mjs','manual-ui.mjs','time-charts.mjs','unassigned-core.mjs','unassigned-ui.mjs','workflow-core.mjs','workflow-ui.mjs')
+$files = @('index.html','projects.html','projects.css','projects-app.mjs','projects-core.mjs','compact-rule-editor.mjs','rule-engine.mjs','rule-groups.mjs','manual-ui.mjs','time-charts.mjs','unassigned-core.mjs','unassigned-ui.mjs','workflow-core.mjs','workflow-ui.mjs','workload-core.mjs','workload-ui.mjs')
 foreach ($file in $files) {
     if (!(Test-Path -LiteralPath (Join-Path $sourceRoot $file) -PathType Leaf)) { throw "Missing source file: $file" }
 }

@@ -458,9 +458,7 @@ test("all-occurrence limits clip boundary visits, preserve gaps and subsecond pr
   ).toContainText("0h 1m 0s");
 });
 
-test("unassigned pagination keeps all rows searchable", async ({
-  page,
-}) => {
+test("unassigned pagination keeps all rows searchable", async ({ page }) => {
   await setup(page, sample(), (fixture) => {
     const base = Date.parse("2026-09-22T11:00:00Z");
     for (let i = 0; i < 75; i++)
@@ -486,4 +484,66 @@ test("unassigned pagination keeps all rows searchable", async ({
     .getByRole("button", { name: /Show more/ })
     .click();
   await expect(page.locator(".unassigned-row")).toHaveCount(77);
+});
+
+test("project workload loads full history on demand and reuses it across projects", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.projects.push({
+    id: "other",
+    name: "Other",
+    color: "#8ca8ff",
+    keywords: ["Other"],
+    urls: [],
+  });
+  let historyQueries = 0;
+  page.on("request", (r) => {
+    if (
+      r.url().endsWith("/query/") &&
+      r.postDataJSON()?.timeperiods?.[0]?.startsWith("1970")
+    )
+      historyQueries++;
+  });
+  await setup(page, cfg, (fixture) => {
+    const event = (date, title, duration) => ({
+      timestamp: date,
+      duration,
+      data: { app: "maya.exe", title },
+    });
+    fixture.windows = [
+      event("2026-09-20T10:00:00Z", "Demo", 3600),
+      event("2026-09-22T10:00:00Z", "Demo", 7200),
+      event("2026-09-22T13:00:00Z", "Other", 1800),
+    ];
+    fixture.afk = fixture.windows.map((e) => ({
+      ...e,
+      data: { status: "not-afk" },
+    }));
+  });
+  expect(historyQueries).toBe(0);
+  await page
+    .getByRole("button", { name: "Load full history", exact: true })
+    .click();
+  await expect(page.locator("#workload-status")).toContainText(
+    "Full recorded history",
+  );
+  expect(historyQueries).toBe(1);
+  await expect(page.locator("#workload-stats")).toContainText("3 h");
+  await expect(page.locator('#workload-chart [role="button"]')).toHaveCount(3);
+  await page.locator('#workload-chart [role="button"]').nth(1).focus();
+  await expect(page.locator("#workload-detail")).toContainText("0 h");
+  await page.screenshot({
+    path: "test-results/workload-desktop.png",
+    fullPage: true,
+  });
+  await page.getByLabel("Workload project").selectOption("other");
+  await expect(page.locator("#workload-stats")).toContainText("0.5 h");
+  expect(historyQueries).toBe(1);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
 });
