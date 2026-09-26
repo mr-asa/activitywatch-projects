@@ -11,7 +11,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · selected range · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Refresh chart</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-legend" class="workload-legend"></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p></details>';
+    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · selected range · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Refresh chart</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p></details>';
   document.getElementById("projects").previousElementSibling.before(section);
   const $ = (id) => document.getElementById(id);
   let data = null,
@@ -190,7 +190,6 @@ export function setupWorkload({ state, api, resizeFrame }) {
       card.append(el("span", label), el("strong", value));
       $("workload-stats").append(card);
     }
-    $("workload-legend").replaceChildren();
     if (!summary.days.length) {
       $("workload-detail").textContent =
         "No time attributed to this project in recorded history.";
@@ -200,25 +199,6 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const trend = $("workload-trend").checked,
       all = $("workload-all").checked && !aggregate,
       nonProject = $("workload-nonproject").checked;
-    for (const [name, color, dashed] of [
-      ...(aggregate
-        ? stack.map((p) => [p.name, p.color, false])
-        : [[project.name, project.color, false]]),
-      ...activities.map((t) => [
-        t.name + (aggregate ? " · all active time" : " · within project"),
-        t.color,
-        true,
-      ]),
-      ...(trend ? [["7-day trend", "#d6e2ee", true]] : []),
-      ...(all ? [["All project work", "#8495ad", false]] : []),
-      ...(nonProject ? [["Non-project % · right axis", "#e6b56d", true]] : []),
-      ...(target ? [["Above target · all projects", "#ec8b98", false]] : []),
-    ]) {
-      const item = el("span", name);
-      item.style.setProperty("--legend-color", color);
-      item.className = dashed ? "dashed" : "";
-      $("workload-legend").append(item);
-    }
     const days = layers.days,
       ns = "http://www.w3.org/2000/svg",
       svg = document.createElementNS(ns, "svg");
@@ -436,32 +416,48 @@ export function setupWorkload({ state, api, resizeFrame }) {
       cursor.setAttribute("opacity", 0.5);
       const detail = $("workload-detail");
       detail.replaceChildren();
-      const metric = (text, color) => {
+      const metric = (text, color, style = "solid") => {
         const item = el("span", text);
-        if (color) item.style.color = color;
+        if (color) {
+          item.style.color = color;
+          item.style.setProperty("--legend-color", color);
+          item.className = "detail-series " + style;
+        }
         detail.append(item);
       };
+      const value = (seconds) => (d.tracked ? hours(seconds) : "—");
       metric(d.date);
-      if (!d.tracked) {
-        metric("No recorded active time — workload unknown.");
-        return;
-      }
-      metric(
-        `${project.name}: ${hours(d.seconds)}`,
-        aggregate ? null : project.color,
-      );
-      if (!aggregate) metric(`all project work: ${hours(d.work)}`, "#8495ad");
-      metric(`non-project: ${percent(d.nonProjectPercent)}`, "#e6b56d");
-      metric(`unclassified: ${hours(d.unclassified)}`);
-      if (target) metric(`above target: ${hours(d.overtime)}`, "#ec8b98");
+      if (!d.tracked) metric("No recorded active time — workload unknown.");
+      metric(`${project.name}: ${value(d.seconds)}`, project.color);
       if (aggregate)
-        for (const p of stack.filter((p) => p.days[i].seconds > 0))
-          metric(`${p.name}: ${hours(p.days[i].seconds)}`, p.color);
+        for (const p of stack)
+          metric(`${p.name}: ${value(p.days[i].seconds)}`, p.color);
       for (const activity of activities)
         metric(
-          `${activity.name}: ${hours(d[activity.field])} (activity)`,
+          `${activity.name}: ${value(d[activity.field])} · ${aggregate ? "all active time" : "within project"}`,
           activity.color,
+          "dashed",
         );
+      if (trend)
+        metric(
+          `7-day trend: ${d.tracked && d.trend !== null ? hours(d.trend) : "—"}`,
+          "#d6e2ee",
+          "dashed",
+        );
+      if (all) metric(`All project work: ${value(d.work)}`, "#8495ad");
+      if (nonProject)
+        metric(
+          `Non-project · right axis: ${d.tracked ? percent(d.nonProjectPercent) : "—"}`,
+          "#e6b56d",
+          "dotted",
+        );
+      if (target)
+        metric(
+          `Above target · all projects: ${value(d.overtime)}`,
+          "#ec8b98",
+          "area",
+        );
+      metric(`Unclassified: ${value(d.unclassified)}`);
     };
     days.forEach((d, i) => {
       const left = i === 0 ? L : (x(i - 1) + x(i)) / 2,

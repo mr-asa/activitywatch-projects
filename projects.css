@@ -1220,3 +1220,24 @@ input[type="radio"],
   max-width: 100%;
   overflow-wrap: anywhere;
 }
+
+.workload-detail .detail-series::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  margin: 0 6px 3px 0;
+  border-top: 3px solid var(--legend-color);
+}
+.workload-detail .dashed::before {
+  border-top-style: dashed;
+}
+.workload-detail .dotted::before {
+  border-top-style: dotted;
+}
+.workload-detail .area::before {
+  border: 0;
+  height: 8px;
+  background: var(--legend-color);
+  opacity: 0.5;
+  margin-bottom: 0;
+}
