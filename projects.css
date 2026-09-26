@@ -1205,3 +1205,9 @@ input[type="radio"],
     grid-template-columns: 1fr auto;
   }
 }
+
+.activity-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}

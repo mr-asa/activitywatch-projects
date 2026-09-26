@@ -655,12 +655,15 @@ test("activity types remain independent and all projects stack without double co
   await expect(page.getByLabel("Workload project")).toHaveValue("");
   await expect(page.locator("#workload-stats")).toContainText("0.05 h");
   await expect(page.locator("#workload-chart [data-stack]")).toHaveCount(2);
-  await page
-    .getByLabel("Workload activity type")
-    .selectOption(settings.project_tracker.activityTypes[0].id);
+  await expect(page.getByLabel("Show activity Messaging")).toBeChecked();
   await expect(
-    page.locator('#workload-chart [data-series="activitySeconds"]'),
+    page.locator('#workload-chart [data-series="activity-0"]'),
   ).toHaveCount(1);
+  await page.getByLabel("Show activity Messaging").uncheck();
+  await expect(
+    page.locator('#workload-chart [data-series="activity-0"]'),
+  ).toHaveCount(0);
+  await page.getByLabel("Show activity Messaging").check();
   await expect(page.locator("#workload-stats")).toContainText("0.05 h");
   await page.screenshot({
     path: "test-results/activity-types-stack.png",
