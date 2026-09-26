@@ -560,10 +560,15 @@ label {
 }
 .activity-action {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: center;
   flex-shrink: 0;
+}
+.activity-action > strong {
+  margin-right: 6px;
 }
 .activity-action > strong {
   font-variant-numeric: tabular-nums;
@@ -597,7 +602,7 @@ select {
   .activity-action {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
   .unassigned-tools {
     flex-wrap: wrap;
@@ -1240,4 +1245,15 @@ input[type="radio"],
   background: var(--legend-color);
   opacity: 0.5;
   margin-bottom: 0;
+}
+
+@media (max-width: 950px) {
+  .unassigned-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .activity-action {
+    flex-shrink: 1;
+    justify-content: flex-start;
+  }
 }
