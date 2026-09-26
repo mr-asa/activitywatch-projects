@@ -632,8 +632,10 @@ test("activity types remain independent and all projects stack without double co
   });
   const { settings, errors } = await setup(page, cfg);
   await page
-    .getByRole("button", { name: "Set up Messaging", exact: true })
+    .getByRole("button", { name: "+ Add activity type", exact: true })
     .click();
+  await page.locator("#activity-name").fill("Messaging");
+  await page.locator("#activity-apps").fill("Telegram");
   await page
     .getByRole("button", { name: "Save activity type", exact: true })
     .click();

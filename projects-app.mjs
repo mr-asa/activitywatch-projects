@@ -614,6 +614,16 @@ const activities = setupActivities({
   resizeFrame,
 });
 const workload = setupWorkload({ state, api, resizeFrame });
+// Keep related summaries side by side while charts retain the full canvas.
+const summaryGrid = document.createElement("div");
+summaryGrid.className = "summary-grid";
+const projectBlock = document.createElement("section");
+projectBlock.className = "project-block";
+const projectHeading = $("projects").previousElementSibling;
+projectHeading.before(summaryGrid);
+projectBlock.append(projectHeading, $("projects"));
+summaryGrid.append(projectBlock, $("activity-types-panel"));
+
 const inspector = setupUnassigned({
   state,
   persist,

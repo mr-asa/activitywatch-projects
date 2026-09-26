@@ -174,7 +174,7 @@ Non-project share is non-project category time divided by **all recorded active 
 
 ### Independent activity types
 
-Use **Activity types** to track Messaging, Videos, or your own categories independently of projects. **Set up Messaging** and **Set up Videos** open editable starter rules; review and save them to begin classification. Application and optional title filters match together; website rules provide alternatives and require browser tracking. Text and regex title matching are supported.
+Use **Activity types** to track Messaging, Videos, or your own categories independently of projects. Use **+ Add activity type** to define your own name and matching rules; no preset categories are imposed. Application and optional title filters match together; website rules provide alternatives and require browser tracking. Text and regex title matching are supported.
 
 The activity table shows hours and a percentage of the selected scope: all active time, one project, unassigned time, or project conflicts. A minute can belong to both a project and an activity type without adding another minute to your day. Overlapping activity types go into **Type needs review**, independently of project conflicts. Types are included in settings exports, imports, previews, and revision recovery.
 

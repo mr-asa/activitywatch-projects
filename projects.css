@@ -21,9 +21,9 @@ body {
     sans-serif;
 }
 main {
-  max-width: 1240px;
+  max-width: 1600px;
   margin: auto;
-  padding: 32px;
+  padding: 16px;
 }
 header,
 .toolbar,
@@ -40,7 +40,7 @@ footer {
   gap: 12px;
 }
 header {
-  margin-bottom: 24px;
+  margin-bottom: 12px;
 }
 .eyebrow {
   font-size: 10px;
@@ -50,7 +50,7 @@ header {
   margin: 0 0 8px;
 }
 h1 {
-  font-size: 34px;
+  font-size: 24px;
   letter-spacing: -1px;
   margin: 0;
   display: flex;
@@ -92,7 +92,7 @@ button {
   background: #29313b;
   color: var(--text);
   border-radius: 8px;
-  padding: 9px 13px;
+  padding: 5px 9px;
   cursor: pointer;
   white-space: nowrap;
 }
@@ -133,7 +133,7 @@ button:disabled {
 .toolbar {
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  padding: 16px 0;
+  padding: 8px 0;
   flex-wrap: wrap;
 }
 a {
@@ -150,7 +150,7 @@ textarea {
   background: #171c23;
   border-radius: 7px;
   color: var(--text);
-  padding: 10px;
+  padding: 6px 8px;
   width: 100%;
 }
 input[type="date"] {
@@ -170,8 +170,8 @@ textarea {
 .stats {
   display: grid;
   grid-template-columns: 1.2fr 1fr 1fr 1.4fr;
-  gap: 24px;
-  margin: 24px 0;
+  gap: 12px;
+  margin: 12px 0;
 }
 .stats > div {
   border-right: 1px solid var(--border);
@@ -185,7 +185,7 @@ textarea {
 }
 .stats strong {
   display: block;
-  font-size: 29px;
+  font-size: 23px;
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   letter-spacing: -0.6px;
@@ -200,14 +200,14 @@ textarea {
   align-self: center;
 }
 .timeline-panel {
-  padding: 18px 20px;
+  padding: 12px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
-  margin-bottom: 26px;
+  margin-bottom: 12px;
 }
 .section-heading {
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 .section-heading h2 span {
   color: var(--muted);
@@ -256,7 +256,7 @@ textarea {
   border: 1px solid var(--border);
   border-top: 3px solid var(--project-color);
   border-radius: 12px;
-  padding: 20px;
+  padding: 12px;
   min-width: 0;
 }
 .card-heading {
@@ -276,10 +276,10 @@ textarea {
   background: transparent;
 }
 .project-total {
-  font-size: 33px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -1px;
-  margin: 12px 0 5px;
+  margin: 6px 0 3px;
   color: var(--project-color);
 }
 .breakdown {
@@ -294,7 +294,7 @@ textarea {
   border-radius: 4px;
   height: 5px;
   overflow: hidden;
-  margin: 18px 0;
+  margin: 8px 0;
 }
 .progress > div {
   background: var(--project-color);
@@ -323,7 +323,7 @@ summary {
   grid-column: 1/-1;
   border: 1px dashed var(--border);
   border-radius: 12px;
-  padding: 32px;
+  padding: 16px;
   text-align: center;
   color: var(--muted);
 }
@@ -353,7 +353,7 @@ summary {
   padding-left: 20px;
 }
 .help {
-  margin-top: 24px;
+  margin-top: 12px;
   border-top: 1px solid var(--border);
   padding-top: 16px;
 }
@@ -363,7 +363,7 @@ summary {
   color: var(--muted);
 }
 footer {
-  margin-top: 24px;
+  margin-top: 12px;
   color: #7f8b99;
   font-size: 11px;
   flex-wrap: wrap;
@@ -450,7 +450,7 @@ label {
     align-items: flex-start;
   }
   h1 {
-    font-size: 29px;
+    font-size: 23px;
   }
   header .primary {
     font-size: 12px;
@@ -524,7 +524,7 @@ label {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
-  padding: 20px;
+  padding: 12px;
   margin: 0 0 26px;
   scroll-margin-top: 80px;
 }
@@ -542,7 +542,7 @@ label {
   justify-content: space-between;
   gap: 20px;
   border-top: 1px solid var(--border);
-  padding: 16px 0;
+  padding: 8px 0;
 }
 .activity-description {
   min-width: 0;
@@ -584,7 +584,7 @@ select {
   background: #171c23;
   border: 1px solid #46505e;
   border-radius: 7px;
-  padding: 10px;
+  padding: 6px 8px;
 }
 @media (max-width: 650px) {
   .unassigned-panel {
@@ -644,7 +644,7 @@ button.share-segment:hover {
 }
 
 #rule-editor {
-  margin-top: 24px;
+  margin-top: 12px;
 }
 .rule-row {
   border: 1px solid var(--border);
@@ -720,7 +720,7 @@ button.share-segment:hover {
 #editor .project-meta {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(300px, 1fr);
-  gap: 24px;
+  gap: 12px;
 }
 #editor .project-meta label {
   margin-top: 0;
@@ -814,7 +814,7 @@ button.share-segment:hover {
   z-index: 2;
 }
 #editor .dialog-heading {
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 @media (max-width: 750px) {
   #editor {
@@ -852,7 +852,7 @@ button.share-segment:hover {
   gap: 12px;
   flex-wrap: wrap;
   align-items: center;
-  margin: 16px 0;
+  margin: 8px 0;
 }
 .workflow-toolbar label,
 .workflow-fields label {
@@ -900,7 +900,7 @@ button.share-segment:hover {
 }
 .table-scroll th,
 .table-scroll td {
-  padding: 10px;
+  padding: 6px 8px;
   border-bottom: 1px solid #37414c;
   text-align: left;
 }
@@ -934,7 +934,7 @@ button.share-segment:hover {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-  margin: 22px 0;
+  margin: 10px 0;
 }
 .workload-stats span {
   display: block;
@@ -986,7 +986,7 @@ button.share-segment:hover {
   align-items: center;
   gap: 20px;
   flex-wrap: wrap;
-  margin: 20px 0;
+  margin: 10px 0;
 }
 .workload-overlays label {
   margin: 0;
@@ -1018,7 +1018,7 @@ button.share-segment:hover {
   grid-template-columns: 160px 160px 1fr auto;
   gap: 16px;
   align-items: center;
-  padding: 14px 0;
+  padding: 8px 0;
   border-bottom: 1px solid #34404b;
 }
 .activity-type-bar {
@@ -1035,7 +1035,7 @@ button.share-segment:hover {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  margin: 16px 0;
+  margin: 8px 0;
 }
 .activity-rule-fields label {
   display: flex;
@@ -1048,5 +1048,160 @@ button.share-segment:hover {
   }
   .activity-rule-fields {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Dashboard composition: full-width charts, adjacent compact summaries. */
+header .eyebrow,
+header .muted {
+  display: none;
+}
+.toolbar {
+  border: 0;
+  padding: 4px 0;
+}
+.workflow-toolbar {
+  gap: 8px;
+  margin: 6px 0;
+}
+.stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  gap: 12px;
+}
+.stats strong {
+  font-size: 23px;
+  margin-top: 0;
+}
+.stat-note {
+  max-width: 190px;
+}
+.section-heading {
+  gap: 8px;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.summary-grid > * {
+  min-width: 0;
+}
+.project-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 8px;
+}
+.project-card {
+  border-radius: 8px;
+}
+.card-heading h3 {
+  font-size: 15px;
+}
+.project-card details {
+  margin-top: 6px;
+}
+.activity-type-row {
+  grid-template-columns: minmax(80px, 1fr) auto minmax(40px, 1fr) auto;
+  gap: 8px;
+  font-size: 12px;
+}
+.activity-type-row strong {
+  overflow-wrap: anywhere;
+}
+.workload-controls label {
+  min-width: 0;
+}
+.workload-controls select,
+.workload-overlays select {
+  width: auto;
+  max-width: 240px;
+  display: inline-block;
+  margin-left: 6px;
+}
+.workload-overlays {
+  gap: 10px 16px;
+}
+.workload-overlays input[type="number"] {
+  width: 72px;
+  margin-left: 6px;
+}
+.workload-legend {
+  gap: 8px 16px;
+}
+.workload-stats span {
+  margin-bottom: 2px;
+}
+.workload-stats strong {
+  font-size: 19px;
+}
+.workload-panel .eyebrow {
+  display: none;
+}
+.panel-help {
+  margin: 6px 0;
+  font-size: 11px;
+}
+.panel-help .field-help {
+  margin: 6px 0;
+}
+#share-bar,
+#timeline {
+  height: 22px;
+}
+#legend,
+#share-legend {
+  margin-top: 6px;
+  gap: 6px 14px;
+}
+.help {
+  border: 0;
+  padding-top: 0;
+}
+footer {
+  margin-top: 12px;
+}
+button,
+select,
+input {
+  min-height: 30px;
+}
+input[type="checkbox"],
+input[type="radio"],
+.swatch,
+.share-segment {
+  min-height: 0;
+}
+@media (max-width: 950px) {
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .stat-note {
+    grid-column: 1 / -1;
+    max-width: none;
+  }
+  .stat-note br {
+    display: none;
+  }
+}
+@media (max-width: 650px) {
+  main {
+    padding: 12px;
+  }
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .section-heading {
+    flex-wrap: wrap;
+  }
+  .workload-controls select,
+  .workload-overlays select {
+    max-width: 200px;
+  }
+  .activity-type-row {
+    grid-template-columns: 1fr auto;
   }
 }
