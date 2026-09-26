@@ -11,7 +11,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · first to latest tracked day · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Load full history</button></div></div><p id="workload-status" class="muted" role="status">Load recorded history once to explore every project. This chart is independent of the report period above.</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-legend" class="workload-legend"></div><div id="workload-stats" class="workload-stats"></div><p id="workload-detail" class="workload-detail" role="status"></p><div id="workload-chart" class="workload-chart"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p></details>';
+    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · first to latest tracked day · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Load full history</button></div></div><p id="workload-status" class="muted" role="status">Load recorded history once to explore every project. This chart is independent of the report period above.</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-legend" class="workload-legend"></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p></details>';
   document.getElementById("projects").previousElementSibling.before(section);
   const $ = (id) => document.getElementById(id);
   let data = null,
@@ -396,20 +396,34 @@ export function setupWorkload({ state, api, resizeFrame }) {
       cursor.setAttribute("x1", x(i));
       cursor.setAttribute("x2", x(i));
       cursor.setAttribute("opacity", 0.5);
-      $("workload-detail").textContent = d.tracked
-        ? `${d.date} · ${project.name}: ${hours(d.seconds)} · all project work: ${hours(d.work)} · non-project: ${percent(d.nonProjectPercent)} · unclassified: ${hours(d.unclassified)}${target ? " · above target: " + hours(d.overtime) : ""}`
-        : `${d.date} · No recorded active time — workload unknown.`;
-      if (d.tracked && aggregate)
-        $("workload-detail").textContent +=
-          " · " +
-          stack
-            .filter((p) => p.days[i].seconds > 0)
-            .map((p) => `${p.name}: ${hours(p.days[i].seconds)}`)
-            .join(" · ");
-      if (d.tracked)
-        for (const activity of activities)
-          $("workload-detail").textContent +=
-            ` · ${activity.name}: ${hours(d[activity.field])} (activity)`;
+      const detail = $("workload-detail");
+      detail.replaceChildren();
+      const metric = (text, color) => {
+        const item = el("span", text);
+        if (color) item.style.color = color;
+        detail.append(item);
+      };
+      metric(d.date);
+      if (!d.tracked) {
+        metric("No recorded active time — workload unknown.");
+        return;
+      }
+      metric(
+        `${project.name}: ${hours(d.seconds)}`,
+        aggregate ? null : project.color,
+      );
+      if (!aggregate) metric(`all project work: ${hours(d.work)}`, "#8495ad");
+      metric(`non-project: ${percent(d.nonProjectPercent)}`, "#e6b56d");
+      metric(`unclassified: ${hours(d.unclassified)}`);
+      if (target) metric(`above target: ${hours(d.overtime)}`, "#ec8b98");
+      if (aggregate)
+        for (const p of stack.filter((p) => p.days[i].seconds > 0))
+          metric(`${p.name}: ${hours(p.days[i].seconds)}`, p.color);
+      for (const activity of activities)
+        metric(
+          `${activity.name}: ${hours(d[activity.field])} (activity)`,
+          activity.color,
+        );
     };
     days.forEach((d, i) => {
       const left = i === 0 ? L : (x(i - 1) + x(i)) / 2,

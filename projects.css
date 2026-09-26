@@ -949,7 +949,11 @@ button.share-segment:hover {
 }
 .workload-detail {
   min-height: 24px;
-  color: #65d6b4;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 8px;
   font-variant-numeric: tabular-nums;
 }
 .workload-chart {
@@ -1210,4 +1214,9 @@ input[type="radio"],
   display: flex;
   flex-wrap: wrap;
   gap: 8px 14px;
+}
+
+.workload-detail > span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
