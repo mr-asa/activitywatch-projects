@@ -1,6 +1,6 @@
 import { projectRules, normalizeRule } from "./rule-engine.mjs";
 import { unassignedActivities, suggestedRule } from "./unassigned-core.mjs";
-import { normalizeProject } from "./projects-core.mjs";
+import { merge, normalizeProject } from "./projects-core.mjs";
 export function setupUnassigned({
   state,
   persist,
@@ -126,6 +126,29 @@ export function setupUnassigned({
       manual.textContent = "Assign time only";
       manual.onclick = () => state.manualUI.open(row.ranges, row.title);
       action.append(manual);
+      if (row.app) {
+        const application = node("button", "", "Assign app time…");
+        application.title =
+          "Assign all unassigned time from this application in the selected report period, across every title.";
+        application.onclick = () => {
+          const appRows = unassignedActivities(
+            state.data,
+            state.result,
+            null,
+          ).filter(
+            (r) => r.app.toLocaleLowerCase() === row.app.toLocaleLowerCase(),
+          );
+          const ranges = merge(appRows.flatMap((r) => r.ranges));
+          if (!ranges.length) return;
+          state.manualUI.open(
+            ranges,
+            `${row.app} · unassigned application time`,
+            `${row.app} · all titles · entire selected report period · unassigned time only`,
+          );
+        };
+        action.append(application);
+      }
+
       card.append(content, action);
       $("unassigned-rows").append(card);
     }

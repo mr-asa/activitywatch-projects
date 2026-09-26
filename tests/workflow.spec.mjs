@@ -691,3 +691,34 @@ test("activity types remain independent and all projects stack without double co
   );
   expect(errors).toEqual([]);
 });
+
+test("assign application time collects all titles despite search and preserves assigned time", async ({
+  page,
+}) => {
+  const { settings } = await setup(page, sample(), (fixture) => {
+    fixture.windows[1].data = { app: "maya.exe", title: "Unassigned scene A" };
+    fixture.windows[2].data = { app: "maya.exe", title: "Unassigned scene B" };
+  });
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  await page.locator("#unassigned-search").fill("scene A");
+  await page
+    .getByRole("button", { name: "Assign app time…", exact: true })
+    .click();
+  await expect(page.locator("#manual-source")).toContainText("all titles");
+  await expect(page.locator("#manual-source")).toContainText(
+    "unassigned time only",
+  );
+  await page.locator("#save-manual").click();
+  await confirm(page);
+  await expect(page.locator("#manual-dialog")).not.toBeVisible();
+  await expect
+    .poll(() =>
+      settings.project_tracker.manualAssignments?.reduce(
+        (n, a) => n + (Date.parse(a.end) - Date.parse(a.start)) / 1000,
+        0,
+      ),
+    )
+    .toBe(120);
+});

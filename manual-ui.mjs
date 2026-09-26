@@ -15,7 +15,7 @@ export function setupManual({ state, persist, render, notice }) {
   const dialog = document.createElement("dialog");
   dialog.id = "manual-dialog";
   dialog.innerHTML =
-    '<form id="manual-form"><div class="dialog-heading"><h2>Assign a time interval</h2><button type="button" id="close-manual" aria-label="Close manual assignment">×</button></div><label for="manual-project">Project</label><select id="manual-project" required></select><div id="manual-occurrences" hidden><label for="manual-occurrence">Recorded interval</label><select id="manual-occurrence"></select><p class="field-help">Assign all occurrences from this row, or choose one interval to adjust. From and Until trim the selected occurrences. Gaps are not included. Dropdown durations use seconds (s), including fractions, before trimming.</p></div><p id="manual-scope" class="field-help" role="status"></p><label for="manual-start">From (local time)</label><input id="manual-start" type="datetime-local" step="0.001" required><label for="manual-end">Until (local time)</label><input id="manual-end" type="datetime-local" step="0.001" required><label for="manual-note">Note (optional)</label><input id="manual-note" maxlength="200" placeholder="e.g. TEAM CHAT discussion for Demo"><p class="field-help">All occurrences assigns only the listed intervals. A custom interval assigns recorded active time inside it, including other applications. Neither option creates a future matching rule.</p><p id="manual-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-manual" type="button">Cancel</button><button id="save-manual" type="submit" class="primary">Assign time</button></div></form>';
+    '<form id="manual-form"><div class="dialog-heading"><h2>Assign a time interval</h2><button type="button" id="close-manual" aria-label="Close manual assignment">×</button></div><p id="manual-source" class="field-help" hidden></p><label for="manual-project">Project</label><select id="manual-project" required></select><div id="manual-occurrences" hidden><label for="manual-occurrence">Recorded interval</label><select id="manual-occurrence"></select><p class="field-help">Assign all occurrences from this selection, or choose one interval to adjust. From and Until trim the selected occurrences. Gaps are not included. Dropdown durations use seconds (s), including fractions, before trimming.</p></div><p id="manual-scope" class="field-help" role="status"></p><label for="manual-start">From (local time)</label><input id="manual-start" type="datetime-local" step="0.001" required><label for="manual-end">Until (local time)</label><input id="manual-end" type="datetime-local" step="0.001" required><label for="manual-note">Note (optional)</label><input id="manual-note" maxlength="200" placeholder="e.g. TEAM CHAT discussion for Demo"><p class="field-help">All occurrences assigns only the listed intervals. A custom interval assigns recorded active time inside it, including other applications. Neither option creates a future matching rule.</p><p id="manual-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-manual" type="button">Cancel</button><button id="save-manual" type="submit" class="primary">Assign time</button></div></form>';
   document.body.append(dialog);
   function local(ms) {
     const d = new Date(ms);
@@ -54,7 +54,7 @@ export function setupManual({ state, persist, render, notice }) {
         ranges.reduce((sum, [start, end]) => sum + (end - start) / 1000, 0),
       );
       $("manual-scope").textContent = isAll()
-        ? `${ranges.length} of ${occurrences.length} occurrences selected · ${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s. From and Until trim this row only; gaps stay unchanged.`
+        ? `${ranges.length} of ${occurrences.length} occurrences selected · ${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m ${seconds % 60}s. From and Until trim this selection only; gaps stay unchanged.`
         : "One editable interval. The save preview shows the active time that will be assigned.";
       $("manual-error").textContent = "";
       $("save-manual").disabled = state.saving;
@@ -73,9 +73,11 @@ export function setupManual({ state, persist, render, notice }) {
       times(occurrences[Number($("manual-occurrence").value) || 0]);
     updateScope();
   }
-  function open(ranges = null, note = "") {
+  function open(ranges = null, note = "", source = "") {
     if (!state.config || !state.result) return;
     occurrences = ranges?.length ? ranges : [];
+    $("manual-source").textContent = source;
+    $("manual-source").hidden = !source;
     $("manual-project").replaceChildren(
       ...state.config.projects.map((p) => new Option(p.name, p.id)),
     );
@@ -94,7 +96,7 @@ export function setupManual({ state, persist, render, notice }) {
     if (occurrences.length > 1) {
       $("manual-occurrence").prepend(
         new Option(
-          `All occurrences in this row · ${secondsLabel(occurrences.reduce((sum, [start, end]) => sum + end - start, 0))}`,
+          `All occurrences in this selection · ${secondsLabel(occurrences.reduce((sum, [start, end]) => sum + end - start, 0))}`,
           "all",
         ),
       );
