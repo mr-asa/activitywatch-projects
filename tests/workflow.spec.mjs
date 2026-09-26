@@ -16,6 +16,7 @@ const sample = () => ({
   manualAssignments: [],
 });
 async function setup(page, config = sample(), transform = () => {}) {
+  await page.clock.setFixedTime(new Date("2026-09-27T12:00:00Z"));
   const settings = { startOfDay: "04:00", project_tracker: config };
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -486,7 +487,7 @@ test("unassigned pagination keeps all rows searchable", async ({ page }) => {
   await expect(page.locator(".unassigned-row")).toHaveCount(77);
 });
 
-test("project workload loads full history on demand and reuses it across projects", async ({
+test("workload loads current week automatically and reuses range across projects", async ({
   page,
 }) => {
   const cfg = sample();
@@ -501,7 +502,7 @@ test("project workload loads full history on demand and reuses it across project
   page.on("request", (r) => {
     if (
       r.url().endsWith("/query/") &&
-      r.postDataJSON()?.timeperiods?.[0]?.startsWith("1970")
+      r.postDataJSON()?.timeperiods?.[0]?.startsWith("2026-09-21")
     )
       historyQueries++;
   });
@@ -522,17 +523,21 @@ test("project workload loads full history on demand and reuses it across project
     }));
   });
   await page.getByLabel("Workload project").selectOption("demo");
-  expect(historyQueries).toBe(0);
+  await expect(page.locator("#workload-status")).toContainText(
+    "selected range loaded",
+  );
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-09-21");
+  await expect(page.getByLabel("Chart through")).toHaveValue("2026-09-27");
   await page
-    .getByRole("button", { name: "Load full history", exact: true })
+    .getByRole("button", { name: "Refresh chart", exact: true })
     .click();
   await expect(page.locator("#workload-status")).toContainText(
-    "Full recorded history",
+    "selected range loaded",
   );
-  expect(historyQueries).toBe(1);
-  await expect(page.locator("#workload-stats")).toContainText("3 h");
-  await expect(page.locator('#workload-chart [role="button"]')).toHaveCount(3);
-  await page.locator('#workload-chart [role="button"]').nth(1).focus();
+  expect(historyQueries).toBe(2);
+  await expect(page.locator("#workload-stats")).toContainText("2 h");
+  await expect(page.locator('#workload-chart [role="button"]')).toHaveCount(7);
+  await page.locator('#workload-chart [role="button"]').nth(0).focus();
   await expect(page.locator("#workload-detail")).toContainText(
     "No recorded active time",
   );
@@ -542,7 +547,16 @@ test("project workload loads full history on demand and reuses it across project
   });
   await page.getByLabel("Workload project").selectOption("other");
   await expect(page.locator("#workload-stats")).toContainText("0.5 h");
-  expect(historyQueries).toBe(1);
+  expect(historyQueries).toBe(2);
+  await page
+    .getByLabel("Workload range", { exact: true })
+    .selectOption("month");
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-09-01");
+  await expect(page.getByLabel("Chart through")).toHaveValue("2026-09-30");
+  await expect(page.locator('#workload-chart [role="button"]')).toHaveCount(30);
+  await page.getByLabel("Next chart period").click();
+  await expect(page.getByLabel("Chart through")).toHaveValue("2026-10-31");
+  await expect(page.locator('#workload-chart [role="button"]')).toHaveCount(31);
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(
@@ -590,12 +604,14 @@ test("workload line overlays use distinct units and an editable whole-day target
       data: { status: "not-afk" },
     }));
   });
+  await page.getByLabel("Chart from").fill("2026-09-18");
+  await page.getByLabel("Chart through").fill("2026-09-24");
   await page.getByLabel("Workload project").selectOption("demo");
   await page
-    .getByRole("button", { name: "Load full history", exact: true })
+    .getByRole("button", { name: "Refresh chart", exact: true })
     .click();
   await expect(page.locator("#workload-status")).toContainText(
-    "Full recorded history",
+    "selected range loaded",
   );
   await expect(
     page.locator('#workload-chart path[data-series="seconds"]'),
@@ -650,7 +666,7 @@ test("activity types remain independent and all projects stack without double co
   await page.getByLabel("Activity project scope").selectOption("demo");
   await expect(page.locator("#activity-type-totals")).toContainText("50.0%");
   await page
-    .getByRole("button", { name: "Load full history", exact: true })
+    .getByRole("button", { name: "Refresh chart", exact: true })
     .click();
   await expect(page.getByLabel("Workload project")).toHaveValue("");
   await expect(page.locator("#workload-stats")).toContainText("0.05 h");

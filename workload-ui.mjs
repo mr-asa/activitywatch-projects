@@ -1,6 +1,6 @@
 import { analyzeActivityTypes, activitySegments } from "./activity-core.mjs";
 import { analyze, discoverBrowsers } from "./projects-core.mjs";
-import { stable } from "./rule-engine.mjs";
+import { localDate, stable } from "./rule-engine.mjs";
 import {
   projectWorkload,
   workloadLayers,
@@ -11,7 +11,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · first to latest tracked day · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Load full history</button></div></div><p id="workload-status" class="muted" role="status">Load recorded history once to explore every project. This chart is independent of the report period above.</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-legend" class="workload-legend"></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p></details>';
+    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · selected range · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Refresh chart</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-legend" class="workload-legend"></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p></details>';
   document.getElementById("projects").previousElementSibling.before(section);
   const $ = (id) => document.getElementById(id);
   let data = null,
@@ -21,6 +21,9 @@ export function setupWorkload({ state, api, resizeFrame }) {
     host = null,
     busy = false,
     loadedAt = null,
+    loadedFrom = null,
+    loadedThrough = null,
+    requestedHost = null,
     token = 0;
   const hours = (s) =>
     `${(s / 3600).toLocaleString(undefined, { maximumFractionDigits: 2 })} h`;
@@ -29,6 +32,56 @@ export function setupWorkload({ state, api, resizeFrame }) {
     if (text !== undefined) node.textContent = text;
     return node;
   };
+  function preset(mode, anchor = new Date()) {
+    const first = new Date(anchor);
+    first.setHours(12, 0, 0, 0);
+    if (mode === "week")
+      first.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+    else first.setDate(1);
+    const last = new Date(first);
+    if (mode === "week") last.setDate(last.getDate() + 6);
+    else {
+      last.setMonth(last.getMonth() + 1);
+      last.setDate(0);
+    }
+    $("workload-from").value = localDate(first);
+    $("workload-through").value = localDate(last);
+  }
+  preset("week");
+  $("workload-range").onchange = () => {
+    if ($("workload-range").value !== "custom") {
+      preset($("workload-range").value);
+      load();
+    }
+  };
+  for (const id of ["workload-from", "workload-through"])
+    $(id).onchange = () => {
+      $("workload-range").value = "custom";
+    };
+  $("workload-apply").onclick = () => load();
+  for (const [id, direction] of [
+    ["workload-prev", -1],
+    ["workload-next", 1],
+  ])
+    $(id).onclick = () => {
+      const mode = $("workload-range").value;
+      const first = new Date($("workload-from").value + "T12:00:00");
+      if (mode === "month") first.setMonth(first.getMonth() + direction);
+      else if (mode === "week") first.setDate(first.getDate() + 7 * direction);
+      else {
+        const last = new Date($("workload-through").value + "T12:00:00");
+        const span = Math.round((last - first) / 86400000) + 1;
+        if (!Number.isFinite(span) || span < 1) return;
+        first.setDate(first.getDate() + span * direction);
+        last.setDate(last.getDate() + span * direction);
+        $("workload-from").value = localDate(first);
+        $("workload-through").value = localDate(last);
+        load();
+        return;
+      }
+      preset(mode, first);
+      load();
+    };
   const hiddenTypes = new Set();
   const chartCache = new WeakMap();
   function chart() {
@@ -72,30 +125,15 @@ export function setupWorkload({ state, api, resizeFrame }) {
           dayStart,
         ),
       }));
-      // Include activity-only days even when no project has attributed time.
-      const calendar = projectWorkload(
-        {
-          segments: [
-            ...result.segments.filter((s) =>
-              project.id === null
-                ? result.projects.some(
-                    (p) => p.id === s.project && p.kind !== "non-project",
-                  )
-                : s.project === project.id,
-            ),
-            ...activityTypes.flatMap((t) =>
-              activitySegments(result, typeResult, t.id, project.id),
-            ),
-          ].map((s) => ({ ...s, project: "calendar" })),
-        },
-        "calendar",
-        dayStart,
-      );
       const totals = new Map(summary.days.map((d) => [d.date, d.seconds]));
-      summary.days = calendar.days.map((d) => ({
-        date: d.date,
-        seconds: totals.get(d.date) || 0,
-      }));
+      summary.days = [];
+      const date = new Date(loadedFrom);
+      date.setHours(12, 0, 0, 0);
+      while (localDate(date) <= loadedThrough) {
+        const day = localDate(date);
+        summary.days.push({ date: day, seconds: totals.get(day) || 0 });
+        date.setDate(date.getDate() + 1);
+      }
       if (cached.size >= 30) cached.clear();
       cached.set(cacheKey, {
         summary,
@@ -464,14 +502,14 @@ export function setupWorkload({ state, api, resizeFrame }) {
     if (!data) return;
     const nextKey = stable({ config: state.config, host: state.host });
     if (nextKey !== key) {
-      result = analyze(data, state.config.projects, 0, loadedAt, {
+      result = analyze(data, state.config.projects, loadedFrom, loadedAt, {
         host: state.host,
         manualAssignments: state.config.manualAssignments || [],
       });
       typeResult = analyzeActivityTypes(
         data,
         state.config.activityTypes || [],
-        0,
+        loadedFrom,
         loadedAt,
       );
       key = nextKey;
@@ -479,13 +517,29 @@ export function setupWorkload({ state, api, resizeFrame }) {
     chart();
   }
   async function load() {
-    if (busy || !state.config) return;
+    if (!state.config) return;
+    const from = $("workload-from").value,
+      through = $("workload-through").value;
+    if (!from || !through || from > through) {
+      $("workload-status").textContent =
+        "Choose a valid range: From must be on or before Through.";
+      return;
+    }
+    const start = new Date(
+      from + "T" + (state.settings.startOfDay || "04:00") + ":00",
+    );
+    const finish = new Date(
+      through + "T" + (state.settings.startOfDay || "04:00") + ":00",
+    );
+    finish.setDate(finish.getDate() + 1);
+
     busy = true;
     const run = ++token;
     const device = state.host;
+    requestedHost = device;
     $("workload-load").disabled = true;
     $("workload-status").textContent =
-      "Loading recorded history… Other panels remain available.";
+      "Loading selected range… Other panels remain available.";
     try {
       const { sources, warnings } = discoverBrowsers(state.buckets, device);
       const ids = {
@@ -503,11 +557,11 @@ export function setupWorkload({ state, api, resizeFrame }) {
           sources.map((s, i) => `, "web${i}": web${i}`).join("") +
           "};",
       );
-      const end = Date.now();
+      const end = +finish;
       const raw = (
         await api("query/", {
           timeperiods: [
-            new Date(0).toISOString() + "/" + new Date(end).toISOString(),
+            start.toISOString() + "/" + new Date(end).toISOString(),
           ],
           query,
         })
@@ -519,15 +573,19 @@ export function setupWorkload({ state, api, resizeFrame }) {
         browsers: sources.map((s, i) => ({ ...s, events: raw["web" + i] })),
       };
       host = device;
-      loadedAt = end;
+      loadedAt = Math.min(end, Date.now());
+      loadedFrom = +start;
+      loadedThrough = through;
       key = null;
       calculate();
       $("workload-status").textContent =
-        `Full recorded history · updated ${new Date(end).toLocaleString()}. Includes archived projects and manual assignments. ${warnings.join(" ")}`;
-      $("workload-load").textContent = "Refresh history";
+        `${from} – ${through} · selected range loaded. ${warnings.join(" ")}`;
+      $("workload-load").textContent = "Refresh chart";
     } catch (e) {
-      $("workload-status").textContent = "Could not load history: " + e.message;
+      if (run === token)
+        $("workload-status").textContent = "Could not load range: " + e.message;
     } finally {
+      if (run !== token) return;
       busy = false;
       $("workload-load").disabled = false;
       resizeFrame();
@@ -596,6 +654,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
     }
     $("workload-load").disabled =
       busy || (!projects.length && !(state.config.activityTypes || []).length);
+    if (requestedHost !== state.host) load();
     if (data && stable({ config: state.config, host: state.host }) !== key)
       calculate();
   }
