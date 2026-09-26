@@ -124,3 +124,42 @@ assert.equal(workload.activeDays, 3);
 assert.equal(workload.average, 2420);
 assert.equal(workload.busiest.date, "2026-09-22");
 assert.equal(projectWorkload({ segments: [] }, "demo").days.length, 0);
+
+const { workloadLayers } = await import("./workload-core.mjs");
+const base = +new Date("2026-09-22T04:00:00");
+const layeredResult = {
+  projects: [
+    { id: "p", kind: "project" },
+    { id: "q", kind: "project" },
+    { id: "rest", kind: "non-project" },
+  ],
+  segments: [
+    { project: "p", start: base, end: base + 6 * 3600000 },
+    { project: "q", start: base + 6 * 3600000, end: base + 9 * 3600000 },
+    { project: "rest", start: base + 9 * 3600000, end: base + 10 * 3600000 },
+    {
+      project: "unassigned",
+      start: base + 10 * 3600000,
+      end: base + 11 * 3600000,
+    },
+  ],
+};
+const layers = workloadLayers(
+  layeredResult,
+  projectWorkload(layeredResult, "p"),
+  "04:00",
+  8,
+);
+assert.equal(layers.overtime, 3600);
+assert.equal(layers.days[0].work, 32400);
+assert.equal(layers.nonProjectPercent, 100 / 11);
+assert.equal(layers.coverage, 1000 / 11);
+assert.equal(
+  workloadLayers(
+    layeredResult,
+    projectWorkload(layeredResult, "p"),
+    "04:00",
+    null,
+  ).overtime,
+  null,
+);

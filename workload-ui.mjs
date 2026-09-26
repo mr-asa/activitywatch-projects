@@ -1,12 +1,12 @@
 import { analyze, discoverBrowsers } from "./projects-core.mjs";
 import { stable } from "./rule-engine.mjs";
-import { projectWorkload } from "./workload-core.mjs";
+import { projectWorkload, workloadLayers } from "./workload-core.mjs";
 export function setupWorkload({ state, api, resizeFrame }) {
   const section = document.createElement("section");
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · first to latest tracked day · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Load full history</button></div></div><p id="workload-status" class="muted" role="status">Load recorded history once to explore every project. This chart is independent of the report period above.</p><div id="workload-stats" class="workload-stats"></div><p id="workload-detail" class="workload-detail" role="status"></p><div id="workload-chart" class="workload-chart"></div><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Zero-height days have no attributed time; they may also contain gaps in recording.</p>';
+    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · first to latest tracked day · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Load full history</button></div></div><p id="workload-status" class="muted" role="status">Load recorded history once to explore every project. This chart is independent of the report period above.</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-legend" class="workload-legend"></div><div id="workload-stats" class="workload-stats"></div><p id="workload-detail" class="workload-detail" role="status"></p><div id="workload-chart" class="workload-chart"></div><p class="field-help">Active time only. Unresolved conflicts are excluded. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The trend averages recorded days within the last seven calendar days.</p>';
   document.getElementById("projects").previousElementSibling.before(section);
   const $ = (id) => document.getElementById(id);
   let data = null,
@@ -23,6 +23,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
     if (text !== undefined) node.textContent = text;
     return node;
   };
+  const chartCache = new WeakMap();
   function chart() {
     if (!result) return;
     const project = state.config.projects.find(
@@ -34,56 +35,124 @@ export function setupWorkload({ state, api, resizeFrame }) {
       $("workload-detail").textContent = "No projects to display.";
       return;
     }
-    const summary = projectWorkload(
-      result,
+    const target = Number($("workload-target").value) || null;
+    let cached = chartCache.get(result);
+    if (!cached) {
+      cached = new Map();
+      chartCache.set(result, cached);
+    }
+    const cacheKey = JSON.stringify([
       project.id,
-      state.settings.startOfDay || "04:00",
-    );
+      state.settings.startOfDay,
+      target,
+    ]);
+    if (!cached.has(cacheKey)) {
+      const summary = projectWorkload(
+        result,
+        project.id,
+        state.settings.startOfDay || "04:00",
+      );
+      if (cached.size >= 30) cached.clear();
+      cached.set(cacheKey, {
+        summary,
+        layers: workloadLayers(
+          result,
+          summary,
+          state.settings.startOfDay || "04:00",
+          target,
+        ),
+      });
+    }
+    const { summary, layers } = cached.get(cacheKey);
     $("workload-stats").replaceChildren();
     $("workload-chart").replaceChildren();
     $("workload-detail").textContent = "";
+    const percent = (value) => (value === null ? "—" : `${value.toFixed(1)}%`);
     for (const [label, value] of [
-      ["Total time", hours(summary.total)],
-      ["Active days", String(summary.activeDays)],
-      ["Average / active day", hours(summary.average)],
+      ["Project total", hours(summary.total)],
       [
-        "Busiest day",
-        summary.busiest
-          ? `${hours(summary.busiest.seconds)} · ${summary.busiest.date}`
+        project.kind === "non-project"
+          ? "Share of recorded time"
+          : "Share of project work",
+        (project.kind === "non-project" ? layers.tracked : layers.work)
+          ? percent(
+              (summary.total /
+                (project.kind === "non-project"
+                  ? layers.tracked
+                  : layers.work)) *
+                100,
+            )
           : "—",
       ],
+      [
+        "Above daily target",
+        layers.overtime === null ? "Set a target" : hours(layers.overtime),
+      ],
+      ["Classified time", percent(layers.coverage)],
     ]) {
       const card = el("div");
       card.append(el("span", label), el("strong", value));
       $("workload-stats").append(card);
     }
+    $("workload-legend").replaceChildren();
     if (!summary.days.length) {
       $("workload-detail").textContent =
         "No time attributed to this project in recorded history.";
       resizeFrame();
       return;
     }
-    const ns = "http://www.w3.org/2000/svg",
+    const trend = $("workload-trend").checked,
+      all = $("workload-all").checked,
+      nonProject = $("workload-nonproject").checked;
+    for (const [name, color, dashed] of [
+      [project.name, project.color, false],
+      ...(trend ? [["7-day trend", "#d6e2ee", true]] : []),
+      ...(all ? [["All project work", "#8495ad", false]] : []),
+      ...(nonProject ? [["Non-project % · right axis", "#e6b56d", true]] : []),
+      ...(target ? [["Above target · all projects", "#ec8b98", false]] : []),
+    ]) {
+      const item = el("span", name);
+      item.style.setProperty("--legend-color", color);
+      item.className = dashed ? "dashed" : "";
+      $("workload-legend").append(item);
+    }
+    const days = layers.days,
+      ns = "http://www.w3.org/2000/svg",
       svg = document.createElementNS(ns, "svg");
-    const W = Math.max(900, summary.days.length * 12 + 80),
-      H = 280,
+    const W = Math.max(900, days.length * 14 + 110),
+      H = 330,
       L = 58,
-      R = 20,
-      T = 28,
-      B = 48,
-      plotW = W - L - R,
-      plotH = H - T - B,
-      max = Math.max(
-        1,
-        Math.ceil(Math.max(...summary.days.map((d) => d.seconds)) / 3600),
+      R = nonProject ? 58 : 24,
+      T = 24,
+      B = 46,
+      PW = W - L - R,
+      PH = H - T - B;
+    const max = Math.max(
+      1,
+      Math.ceil(
+        Math.max(
+          target || 0,
+          ...days.map(
+            (d) =>
+              Math.max(
+                d.seconds,
+                all || target ? d.work : 0,
+                trend ? d.trend || 0 : 0,
+              ) / 3600,
+          ),
+        ) * 1.12,
       ),
-      step = plotW / summary.days.length;
+    );
+    const x = (i) =>
+        L + (days.length === 1 ? PW / 2 : (i * PW) / (days.length - 1)),
+      y = (s) => T + PH - (s / 3600 / max) * PH;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.style.minWidth = W + "px";
+    svg.style.height = H + "px";
     svg.setAttribute("role", "group");
     svg.setAttribute(
       "aria-label",
-      `${project.name}: daily tracked hours from ${summary.days[0].date} to ${summary.days.at(-1).date}`,
+      `${project.name}: daily workload lines, ${days[0].date} to ${days.at(-1).date}`,
     );
     const shape = (tag, attrs, text) => {
       const n = document.createElementNS(ns, tag);
@@ -93,77 +162,176 @@ export function setupWorkload({ state, api, resizeFrame }) {
       return n;
     };
     for (let i = 0; i <= 4; i++) {
-      const y = T + plotH - (i * plotH) / 4;
+      const yy = T + PH - (i * PH) / 4;
       shape("line", {
         x1: L,
-        y1: y,
+        y1: yy,
         x2: W - R,
-        y2: y,
+        y2: yy,
         stroke: "#34404b",
-        "stroke-dasharray": "3 5",
+        "stroke-dasharray": "3 6",
       });
       shape(
         "text",
         {
           x: L - 10,
-          y: y + 4,
+          y: yy + 4,
           "text-anchor": "end",
           fill: "#a7b5c4",
           "font-size": 12,
         },
         `${((max * i) / 4).toLocaleString(undefined, { maximumFractionDigits: 2 })} h`,
       );
+      if (nonProject)
+        shape(
+          "text",
+          { x: W - R + 10, y: yy + 4, fill: "#e6b56d", "font-size": 12 },
+          `${i * 25}%`,
+        );
     }
-    const describe = (d) => {
-      $("workload-detail").textContent =
-        `${d.date} · ${hours(d.seconds)} tracked${d === summary.busiest ? " · busiest day" : ""}`;
+    const runs = [];
+    let run = [];
+    days.forEach((d, i) => {
+      if (d.tracked) {
+        run.push(i);
+      } else if (run.length) {
+        runs.push(run);
+        run = [];
+      }
+    });
+    if (run.length) runs.push(run);
+    const line = (field, color, width, dash = "", pct = false) => {
+      for (const indexes of runs) {
+        const path = indexes
+          .map(
+            (i, k) =>
+              `${k ? "L" : "M"} ${x(i)} ${pct ? T + PH - (days[i][field] / 100) * PH : y(days[i][field])}`,
+          )
+          .join(" ");
+        shape("path", {
+          d: path,
+          fill: "none",
+          stroke: color,
+          "stroke-width": width,
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round",
+          "stroke-dasharray": dash,
+          "data-series": field,
+        });
+      }
     };
-    for (let i = 0; i < summary.days.length; i++) {
-      const d = summary.days[i],
-        height = (d.seconds / 3600 / max) * plotH,
-        x = L + i * step,
-        width = Math.max(1, step * 0.68);
-      shape("rect", {
-        x: x + (step - width) / 2,
-        y: T + plotH - height,
-        width,
-        height,
-        rx: Math.min(4, width / 3),
+    // Straight segments retain measured day-to-day values; no decorative smoothing.
+    for (const indexes of runs) {
+      const points = indexes
+        .map((i) => `${x(i)} ${y(days[i].seconds)}`)
+        .join(" L ");
+      shape("path", {
+        d: `M ${x(indexes[0])} ${y(0)} L ${points} L ${x(indexes.at(-1))} ${y(0)} Z`,
         fill: project.color,
-        opacity: d === summary.busiest ? 1 : 0.78,
+        opacity: 0.09,
       });
-      const hit = shape("rect", {
-        x,
+    }
+    if (target) {
+      const yy = y(target * 3600);
+      shape("line", {
+        x1: L,
+        y1: yy,
+        x2: W - R,
+        y2: yy,
+        stroke: "#ec8b98",
+        "stroke-dasharray": "6 6",
+      });
+      shape(
+        "text",
+        { x: L + 8, y: yy - 7, fill: "#ec8b98", "font-size": 12 },
+        `Daily target · ${target} h`,
+      );
+      const clip = shape("clipPath", { id: "workload-above-target" });
+      const clipRect = document.createElementNS(ns, "rect");
+      for (const [attr, value] of Object.entries({
+        x: L,
         y: T,
-        width: step,
-        height: plotH,
+        width: PW,
+        height: Math.max(0, yy - T),
+      }))
+        clipRect.setAttribute(attr, value);
+      clip.append(clipRect);
+      for (const indexes of runs)
+        shape("path", {
+          d:
+            `M ${x(indexes[0])} ${y(0)} ` +
+            indexes.map((i) => `L ${x(i)} ${y(days[i].work)}`).join(" ") +
+            ` L ${x(indexes.at(-1))} ${y(0)} Z`,
+          fill: "#ec8b98",
+          opacity: 0.2,
+          "clip-path": "url(#workload-above-target)",
+        });
+    }
+    if (all) line("work", "#8495ad", 1.5);
+    if (trend) line("trend", "#d6e2ee", 1.7, "5 5");
+    line("seconds", project.color, 3);
+    if (nonProject) line("nonProjectPercent", "#e6b56d", 2, "3 5", true);
+    days.forEach((d, i) => {
+      if (d.tracked)
+        shape("circle", {
+          cx: x(i),
+          cy: y(d.seconds),
+          r: days.length < 90 ? 4 : 2.5,
+          fill: project.color,
+          stroke: "#16202a",
+          "stroke-width": 2,
+        });
+    });
+    const cursor = shape("line", {
+      x1: L,
+      y1: T,
+      x2: L,
+      y2: T + PH,
+      stroke: "#d5e5f0",
+      opacity: 0,
+      "stroke-dasharray": "2 3",
+    });
+    const describe = (d, i) => {
+      cursor.setAttribute("x1", x(i));
+      cursor.setAttribute("x2", x(i));
+      cursor.setAttribute("opacity", 0.5);
+      $("workload-detail").textContent = d.tracked
+        ? `${d.date} · ${project.name}: ${hours(d.seconds)} · all project work: ${hours(d.work)} · non-project: ${percent(d.nonProjectPercent)} · unclassified: ${hours(d.unclassified)}${target ? " · above target: " + hours(d.overtime) : ""}`
+        : `${d.date} · No recorded active time — workload unknown.`;
+    };
+    days.forEach((d, i) => {
+      const left = i === 0 ? L : (x(i - 1) + x(i)) / 2,
+        right = i === days.length - 1 ? W - R : (x(i) + x(i + 1)) / 2;
+      const hit = shape("rect", {
+        x: left,
+        y: T,
+        width: right - left,
+        height: PH,
         fill: "transparent",
         tabindex: 0,
         role: "button",
         "aria-label": `${d.date}: ${hours(d.seconds)}`,
       });
-      hit.addEventListener("pointerenter", () => describe(d));
-      hit.addEventListener("focus", () => describe(d));
-      hit.addEventListener("click", () => describe(d));
-      const title = document.createElementNS(ns, "title");
-      title.textContent = `${d.date}: ${hours(d.seconds)}`;
-      hit.append(title);
-      const every = Math.max(1, Math.ceil(summary.days.length / 10));
-      if (i % every === 0 || i === summary.days.length - 1)
+      for (const event of ["pointerenter", "focus", "click"])
+        hit.addEventListener(event, () => describe(d, i));
+      if (
+        i % Math.max(1, Math.ceil(days.length / 9)) === 0 ||
+        i === days.length - 1
+      )
         shape(
           "text",
           {
-            x: x + step / 2,
-            y: H - 17,
+            x: x(i),
+            y: H - 16,
             "text-anchor": "middle",
             fill: "#a7b5c4",
             "font-size": 12,
           },
           d.date.slice(5),
         );
-    }
+    });
     $("workload-chart").append(svg);
-    describe(summary.days.at(-1));
+    describe(days.at(-1), days.length - 1);
     resizeFrame();
   }
   function calculate() {
@@ -233,6 +401,15 @@ export function setupWorkload({ state, api, resizeFrame }) {
       resizeFrame();
     }
   }
+  for (const id of [
+    "workload-trend",
+    "workload-all",
+    "workload-nonproject",
+    "workload-target",
+  ])
+    $(id).oninput = () => {
+      if ($("workload-target").validity.valid) chart();
+    };
   $("workload-load").onclick = load;
   $("workload-project").onchange = () => calculate();
   function update() {

@@ -532,7 +532,9 @@ test("project workload loads full history on demand and reuses it across project
   await expect(page.locator("#workload-stats")).toContainText("3 h");
   await expect(page.locator('#workload-chart [role="button"]')).toHaveCount(3);
   await page.locator('#workload-chart [role="button"]').nth(1).focus();
-  await expect(page.locator("#workload-detail")).toContainText("0 h");
+  await expect(page.locator("#workload-detail")).toContainText(
+    "No recorded active time",
+  );
   await page.screenshot({
     path: "test-results/workload-desktop.png",
     fullPage: true,
@@ -546,4 +548,71 @@ test("project workload loads full history on demand and reuses it across project
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBeTruthy();
+});
+
+test("workload line overlays use distinct units and an editable whole-day target", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.projects.push(
+    { id: "q", name: "Other work", color: "#8ca8ff", keywords: ["Other work"] },
+    {
+      id: "rest",
+      name: "Non-project",
+      kind: "non-project",
+      color: "#edb96d",
+      keywords: ["Personal"],
+    },
+  );
+  await setup(page, cfg, (fixture) => {
+    fixture.windows = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date("2026-09-18T07:00:00Z");
+      day.setUTCDate(day.getUTCDate() + i);
+      let cursor = +day;
+      for (const [title, hours] of [
+        ["Demo", 2 + (i % 3)],
+        ["Other work", 3 + (i % 2) + (i === 3 ? 3 : 0)],
+        ["Personal", 1],
+        ["Unknown", 0.5],
+      ]) {
+        fixture.windows.push({
+          timestamp: new Date(cursor).toISOString(),
+          duration: hours * 3600,
+          data: { app: "maya.exe", title },
+        });
+        cursor += hours * 3600000;
+      }
+    }
+    fixture.afk = fixture.windows.map((e) => ({
+      ...e,
+      data: { status: "not-afk" },
+    }));
+  });
+  await page
+    .getByRole("button", { name: "Load full history", exact: true })
+    .click();
+  await expect(page.locator("#workload-status")).toContainText(
+    "Full recorded history",
+  );
+  await expect(
+    page.locator('#workload-chart path[data-series="seconds"]'),
+  ).toHaveCount(1);
+  await expect(page.locator("#workload-chart")).toContainText("100%");
+  await expect(page.locator("#workload-stats>div").nth(2)).toContainText("1 h");
+  await page
+    .locator("#workload-panel")
+    .screenshot({ path: "test-results/workload-lines.png" });
+  await page.getByLabel("Daily work target").fill("6");
+  await expect(page.locator("#workload-stats>div").nth(2)).toContainText("7 h");
+  await page.locator("#workload-nonproject").uncheck();
+  await expect(page.locator('[data-series="nonProjectPercent"]')).toHaveCount(
+    0,
+  );
+  await page.getByLabel("Daily work target").fill("");
+  await expect(page.locator("#workload-stats>div").nth(2)).toContainText(
+    "Set a target",
+  );
+  await page.locator("#workload-all").uncheck();
+  await expect(page.locator('[data-series="work"]')).toHaveCount(0);
 });

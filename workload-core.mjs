@@ -37,3 +37,75 @@ export function projectWorkload(result, projectId, startOfDay = "04:00") {
     busiest: days.reduce((a, b) => (b.seconds > a.seconds ? b : a)),
   };
 }
+export function workloadLayers(
+  result,
+  summary,
+  startOfDay = "04:00",
+  targetHours = null,
+) {
+  const kinds = new Map(
+      result.projects.map((p) => [p.id, p.kind || "project"]),
+    ),
+    byDay = new Map(),
+    [h, m] = startOfDay.split(":").map(Number);
+  for (const s of result.segments) {
+    let cursor = s.start;
+    while (cursor < s.end) {
+      const day = new Date(cursor);
+      day.setHours(h, m, 0, 0);
+      if (+day > cursor) day.setDate(day.getDate() - 1);
+      const next = new Date(day);
+      next.setDate(next.getDate() + 1);
+      const end = Math.min(+next, s.end),
+        date = localDate(day),
+        seconds = (end - cursor) / 1000;
+      if (!byDay.has(date))
+        byDay.set(date, {
+          tracked: 0,
+          work: 0,
+          nonProject: 0,
+          unclassified: 0,
+        });
+      const row = byDay.get(date);
+      row.tracked += seconds;
+      if (kinds.get(s.project) === "project") row.work += seconds;
+      else if (kinds.get(s.project) === "non-project")
+        row.nonProject += seconds;
+      else row.unclassified += seconds;
+      cursor = end;
+    }
+  }
+  const days = summary.days.map((d) => ({
+    ...d,
+    ...(byDay.get(d.date) || {
+      tracked: 0,
+      work: 0,
+      nonProject: 0,
+      unclassified: 0,
+    }),
+  }));
+  for (let i = 0; i < days.length; i++) {
+    const d = days[i],
+      window = days
+        .slice(Math.max(0, i - 6), i + 1)
+        .filter((d) => d.tracked > 0);
+    d.trend = window.length
+      ? window.reduce((s, r) => s + r.seconds, 0) / window.length
+      : null;
+    d.nonProjectPercent = d.tracked ? (d.nonProject / d.tracked) * 100 : null;
+    d.overtime =
+      targetHours > 0 ? Math.max(0, d.work - targetHours * 3600) : null;
+  }
+  const sum = (field) => days.reduce((s, d) => s + (d[field] || 0), 0),
+    tracked = sum("tracked");
+  return {
+    days,
+    work: sum("work"),
+    tracked,
+    nonProjectPercent: tracked ? (sum("nonProject") / tracked) * 100 : null,
+    coverage: tracked
+      ? ((tracked - sum("unclassified")) / tracked) * 100
+      : null,
+    overtime: targetHours > 0 ? sum("overtime") : null,
+  };
+}

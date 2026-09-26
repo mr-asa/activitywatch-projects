@@ -980,3 +980,35 @@ button.share-segment:hover {
     flex-direction: column;
   }
 }
+
+.workload-overlays {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 20px 0;
+}
+.workload-overlays label {
+  margin: 0;
+}
+.workload-overlays input[type="number"] {
+  width: 100px;
+  margin-left: 10px;
+}
+.workload-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  font-size: 12px;
+  color: #a7b5c4;
+}
+.workload-legend span:before {
+  content: "";
+  display: inline-block;
+  width: 20px;
+  border-top: 3px solid var(--legend-color);
+  margin: 0 7px 3px 0;
+}
+.workload-legend span.dashed:before {
+  border-top-style: dashed;
+}

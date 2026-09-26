@@ -157,8 +157,16 @@ The interval engine uses sorted interval lookups and indexes browser events by t
 
 ### Project workload chart
 
-**Daily workload** shows daily tracked hours from the selected project's first attributed report day to its latest, including zero-work days in between. Select a project and click **Load full history**. Total hours, active days, average hours per active day, and the busiest day summarize its recorded workload. Hover, focus or tap a day for its date and hours; longer histories scroll horizontally.
+**Daily workload** shows daily tracked hours from the selected project's first attributed report day to its latest, including zero-work days in between. Select a project and click **Load full history**. Total hours, active days, average hours per active day, and the busiest day summarize its recorded workload. Hover, focus or tap a day for its detailed breakdown; longer histories scroll horizontally.
 
 This chart uses all available window, AFK and connected browser history for the current device, independently of the report period above. It applies all current project rules, conflict handling and manual overrides, including archived categories. Dates use ActivityWatch's start-of-day setting. Missing recording and days with no assigned time both appear as zero; the chart cannot reconstruct work recorded before tracking began or after data was deleted.
 
 History is loaded only on request and kept in memory. Switching projects reuses it. Rule changes recalculate the cached history; **Refresh history** fetches newer events. Very large histories may take longer on first load. No personal data is written to the repository.
+
+### Workload overlays
+
+The workload chart uses a project-colored line and light area fill, with optional seven-day trend, all-project work, and non-project percentage overlays. The percentage line uses the **right-hand 0–100% axis**; hours use the left axis. Days with no recorded active time break the lines instead of implying zero workload. The trend averages recorded days within the trailing seven calendar days (early windows may contain fewer days).
+
+The editable daily target defaults to **8 hours**. Pink shading and the target line show recorded project work above that threshold, summed across all projects. The excess total sums daily excess; shorter days do not offset longer days. Clear the target to disable it. This is a personal workload comparison, not a legal definition of overtime; unclassified work cannot be counted until assigned.
+
+Non-project share is non-project category time divided by **all recorded active time**, including unassigned/conflicting time. It is not a procrastination score: administration or other legitimate activity may be classified as non-project. **Classified time** shows the share attributed to project/non-project categories so incomplete classification is visible. Idle time is excluded from both measures. The project-share card uses all project work as its denominator, across the displayed project-history range. Overlays apply to that range, not days outside the selected project's recorded span. Overlay controls are view-only and do not change rules or assignments.
