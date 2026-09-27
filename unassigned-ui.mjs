@@ -51,6 +51,13 @@ export function setupUnassigned({
     if (text !== undefined) n.textContent = text;
     return n;
   }
+  // Short visible label; the full wording stays as tooltip and accessible name.
+  function actionButton(label, name, tip) {
+    const b = node("button", "", label);
+    b.setAttribute("aria-label", name);
+    b.title = tip;
+    return b;
+  }
   function show(nextScope = null) {
     scope = nextScope;
     open = true;
@@ -161,20 +168,33 @@ export function setupUnassigned({
       }
       const action = node("div", "activity-action");
       action.append(node("strong", "", time(row.seconds)));
-      const button = node("button", "", "Add to project");
+      const button = actionButton(
+        "+ Project",
+        "Add to project",
+        "Add a matching rule to a project",
+      );
       button.onclick = () => assign(row);
       action.append(button);
-      const typeButton = node("button", "", "Add to activity type…");
+      const typeButton = actionButton(
+        "+ Type",
+        "Add to activity type…",
+        "Add this activity to an activity type",
+      );
       typeButton.onclick = () => assignType(row);
       action.append(typeButton);
-      const manual = document.createElement("button");
-      manual.textContent = "Assign time only";
+      const manual = actionButton(
+        "Assign",
+        "Assign time only",
+        "Assign this time to a project once, without creating a rule",
+      );
       manual.onclick = () => state.manualUI.open(row.ranges, row.title);
       action.append(manual);
       if (row.app) {
-        const application = node("button", "", "Assign app time…");
-        application.title =
-          "Assign all unassigned time from this application in the selected report period, across every title.";
+        const application = actionButton(
+          "App time…",
+          "Assign app time…",
+          "Assign all unassigned time from this application in the selected report period, across every title.",
+        );
         application.onclick = () => {
           const appRows = unassignedActivities(
             state.data,
