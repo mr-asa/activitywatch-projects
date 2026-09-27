@@ -27,7 +27,7 @@ foreach ($file in $files) {
 }
 Push-Location $sourceRoot
 try {
-    node --test projects.test.mjs display-fixes.test.mjs unassigned.test.mjs advanced-rules.test.mjs compact-rules.test.mjs workflow.test.mjs
+    npm test
     if ($LASTEXITCODE -ne 0) { throw 'Tests failed; deployment cancelled.' }
 } finally { Pop-Location }
 if ($ValidateOnly) {

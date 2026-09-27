@@ -113,6 +113,44 @@ export function unassignedActivities(data, result, scope = null) {
   cache.scopes.set(key, rows);
   return rows;
 }
+const typeRangeCache = new WeakMap();
+export function activityTypeBreakdown(ranges, typeResult) {
+  if (!typeResult) return [];
+  let byType = typeRangeCache.get(typeResult);
+  if (!byType) {
+    const grouped = new Map();
+    for (const s of typeResult.segments) {
+      if (!grouped.has(s.project)) grouped.set(s.project, []);
+      grouped.get(s.project).push([s.start, s.end]);
+    }
+    byType = new Map([...grouped].map(([id, r]) => [id, merge(r)]));
+    typeRangeCache.set(typeResult, byType);
+  }
+  const seconds = (id) =>
+    ranges.reduce(
+      (n, [start, end]) =>
+        n +
+        clipSorted(byType.get(id) || [], start, end).reduce(
+          (m, [s, e]) => m + (e - s) / 1000,
+          0,
+        ),
+      0,
+    );
+  return [
+    ...typeResult.projects.map((t) => ({
+      id: t.id,
+      name: t.name,
+      color: t.color,
+      seconds: seconds(t.id),
+    })),
+    {
+      id: "conflict",
+      name: "Type needs review",
+      color: "",
+      seconds: seconds("conflict"),
+    },
+  ].filter((t) => t.seconds > 0);
+}
 export function suggestedRule(row) {
   let usable = false,
     local = false;

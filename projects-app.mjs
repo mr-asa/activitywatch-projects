@@ -2,7 +2,7 @@ import { setupActivities } from "./activity-ui.mjs";
 import { setupWorkload } from "./workload-ui.mjs";
 import { setupWorkflow } from "./workflow-ui.mjs";
 import { reportBounds, revisionHistory } from "./workflow-core.mjs";
-import { projectRules, stable } from "./rule-engine.mjs";
+import { projectRules, stable, localDate } from "./rule-engine.mjs";
 import { setupRuleEditor } from "./compact-rule-editor.mjs";
 import { setupManual } from "./manual-ui.mjs";
 import { renderTimeCharts } from "./time-charts.mjs";
@@ -37,8 +37,6 @@ const fmt = (s) => {
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 };
 const precise = (s) => `${fmt(s)} ${Math.round(s) % 60}s`;
-const localDate = (d) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 function notice(message, type = "") {
   $("notice").textContent = message;
   $("notice").className = "notice " + type;
@@ -123,8 +121,14 @@ function period() {
     new Date(Math.min(+end, Date.now())).toISOString(),
   ];
 }
-async function load() {
-  if (state.busy || state.saving) return;
+let reloadPending = false,
+  loaded = null;
+async function load({ auto = false } = {}) {
+  if (state.busy || state.saving) {
+    // Navigation during a load must not be dropped; run once more afterwards.
+    if (!auto) reloadPending = true;
+    return;
+  }
   state.busy = true;
   $("refresh").disabled = true;
   try {
@@ -169,6 +173,24 @@ async function load() {
       );
     $("sources").textContent =
       `Window + idle tracking · ${sources.length} browser source${sources.length === 1 ? "" : "s"} connected`;
+    const signature = [start, state.end, host, sources.map((s) => s.id)].join(
+      "|",
+    );
+    // A period that had already ended when it was fetched cannot gain events.
+    if (auto && loaded?.signature === signature && loaded.at >= state.end) {
+      $("sources").textContent +=
+        ` · ${state.data.editors.filter((s) => !s.unavailable).length} editor sources`;
+      render();
+      $("updated").textContent =
+        "Updated " +
+        new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+      return;
+    }
+    const fetchedAt = Date.now();
+    const editors = loadEditors(api, buckets, host, start, end);
     if (Date.parse(end) <= Date.parse(start)) {
       state.data = { windows: [], afk: [], browsers: [] };
     } else {
@@ -192,7 +214,8 @@ async function load() {
         browsers: sources.map((s, i) => ({ ...s, events: raw["web" + i] })),
       };
     }
-    state.data.editors = await loadEditors(api, buckets, host, start, end);
+    state.data.editors = await editors;
+    loaded = { signature, at: fetchedAt };
     $("sources").textContent +=
       ` · ${state.data.editors.filter((s) => !s.unavailable).length} editor sources`;
     render();
@@ -209,6 +232,10 @@ async function load() {
     state.busy = false;
     $("refresh").disabled = false;
     resizeFrame();
+    if (reloadPending) {
+      reloadPending = false;
+      load();
+    }
   }
 }
 let analysisCache = null;
@@ -347,8 +374,20 @@ function render() {
   names.set("conflict", "Needs review");
   names.set("unassigned", "Not assigned");
   $("timeline").replaceChildren();
+  // Merge neighbours of one category that are closer than ~1/4000 of the bar.
+  const gap = (state.end - state.start) / 4000,
+    blocks = [];
   for (const s of result.segments) {
+    const last = blocks.at(-1);
+    if (last && last.project === s.project && s.start - last.end <= gap)
+      last.end = s.end;
+    else blocks.push({ start: s.start, end: s.end, project: s.project });
+  }
+  for (const s of blocks) {
     const block = node("span", "segment");
+    block.dataset.start = s.start;
+    block.dataset.end = s.end;
+    block.dataset.project = s.project;
     block.style.left =
       ((s.start - state.start) / (state.end - state.start)) * 100 + "%";
     block.style.width =
@@ -633,11 +672,13 @@ const inspector = setupUnassigned({
   persist,
   render,
   openEditor,
+  openActivityType: activities.open,
   notice,
   resizeFrame,
 });
 new ResizeObserver(resizeFrame).observe(document.querySelector("main"));
 load();
 setInterval(() => {
-  if (!document.querySelector("dialog[open]") && !document.hidden) load();
+  if (!document.querySelector("dialog[open]") && !document.hidden)
+    load({ auto: true });
 }, 30000);

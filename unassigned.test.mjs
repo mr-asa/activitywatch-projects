@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { analyze } from "./projects-core.mjs";
+import { addActivityMatcher } from "./activity-core.mjs";
 import {
   subtract,
   unassignedActivities,
   suggestedRule,
+  activityTypeBreakdown,
 } from "./unassigned-core.mjs";
 const e = (s, d, data) => ({
   timestamp: new Date(s * 1000).toISOString(),
@@ -128,3 +130,57 @@ assert.equal(
   unassignedActivities(overlapData, { ...overlapResult, segments: [] }).length,
   0,
 );
+const typeResult = {
+  projects: [{ id: "chat", name: "Chat", color: "#112233" }],
+  segments: [
+    { start: 0, end: 30000, project: "chat" },
+    { start: 30000, end: 40000, project: "conflict" },
+    { start: 40000, end: 60000, project: "unassigned" },
+  ],
+};
+assert.deepEqual(
+  activityTypeBreakdown([[10000, 50000]], typeResult).map((t) => [
+    t.id,
+    t.seconds,
+  ]),
+  [
+    ["chat", 20],
+    ["conflict", 10],
+  ],
+);
+assert.deepEqual(activityTypeBreakdown([[0, 1000]], null), []);
+const appType = {
+  id: "chat",
+  name: "Chat",
+  color: "#112233",
+  applications: ["Telegram"],
+  titles: [],
+  urls: [],
+  mode: "text",
+};
+assert.deepEqual(
+  addActivityMatcher(appType, "application", "Discord.exe").applications,
+  ["Telegram", "Discord.exe"],
+);
+assert.deepEqual(addActivityMatcher(appType, "url", "https://t.me/").urls, [
+  "https://t.me/",
+]);
+assert.throws(() => addActivityMatcher(appType, "title", "Chat"), /narrow/);
+assert.throws(
+  () =>
+    addActivityMatcher(
+      { ...appType, applications: [], titles: ["x"] },
+      "application",
+      "Code",
+    ),
+  /only match those titles/,
+);
+assert.deepEqual(
+  addActivityMatcher(
+    { ...appType, applications: [], titles: ["a"], mode: "regex" },
+    "title",
+    "Doc (1).txt",
+  ).titles,
+  ["a", String.raw`Doc \(1\)\.txt`],
+);
+assert.throws(() => addActivityMatcher(appType, "url", "  "), /Enter a value/);

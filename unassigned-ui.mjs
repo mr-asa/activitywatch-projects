@@ -1,11 +1,21 @@
 import { projectRules, normalizeRule } from "./rule-engine.mjs";
-import { unassignedActivities, suggestedRule } from "./unassigned-core.mjs";
+import {
+  unassignedActivities,
+  suggestedRule,
+  activityTypeBreakdown,
+} from "./unassigned-core.mjs";
 import { merge, normalizeProject } from "./projects-core.mjs";
+import {
+  normalizeActivityType,
+  addActivityMatcher,
+  activityMatcherBlock,
+} from "./activity-core.mjs";
 export function setupUnassigned({
   state,
   persist,
   render,
   openEditor,
+  openActivityType,
   notice,
   resizeFrame,
 }) {
@@ -30,6 +40,11 @@ export function setupUnassigned({
   dialog.innerHTML =
     '<form id="assign-form"><div class="dialog-heading"><h2>Add activity to a project</h2><button type="button" id="close-assign" aria-label="Close assignment">×</button></div><p id="assign-source" class="assignment-source"></p><label for="assign-project">Project</label><select id="assign-project"></select><label for="assign-kind">Match using</label><select id="assign-kind"><option value="keyword">Window title keyword</option><option value="url">Page URL</option><option value="regex">Window title regex</option></select><label for="assign-app">Application (optional)</label><input id="assign-app" list="recorded-apps" placeholder="Any app · e.g. Telegram"><label for="assign-rule">Rule to add</label><textarea id="assign-rule" rows="3" required></textarea><div class="rule-dates"><label>Valid from<input id="assign-from" type="date" aria-label="Assignment rule valid from"></label><label>Valid through<input id="assign-through" type="date" aria-label="Assignment rule valid through"></label></div><p id="assign-hint" class="field-help"></p><p class="field-help">This rule will apply to other matching activity and previously recorded days too.</p><p id="assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-assign" type="button">Cancel</button><button id="save-assign" class="primary" type="submit">Add rule</button></div></form>';
   document.body.append(dialog);
+  const typeDialog = document.createElement("dialog");
+  typeDialog.id = "type-assign-dialog";
+  typeDialog.innerHTML =
+    '<form id="type-assign-form"><div class="dialog-heading"><h2>Add activity to an activity type</h2><button type="button" id="close-type-assign" aria-label="Close activity type assignment">×</button></div><p id="type-assign-source" class="assignment-source"></p><label for="type-assign-type">Activity type</label><select id="type-assign-type"></select><label for="type-assign-kind">Match using</label><select id="type-assign-kind"><option value="url">Website URL</option><option value="application">Whole application</option><option value="title">Window title fragment</option></select><label for="type-assign-value">Value to add</label><input id="type-assign-value" required><p id="type-assign-hint" class="field-help"></p><p class="field-help">Activity types never change project attribution. The matcher applies to previously recorded days too.</p><p id="type-assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-type-assign" type="button">Cancel</button><button id="save-type-assign" class="primary" type="submit">Add to type</button></div></form>';
+  document.body.append(typeDialog);
   function node(tag, cls, text) {
     const n = document.createElement(tag);
     n.className = cls;
@@ -69,10 +84,12 @@ export function setupUnassigned({
           }
         };
       }
-    const blocks = [...$("timeline").children];
-    state.result?.segments.forEach((segment, i) => {
-      if (segment.project === "unassigned" && blocks[i]) {
-        const block = blocks[i];
+    for (const block of $("timeline").children) {
+      if (block.dataset.project === "unassigned") {
+        const segment = {
+          start: +block.dataset.start,
+          end: +block.dataset.end,
+        };
         block.classList.add("clickable");
         block.role = "button";
         block.tabIndex = 0;
@@ -89,7 +106,7 @@ export function setupUnassigned({
           }
         };
       }
-    });
+    }
     if (!open || !state.result) return;
     if (scope && (scope[1] <= state.start || scope[0] >= state.end))
       scope = null;
@@ -117,11 +134,39 @@ export function setupUnassigned({
         node("div", "muted", row.app),
       );
       if (row.url) content.append(node("div", "activity-url", row.url));
+      const typeResult = state.activityTypeResult?.();
+      if (typeResult?.projects.length) {
+        const types = node("div", "activity-type-tags");
+        const found = activityTypeBreakdown(row.ranges, typeResult);
+        let typed = 0;
+        for (const t of found) {
+          typed += t.seconds;
+          const tag = node("span", "activity-type-tag");
+          const chip = node("span", "chip");
+          if (t.color) chip.style.background = t.color;
+          else tag.classList.add("review");
+          const share = Math.round((t.seconds / row.seconds) * 100);
+          tag.append(chip, t.name + (share < 100 ? ` · ${share}%` : ""));
+          types.append(tag);
+        }
+        if (row.seconds - typed > 1)
+          types.append(
+            node(
+              "span",
+              "activity-type-tag untyped",
+              found.length ? "rest: no activity type" : "No activity type",
+            ),
+          );
+        content.append(types);
+      }
       const action = node("div", "activity-action");
       action.append(node("strong", "", time(row.seconds)));
       const button = node("button", "", "Add to project");
       button.onclick = () => assign(row);
       action.append(button);
+      const typeButton = node("button", "", "Add to activity type…");
+      typeButton.onclick = () => assignType(row);
+      action.append(typeButton);
       const manual = document.createElement("button");
       manual.textContent = "Assign time only";
       manual.onclick = () => state.manualUI.open(row.ranges, row.title);
@@ -210,20 +255,137 @@ export function setupUnassigned({
     $("assign-kind").value = suggested.kind;
     chooseKind();
     updateSubmit();
-    if (window.frameElement) {
-      dialog.style.top = "16px";
-      dialog.style.bottom = "auto";
-      dialog.style.margin = "0 auto";
-      dialog.style.maxHeight =
-        Math.max(240, window.parent.innerHeight - 100) + "px";
-      window.frameElement.scrollIntoView({
-        block: "start",
-        behavior: "instant",
-      });
-    }
+    placeDialog(dialog);
     dialog.showModal();
     $("assign-project").focus();
   }
+  function placeDialog(d) {
+    if (!window.frameElement) return;
+    d.style.top = "16px";
+    d.style.bottom = "auto";
+    d.style.margin = "0 auto";
+    d.style.maxHeight = Math.max(240, window.parent.innerHeight - 100) + "px";
+    window.frameElement.scrollIntoView({ block: "start", behavior: "instant" });
+  }
+  function typeValue(kind) {
+    if (kind === "url") return suggestedRule(selected).url;
+    if (kind === "application") return selected.app;
+    return suggestedRule(selected).keyword;
+  }
+  function chooseTypeKind() {
+    const id = $("type-assign-type").value,
+      type = (state.config.activityTypes || []).find((t) => t.id === id);
+    for (const option of $("type-assign-kind").options) {
+      const block = type ? activityMatcherBlock(type, option.value) : "";
+      option.disabled =
+        Boolean(block) || (option.value === "url" && !typeValue("url"));
+      option.title = block;
+    }
+    if ($("type-assign-kind").selectedOptions[0]?.disabled)
+      $("type-assign-kind").value =
+        [...$("type-assign-kind").options].find((o) => !o.disabled)?.value ||
+        "";
+    const kind = $("type-assign-kind").value;
+    $("type-assign-value").value = kind ? typeValue(kind) : "";
+    $("type-assign-value").disabled = !kind;
+    $("type-assign-hint").textContent = !kind
+      ? "This type combines applications and titles; edit it in Activity types."
+      : kind === "url"
+        ? "Matches this page and its subpages. Needs browser tracking."
+        : kind === "application"
+          ? "Matches every window of this application."
+          : "Matches windows whose title contains this text, in any application.";
+    $("save-type-assign").textContent =
+      id === "__new__" ? "Continue to new type" : "Add to type";
+  }
+  function assignType(row) {
+    selected = row;
+    $("type-assign-error").textContent = "";
+    $("type-assign-source").textContent =
+      row.title + " · " + row.app + " · " + time(row.seconds);
+    $("type-assign-type").replaceChildren(
+      ...(state.config.activityTypes || []).map(
+        (t) => new Option(t.name, t.id),
+      ),
+      new Option("+ Create new activity type", "__new__"),
+    );
+    const suggested = suggestedRule(row);
+    $("type-assign-kind").value =
+      suggested.kind === "url"
+        ? "url"
+        : suggested.keyword
+          ? "title"
+          : "application";
+    chooseTypeKind();
+    placeDialog(typeDialog);
+    typeDialog.showModal();
+    $("type-assign-type").focus();
+  }
+  $("type-assign-type").onchange = chooseTypeKind;
+  $("type-assign-kind").onchange = chooseTypeKind;
+  $("type-assign-form").onsubmit = async (e) => {
+    e.preventDefault();
+    if (state.saving) return;
+    const kind = $("type-assign-kind").value,
+      value = $("type-assign-value").value.trim(),
+      id = $("type-assign-type").value,
+      types = state.config.activityTypes || [];
+    try {
+      if (id === "__new__") {
+        if (!value) throw Error("Enter a value to match.");
+        typeDialog.close();
+        openActivityType({
+          name: "",
+          applications: kind === "application" ? [value] : [],
+          titles: kind === "title" ? [value] : [],
+          urls: kind === "url" ? [value] : [],
+        });
+        return;
+      }
+      const type = types.find((t) => t.id === id);
+      if (!type) throw Error("Select an activity type.");
+      const next = normalizeActivityType(
+        addActivityMatcher(type, kind, value),
+        types,
+      );
+      state.saving = true;
+      for (const b of [
+        "save-type-assign",
+        "cancel-type-assign",
+        "close-type-assign",
+      ])
+        $(b).disabled = true;
+      await persist(
+        state.config.projects,
+        state.config.manualAssignments || [],
+        types.map((t) => (t.id === next.id ? next : t)),
+      );
+      typeDialog.close();
+      render();
+      notice(
+        `Added to activity type ${next.name}. Project attribution is unchanged.`,
+        "success",
+      );
+    } catch (error) {
+      $("type-assign-error").textContent = error.message;
+    } finally {
+      state.saving = false;
+      for (const b of [
+        "save-type-assign",
+        "cancel-type-assign",
+        "close-type-assign",
+      ])
+        $(b).disabled = false;
+    }
+  };
+  const closeType = () => {
+    if (!state.saving) typeDialog.close();
+  };
+  $("close-type-assign").onclick = closeType;
+  $("cancel-type-assign").onclick = closeType;
+  typeDialog.addEventListener("cancel", (e) => {
+    if (state.saving) e.preventDefault();
+  });
   function updateSubmit() {
     $("save-assign").textContent =
       $("assign-project").value === "__new__"

@@ -101,18 +101,25 @@ export function applicationMatches(filter, app) {
       .toLocaleLowerCase();
   return clean(filter) === clean(app);
 }
+const regexCache = new Map();
+function compiled(pattern, flags) {
+  const key = flags + "/" + pattern;
+  if (!regexCache.has(key)) {
+    if (regexCache.size >= 500) regexCache.clear();
+    let re = null;
+    try {
+      re = new RegExp(pattern, flags);
+    } catch {}
+    regexCache.set(key, re);
+  }
+  return regexCache.get(key);
+}
 export function ruleMatches(rule, value, matchTitle, matchUrl, app = "") {
   if (rule.type !== "url" && !applicationMatches(rule.appFilter, app))
     return false;
   if (rule.mode === "regex") {
-    try {
-      return new RegExp(
-        rule.pattern,
-        rule.ignoreCase === false ? "" : "i",
-      ).test(String(value || ""));
-    } catch {
-      return false;
-    }
+    const re = compiled(rule.pattern, rule.ignoreCase === false ? "" : "i");
+    return re ? re.test(String(value || "")) : false;
   }
   if (rule.type === "url") return matchUrl(value, rule.pattern);
   return rule.ignoreCase === false

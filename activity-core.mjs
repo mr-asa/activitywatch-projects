@@ -69,6 +69,28 @@ export function activityRules(type) {
     );
   return rules;
 }
+// Applications and titles combine (app AND title), so adding one kind to a
+// type that already uses the other would silently change what it matches.
+export function activityMatcherBlock(type, kind) {
+  if (kind === "application" && type.titles.length)
+    return "This type filters by titles; an application here would only match those titles.";
+  if (kind === "title" && type.applications.length)
+    return "This type matches whole applications; a title would narrow them to that title.";
+  return "";
+}
+export function addActivityMatcher(type, kind, value) {
+  value = String(value || "").trim();
+  if (!value) throw Error("Enter a value to match.");
+  const blocked = activityMatcherBlock(type, kind);
+  if (blocked) throw Error(blocked);
+  const key = { application: "applications", title: "titles", url: "urls" }[
+    kind
+  ];
+  if (!key) throw Error("Choose what to match.");
+  if (kind === "title" && type.mode === "regex")
+    value = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return { ...type, [key]: [...type[key], value] };
+}
 export function analyzeActivityTypes(data, types, start, end) {
   return analyze(
     data,

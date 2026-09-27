@@ -165,19 +165,8 @@ export function setupActivities({
       : "No activity types yet. Use a starter above or create your own. They do not replace projects or non-project categories.";
     resizeFrame();
   }
-  function update() {
-    const selected = $("activity-scope").value;
-    $("activity-scope").replaceChildren(
-      new Option("All active time", ""),
-      ...state.config.projects.map((p) => new Option(p.name, p.id)),
-      new Option("Unassigned project time", "unassigned"),
-      new Option("Project conflicts", "conflict"),
-    );
-    $("activity-scope").value = [...$("activity-scope").options].some(
-      (o) => o.value === selected,
-    )
-      ? selected
-      : "";
+  function typeResult() {
+    if (!state.result) return null;
     if (
       !cache ||
       cache.data !== state.data ||
@@ -196,7 +185,25 @@ export function setupActivities({
         ),
       };
     }
+    return cache.result;
+  }
+  state.activityTypeResult = typeResult;
+  function update() {
+    const selected = $("activity-scope").value;
+    $("activity-scope").replaceChildren(
+      new Option("All active time", ""),
+      ...state.config.projects.map((p) => new Option(p.name, p.id)),
+      new Option("Unassigned project time", "unassigned"),
+      new Option("Project conflicts", "conflict"),
+    );
+    $("activity-scope").value = [...$("activity-scope").options].some(
+      (o) => o.value === selected,
+    )
+      ? selected
+      : "";
+    typeResult();
     draw();
   }
-  return { update };
+  // A seed without an id opens the editor for a new, prefilled activity type.
+  return { update, open };
 }

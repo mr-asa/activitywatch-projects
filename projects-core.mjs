@@ -208,6 +208,38 @@ export function analyze(data, projects, start, end, options = {}) {
   }
   for (const [family, ranges] of focusByFamily)
     focusByFamily.set(family, merge(ranges));
+  // Titles and URLs repeat heavily, so each rule is matched once per unique value.
+  const titleGroups = new Map();
+  for (const w of windows) {
+    const key = JSON.stringify([w.data.app, w.data.title]);
+    if (!titleGroups.has(key))
+      titleGroups.set(key, {
+        app: w.data.app,
+        title: w.data.title,
+        kind: browserFamily(w.data.app) ? "browser" : "desktop",
+        windows: [],
+      });
+    titleGroups.get(key).windows.push(w);
+  }
+  const urlGroups = (data.browsers || []).map((source) => {
+    const groups = new Map();
+    for (const event of source.events) {
+      const url = event.data.url;
+      if (!groups.has(url)) groups.set(url, []);
+      groups.get(url).push(event);
+    }
+    return { source, groups };
+  });
+  const editorFocus = new Map(
+    (data.editors || []).map((source) => [
+      source,
+      merge(
+        windows
+          .filter((w) => applicationMatches(source.app, w.data.app))
+          .flatMap((w) => w.ranges),
+      ),
+    ]),
+  );
   const evidence = [];
   const add = (project, ranges, kind, label, manual = false, details = {}) => {
     for (const [s, e] of ranges)
@@ -230,24 +262,22 @@ export function analyze(data, projects, start, end, options = {}) {
       )
         rule.through = project.rulesThrough;
       if (rule.type === "title")
-        for (const w of windows) {
-          if (ruleMatches(rule, w.data.title, matchTitle, matchUrl, w.data.app))
+        for (const group of titleGroups.values()) {
+          if (!ruleMatches(rule, group.title, matchTitle, matchUrl, group.app))
+            continue;
+          for (const w of group.windows)
             add(
               project,
               clipRule(w.ranges, rule),
-              browserFamily(w.data.app) ? "browser" : "desktop",
-              w.data.title || w.data.app,
+              group.kind,
+              group.title || group.app,
               false,
-              { rule, app: w.data.app },
+              { rule, app: group.app },
             );
         }
       else if (rule.type.startsWith("editor-")) {
         for (const source of data.editors || []) {
-          const focus = merge(
-            windows
-              .filter((w) => applicationMatches(source.app, w.data.app))
-              .flatMap((w) => w.ranges),
-          );
+          const focus = editorFocus.get(source);
           for (const event of source.events || []) {
             if (
               event.data?.eventType &&
@@ -270,18 +300,20 @@ export function analyze(data, projects, start, end, options = {}) {
           }
         }
       } else if (rule.type === "url")
-        for (const source of data.browsers || []) {
+        for (const { source, groups } of urlGroups) {
           const focus = focusByFamily.get(source.family) || [];
-          for (const event of source.events)
-            if (ruleMatches(rule, event.data.url, matchTitle, matchUrl))
+          for (const [url, events] of groups) {
+            if (!ruleMatches(rule, url, matchTitle, matchUrl)) continue;
+            for (const event of events)
               add(
                 project,
                 clipRule(clipSorted(focus, ...range(event)), rule),
                 "browser",
-                event.data.url,
+                url,
                 false,
                 { rule, app: source.family },
               );
+          }
         }
     }
   }
@@ -384,14 +416,12 @@ export function analyze(data, projects, start, end, options = {}) {
       p[s.kind] += d;
     }
   }
-  for (const p of results) {
-    const labels = [
-      ...new Set(
-        evidence.filter((e) => e.project === p.id).map((e) => e.label),
-      ),
-    ];
-    p.evidence = labels.slice(0, 80);
+  const labels = new Map(results.map((p) => [p.id, new Set()]));
+  for (const e of evidence) {
+    const set = labels.get(e.project);
+    if (set && set.size < 80) set.add(e.label);
   }
+  for (const p of results) p.evidence = [...labels.get(p.id)];
   return {
     projects: results,
     segments,

@@ -210,13 +210,11 @@ export function setupManual({ state, persist, render, notice }) {
       row.append(label, del);
       $("manual-items").append(row);
     }
-    const blocks = [...$("timeline").children];
-    state.result.segments.forEach((s, i) => {
-      if (blocks[i]) {
-        blocks[i].ondblclick = () => open([[s.start, s.end]]);
-        blocks[i].title += " · Double-click to assign this interval";
-      }
-    });
+    for (const block of $("timeline").children) {
+      const range = [+block.dataset.start, +block.dataset.end];
+      block.ondblclick = () => open([range]);
+      block.title += " · Double-click to assign this interval";
+    }
   }
   return { open, update };
 }

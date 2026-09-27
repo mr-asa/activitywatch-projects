@@ -558,6 +558,32 @@ label {
   margin-top: 6px;
   overflow-wrap: anywhere;
 }
+.activity-type-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.activity-type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+.activity-type-tag.review .chip {
+  background: repeating-linear-gradient(
+    45deg,
+    #d9a441 0 2px,
+    transparent 2px 4px
+  );
+}
+.activity-type-tag.untyped {
+  border-style: dashed;
+  color: var(--muted);
+}
 .activity-action {
   display: flex;
   flex-wrap: wrap;

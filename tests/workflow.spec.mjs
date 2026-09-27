@@ -692,6 +692,103 @@ test("activity types remain independent and all projects stack without double co
   expect(errors).toEqual([]);
 });
 
+test("unassigned activity can be added to an existing or new activity type", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.activityTypes = [
+    {
+      id: "chat",
+      name: "Messaging",
+      color: "#8ca8ff",
+      applications: ["Telegram"],
+      titles: [],
+      urls: [],
+      mode: "text",
+    },
+  ];
+  const { settings, errors } = await setup(page, cfg);
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  const row = page
+    .locator(".unassigned-row")
+    .filter({ hasText: "Personal browsing" });
+  await expect(row.locator(".activity-type-tag")).toHaveText(
+    "No activity type",
+  );
+  await row
+    .getByRole("button", { name: "Add to activity type…", exact: true })
+    .click();
+  // An application-wide type cannot take a title without narrowing it.
+  await expect(
+    page.locator('#type-assign-kind option[value="title"]'),
+  ).toBeDisabled();
+  await expect(page.locator("#type-assign-kind")).toHaveValue("application");
+  await expect(page.locator("#type-assign-value")).toHaveValue("chrome.exe");
+  await page.getByRole("button", { name: "Add to type", exact: true }).click();
+  await confirm(page);
+  await expect(page.locator("#type-assign-dialog")).not.toBeVisible();
+  expect(settings.project_tracker.activityTypes[0].applications).toEqual([
+    "Telegram",
+    "chrome.exe",
+  ]);
+  expect(settings.project_tracker.projects).toEqual(cfg.projects);
+  await expect(row.locator(".activity-type-tag")).toHaveText("Messaging");
+  await page.locator("#unassigned-panel").screenshot({
+    path: "test-results/unassigned-activity-types.png",
+  });
+
+  const telegram = page
+    .locator(".unassigned-row")
+    .filter({ hasText: "Shared task" });
+  await telegram
+    .getByRole("button", { name: "Add to activity type…", exact: true })
+    .click();
+  await page.locator("#type-assign-type").selectOption("__new__");
+  await page.locator("#type-assign-kind").selectOption("title");
+  await expect(page.locator("#type-assign-value")).toHaveValue("Shared task");
+  await page
+    .getByRole("button", { name: "Continue to new type", exact: true })
+    .click();
+  await expect(page.locator("#activity-type-editor")).toBeVisible();
+  await expect(page.locator("#activity-titles")).toHaveValue("Shared task");
+  await expect(page.locator("#activity-apps")).toHaveValue("");
+  expect(errors).toEqual([]);
+});
+
+test("legacy projects.html forwards to the dashboard with its parameters", async ({
+  page,
+}) => {
+  await setup(page);
+  await page.goto(
+    "/projects.html?start=2026-09-22T00:00:00Z&end=2026-09-23T00:00:00Z",
+  );
+  await expect(page).toHaveURL(/\/index\.html\?start=2026-09-22/);
+  await expect(page.locator("#assigned")).toHaveText("0h 1m");
+});
+
+test("date navigation during a load is applied after it finishes", async ({
+  page,
+}) => {
+  let queries = 0,
+    release;
+  const gate = new Promise((r) => (release = r));
+  await setup(page);
+  await page.route("**/api/0/query/", async (route) => {
+    queries++;
+    if (queries === 1) await gate;
+    await route.fallback();
+  });
+  await page.locator("#refresh").click();
+  await expect.poll(() => queries).toBe(1);
+  await page.locator("#next-day").click();
+  release();
+  await expect.poll(() => queries).toBe(2);
+  await expect(page.locator("#date")).toHaveValue("2026-09-23");
+  await expect(page.locator("#range-label")).toContainText("23");
+});
+
 test("assign application time collects all titles despite search and preserves assigned time", async ({
   page,
 }) => {
