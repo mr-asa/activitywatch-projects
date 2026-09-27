@@ -19,6 +19,9 @@
 !/advanced-rules.test.mjs
 !/compact-rules.test.mjs
 !/README.md
+!/README.ru.md
+!/AGENTS.md
+!/CLAUDE.md
 !/package.json
 !/.gitignore
 !/.gitattributes
