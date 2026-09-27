@@ -236,3 +236,136 @@ assert.equal(
 );
 for (let i = 0; i < allSummary.days.length; i++)
   assert.equal(stack.at(-1).days[i].top, allSummary.days[i].seconds);
+
+// Optional editor watchers: foreground/AFK gating, no title fallback regression.
+const { loadEditors, editorValue } = await import("./projects-core.mjs");
+const editorProject = {
+  ...p,
+  rules: [
+    {
+      id: "editor",
+      type: "editor-file",
+      mode: "text",
+      pattern: "/demo/",
+      appFilter: "Code",
+      ignoreCase: true,
+    },
+  ],
+};
+const editorData = {
+  ...data,
+  windows: [e("Code.exe", "Unrelated title")],
+  editors: [
+    {
+      app: "Code.exe",
+      events: [
+        {
+          ...e("", ""),
+          data: { file: "D:/demo/main.js", project: "/d:/demo" },
+        },
+      ],
+    },
+  ],
+};
+assert.equal(analyze(editorData, [editorProject], t, t + 60000).assigned, 60);
+assert.equal(
+  analyze(
+    { ...editorData, windows: [e("Obsidian.exe", "Other")] },
+    [editorProject],
+    t,
+    t + 60000,
+  ).assigned,
+  0,
+);
+assert.equal(
+  analyze({ ...editorData, afk: [] }, [editorProject], t, t + 60000).assigned,
+  0,
+);
+assert.equal(
+  analyze({ ...editorData, editors: [] }, [editorProject], t, t + 60000)
+    .assigned,
+  0,
+);
+assert.equal(analyze(data, [p], t, t + 60000).assigned, 60);
+assert.equal(
+  editorValue(
+    { data: { projectPath: "D:/notes", project: "notes" } },
+    "editor-project",
+  ),
+  "D:/notes",
+);
+assert.equal(editorValue({ data: { file: "unknown" } }, "editor-file"), "");
+const obsProject = {
+  ...editorProject,
+  rules: [{ ...editorProject.rules[0], appFilter: "Obsidian" }],
+};
+const obsData = {
+  ...editorData,
+  windows: [e("Obsidian.exe", "Note")],
+  editors: [
+    {
+      app: "Obsidian.exe",
+      events: [
+        {
+          ...e("", ""),
+          data: {
+            file: "/demo/note.md",
+            eventType: "obsidian.activeFileHeartbeatEvent",
+          },
+        },
+      ],
+    },
+  ],
+};
+assert.equal(analyze(obsData, [obsProject], t, t + 60000).assigned, 60);
+assert.equal(
+  analyze(
+    {
+      ...obsData,
+      editors: [
+        {
+          ...obsData.editors[0],
+          events: [
+            {
+              ...obsData.editors[0].events[0],
+              data: {
+                file: "/demo/note.md",
+                eventType: "obsidian.createFileEvent",
+              },
+            },
+          ],
+        },
+      ],
+    },
+    [obsProject],
+    t,
+    t + 60000,
+  ).assigned,
+  0,
+);
+assert.deepEqual(
+  await loadEditors(
+    () => {
+      throw Error("should not query");
+    },
+    {},
+    "host",
+    "start",
+    "end",
+  ),
+  [],
+);
+const failedEditors = await loadEditors(
+  async () => {
+    throw Error("offline");
+  },
+  {
+    "aw-watcher-vscode_host": { hostname: "host" },
+    "aw-watcher-obsidian_other": { hostname: "other" },
+  },
+  "host",
+  "start",
+  "end",
+);
+assert.equal(failedEditors.length, 1);
+assert.equal(failedEditors[0].unavailable, true);

@@ -1,5 +1,5 @@
 import { analyzeActivityTypes, activitySegments } from "./activity-core.mjs";
-import { analyze, discoverBrowsers } from "./projects-core.mjs";
+import { analyze, discoverBrowsers, loadEditors } from "./projects-core.mjs";
 import { localDate, stable } from "./rule-engine.mjs";
 import {
   projectWorkload,
@@ -562,8 +562,16 @@ export function setupWorkload({ state, api, resizeFrame }) {
           query,
         })
       )[0];
+      const editors = await loadEditors(
+        api,
+        state.buckets,
+        device,
+        start.toISOString(),
+        new Date(end).toISOString(),
+      );
       if (run !== token || device !== state.host) return;
       data = {
+        editors,
         windows: raw.windows,
         afk: raw.afk,
         browsers: sources.map((s, i) => ({ ...s, events: raw["web" + i] })),

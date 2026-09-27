@@ -181,3 +181,10 @@ The activity table shows hours and a percentage of the selected scope: all activ
 **Daily workload → All projects** stacks each project's daily hours in its own color, with a total line. Non-project categories and unresolved project conflicts are excluded from the stack. Activity types appear together as colored dashed lines, enabled by default with individual checkboxes. Compare their hours with workload: across all active time in the All projects view, or within the selected individual project. The overlay is a separate measure, never added to the project total.
 
 In **Not assigned**, **Assign app time…** collects all unassigned intervals for the exact application across the entire selected report period, regardless of the title search or inspected timeline interval. Choose **Day** for a single day. The dialog previews the scope and duration; saving creates manual assignments, leaves already assigned time untouched, and adds no future matching rule.
+
+
+### Optional VS Code and Obsidian watchers
+
+If installed, `aw-watcher-vscode` and `aw-watcher-obsidian` buckets for the selected device are queried automatically. Add a project rule with **Editor project / vault path** or **Editor file / note path**. Plain text uses forward slashes (pasted Windows backslashes are normalized); regex uses the normalized path. An optional application filter distinguishes `Code` and `Obsidian`. For Obsidian, file paths are vault-relative; use a vault path rule cautiously when multiple projects share one vault. Rules are alternatives, and ambiguous project matches still need review.
+
+Editor evidence is clipped to recorded foreground time in the matching app and non-idle time. Existing window-title rules continue to work without either watcher; failed optional queries do not block the dashboard. Editor sources provide context, not extra elapsed time. They do not identify LLM commands or generation duration inside embedded terminals. Do not treat generic terminal usage as measured LLM usage. The VS Code source is matched to Code.exe; this does not infer Cursor activity from a VS Code bucket.

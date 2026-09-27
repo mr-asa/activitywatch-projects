@@ -1,3 +1,4 @@
+import { editorValue } from "./projects-core.mjs";
 import { projectRules, ruleMatches, clipRule } from "./rule-engine.mjs";
 import { groupRules, expandGroup } from "./rule-groups.mjs";
 import { matchTitle, matchUrl } from "./projects-core.mjs";
@@ -47,7 +48,7 @@ export function setupRuleEditor({ state }) {
     card.className = "rule-row compact-rule";
     card._entries = group.entries;
     card.innerHTML =
-      '<div class="compact-controls"><label>Field<select data-key="type" aria-label="Rule field"><option value="title">Window title</option><option value="url">Browser URL</option></select></label><label>Match mode<select data-key="mode" aria-label="Match mode"><option value="text">Plain text</option><option value="regex">Regex</option></select></label><label class="app-filter-label">Application (optional)<input data-key="appFilter" aria-label="Application filter" list="recorded-apps" placeholder="Any app · e.g. Telegram or maya.exe"></label><label class="check-label"><input data-key="ignoreCase" type="checkbox"> Ignore case</label></div><div class="compact-body"><label>Patterns · one per line<textarea data-key="patterns" rows="3" aria-label="Rule pattern" placeholder="TEAM CHAT&#10;SHARED TITLE"></textarea></label><div class="compact-dates"><label>Valid from<input data-key="from" aria-label="Valid from" type="date"></label><label>Valid through<input data-key="through" aria-label="Valid through" type="date"></label></div></div><div class="compact-footer"><p class="rule-mode-hint field-help"></p><div class="rule-actions"><button type="button" class="preview-rule">Preview matches</button><button type="button" class="remove-rule">Remove group</button></div></div><div class="rule-preview" role="status"></div>';
+      '<div class="compact-controls"><label>Field<select data-key="type" aria-label="Rule field"><option value="title">Window title</option><option value="url">Browser URL</option><option value="editor-project">Editor project / vault path</option><option value="editor-file">Editor file / note path</option></select></label><label>Match mode<select data-key="mode" aria-label="Match mode"><option value="text">Plain text</option><option value="regex">Regex</option></select></label><label class="app-filter-label">Application (optional)<input data-key="appFilter" aria-label="Application filter" list="recorded-apps" placeholder="Any app · e.g. Telegram or maya.exe"></label><label class="check-label"><input data-key="ignoreCase" type="checkbox"> Ignore case</label></div><div class="compact-body"><label>Patterns · one per line<textarea data-key="patterns" rows="3" aria-label="Rule pattern" placeholder="TEAM CHAT&#10;SHARED TITLE"></textarea></label><div class="compact-dates"><label>Valid from<input data-key="from" aria-label="Valid from" type="date"></label><label>Valid through<input data-key="through" aria-label="Valid through" type="date"></label></div></div><div class="compact-footer"><p class="rule-mode-hint field-help"></p><div class="rule-actions"><button type="button" class="preview-rule">Preview matches</button><button type="button" class="remove-rule">Remove group</button></div></div><div class="rule-preview" role="status"></div>';
     for (const key of ["type", "mode", "appFilter", "from", "through"])
       card.querySelector(`[data-key="${key}"]`).value = group[key];
     card.querySelector('[data-key="ignoreCase"]').checked = group.ignoreCase;
@@ -57,7 +58,7 @@ export function setupRuleEditor({ state }) {
     const hint = () => {
       const mode = card.querySelector('[data-key="mode"]').value,
         type = card.querySelector('[data-key="type"]').value;
-      card.querySelector(".app-filter-label").hidden = type !== "title";
+      card.querySelector(".app-filter-label").hidden = type === "url";
       card.querySelector(".rule-mode-hint").textContent =
         mode === "regex"
           ? "One JavaScript regex per line, without / delimiters."
@@ -83,7 +84,14 @@ export function setupRuleEditor({ state }) {
         const events =
           type === "title"
             ? state.data?.windows || []
-            : (state.data?.browsers || []).flatMap((b) => b.events);
+            : type.startsWith("editor-")
+              ? (state.data?.editors || []).flatMap((s) =>
+                  s.events.map((e) => ({
+                    ...e,
+                    data: { ...e.data, app: s.app },
+                  })),
+                )
+              : (state.data?.browsers || []).flatMap((b) => b.events);
         const matches = [
           ...new Set(
             events
@@ -102,7 +110,9 @@ export function setupRuleEditor({ state }) {
                     ).length &&
                     ruleMatches(
                       rule,
-                      e.data[type === "title" ? "title" : "url"],
+                      type.startsWith("editor-")
+                        ? editorValue(e, type)
+                        : e.data[type === "title" ? "title" : "url"],
                       matchTitle,
                       matchUrl,
                       e.data.app,
@@ -112,11 +122,13 @@ export function setupRuleEditor({ state }) {
               .map((e) =>
                 type === "title"
                   ? `${e.data.title} · ${e.data.app}`
-                  : e.data.url,
+                  : type.startsWith("editor-")
+                    ? editorValue(e, type)
+                    : e.data.url,
               ),
           ),
         ];
-        out.textContent = `${matches.length} matching ${type === "title" ? "titles" : "URLs"} in the loaded report period.`;
+        out.textContent = `${matches.length} matching ${type.startsWith("editor-") ? "editor records" : type === "title" ? "titles" : "URLs"} in the loaded report period.`;
         const ul = document.createElement("ul");
         for (const value of matches.slice(0, 8)) {
           const li = document.createElement("li");

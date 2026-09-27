@@ -33,8 +33,13 @@ export function normalizeRule(input) {
     through: input.through || "",
     appFilter: input.type === "url" ? "" : String(input.appFilter || "").trim(),
   };
-  if (!["title", "url"].includes(r.type) || !["text", "regex"].includes(r.mode))
+  if (
+    !["title", "url", "editor-project", "editor-file"].includes(r.type) ||
+    !["text", "regex"].includes(r.mode)
+  )
     throw Error("Choose a supported rule type and matching mode.");
+  if (r.type.startsWith("editor-") && r.mode === "text")
+    r.pattern = r.pattern.replaceAll("\\", "/");
   if (!r.pattern) throw Error("Enter a title or URL pattern.");
   for (const d of [r.from, r.through])
     if (
@@ -97,7 +102,7 @@ export function applicationMatches(filter, app) {
   return clean(filter) === clean(app);
 }
 export function ruleMatches(rule, value, matchTitle, matchUrl, app = "") {
-  if (rule.type === "title" && !applicationMatches(rule.appFilter, app))
+  if (rule.type !== "url" && !applicationMatches(rule.appFilter, app))
     return false;
   if (rule.mode === "regex") {
     try {

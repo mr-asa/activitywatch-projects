@@ -12,6 +12,7 @@ import {
   normalizeProject,
   analyze,
   discoverBrowsers,
+  loadEditors,
 } from "./projects-core.mjs";
 const KEY = "project_tracker";
 const $ = (id) => document.getElementById(id);
@@ -191,6 +192,9 @@ async function load() {
         browsers: sources.map((s, i) => ({ ...s, events: raw["web" + i] })),
       };
     }
+    state.data.editors = await loadEditors(api, buckets, host, start, end);
+    $("sources").textContent +=
+      ` · ${state.data.editors.filter((s) => !s.unavailable).length} editor sources`;
     render();
     $("add-project").disabled = false;
     if (warnings.length) notice(warnings.join(" "));

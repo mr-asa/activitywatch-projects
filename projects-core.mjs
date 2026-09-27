@@ -3,6 +3,7 @@ import {
   normalizeRule,
   clipRule,
   ruleMatches,
+  applicationMatches,
 } from "./rule-engine.mjs";
 export const PALETTE = [
   "#65d6b4",
@@ -240,7 +241,35 @@ export function analyze(data, projects, start, end, options = {}) {
               { rule, app: w.data.app },
             );
         }
-      else
+      else if (rule.type.startsWith("editor-")) {
+        for (const source of data.editors || []) {
+          const focus = merge(
+            windows
+              .filter((w) => applicationMatches(source.app, w.data.app))
+              .flatMap((w) => w.ranges),
+          );
+          for (const event of source.events || []) {
+            if (
+              event.data?.eventType &&
+              event.data.eventType !== "obsidian.activeFileHeartbeatEvent"
+            )
+              continue;
+            const value = editorValue(event, rule.type);
+            if (
+              value &&
+              ruleMatches(rule, value, matchTitle, matchUrl, source.app)
+            )
+              add(
+                project,
+                clipRule(clipSorted(focus, ...range(event)), rule),
+                "desktop",
+                value,
+                false,
+                { rule, app: source.app, source: source.id },
+              );
+          }
+        }
+      } else if (rule.type === "url")
         for (const source of data.browsers || []) {
           const focus = focusByFamily.get(source.family) || [];
           for (const event of source.events)
@@ -377,4 +406,39 @@ export function analyze(data, projects, start, end, options = {}) {
     conflict,
     unassigned,
   };
+}
+
+// Editor sources are optional: a missing or failing watcher never blocks window tracking.
+export async function loadEditors(api, buckets, host, start, end) {
+  const sources = Object.entries(buckets).filter(
+    ([id, meta]) =>
+      /^(aw-watcher-vscode|aw-watcher-obsidian)_/.test(id) &&
+      (meta.hostname ? meta.hostname === host : id.endsWith("_" + host)),
+  );
+  return Promise.all(
+    sources.map(async ([id]) => {
+      const app = id.startsWith("aw-watcher-obsidian_")
+        ? "Obsidian.exe"
+        : "Code.exe";
+      try {
+        const raw = await api("query/", {
+          timeperiods: [start + "/" + end],
+          query: [
+            `events = flood(query_bucket(${JSON.stringify(id)}));`,
+            "RETURN = events;",
+          ],
+        });
+        return { id, app, events: Array.isArray(raw[0]) ? raw[0] : [] };
+      } catch {
+        return { id, app, events: [], unavailable: true };
+      }
+    }),
+  );
+}
+export function editorValue(event, type) {
+  const data = event.data || {};
+  const value =
+    type === "editor-project" ? data.projectPath || data.project : data.file;
+  if (!value || /^unknown(?: |$)/i.test(value)) return "";
+  return String(value).replaceAll("\\", "/");
 }
