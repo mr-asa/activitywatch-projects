@@ -32,15 +32,55 @@ export function normalizeActivityType(raw, others = []) {
     applications: list("applications"),
     titles: list("titles"),
     urls: list("urls"),
+    combinations: combinations(raw.combinations),
     mode: raw.mode || "text",
   };
   if (!["text", "regex"].includes(type.mode))
     throw Error("Choose text or regex for titles.");
-  if (!type.applications.length && !type.titles.length && !type.urls.length)
+  if (
+    !type.applications.length &&
+    !type.titles.length &&
+    !type.urls.length &&
+    !type.combinations.length
+  )
     throw Error("Add at least an application, title, or website.");
   activityRules(type);
   return type;
 }
+// Combinations are standalone alternatives: an app with an optional title
+// fragment, or a title in any app. They never change the main lists.
+function combinations(raw = []) {
+  if (!Array.isArray(raw)) throw Error("Activity matchers must be lists.");
+  const seen = new Set();
+  return raw
+    .map((c) => ({
+      app: String(c?.app || "").trim(),
+      title: String(c?.title || "").trim(),
+    }))
+    .filter((c) => {
+      const key = JSON.stringify([c.app.toLowerCase(), c.title]);
+      if ((!c.app && !c.title) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+export function parseCombinations(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const at = line.indexOf("|");
+      if (at < 0)
+        throw Error(`Write combinations as "App | title fragment": ${line}`);
+      return {
+        app: line.slice(0, at).trim(),
+        title: line.slice(at + 1).trim(),
+      };
+    });
+}
+export const formatCombinations = (list = []) =>
+  list.map((c) => `${c.app} | ${c.title}`).join("\n");
 export function activityRules(type) {
   const rules = [];
   const apps = type.applications.length ? type.applications : [""];
@@ -58,6 +98,17 @@ export function activityRules(type) {
         }),
       );
   }
+  for (const { app, title } of type.combinations || [])
+    rules.push(
+      normalizeRule({
+        id: `title-${rules.length}`,
+        type: "title",
+        mode: title ? type.mode : "regex",
+        pattern: title || ".*",
+        appFilter: app,
+        ignoreCase: true,
+      }),
+    );
   for (const pattern of type.urls)
     rules.push(
       normalizeRule({
@@ -69,27 +120,32 @@ export function activityRules(type) {
     );
   return rules;
 }
-// Applications and titles combine (app AND title), so adding one kind to a
-// type that already uses the other would silently change what it matches.
-export function activityMatcherBlock(type, kind) {
-  if (kind === "application" && type.titles.length)
-    return "This type filters by titles; an application here would only match those titles.";
-  if (kind === "title" && type.applications.length)
-    return "This type matches whole applications; a title would narrow them to that title.";
-  return "";
-}
-export function addActivityMatcher(type, kind, value) {
+// Kinds: "url", "application", "title" (any app), "app-title" (title in
+// the given app). When the main app × title lists would change meaning, the
+// addition becomes a standalone combination instead.
+export function addActivityMatcher(type, kind, value, app = "") {
   value = String(value || "").trim();
+  app = String(app || "").trim();
   if (!value) throw Error("Enter a value to match.");
-  const blocked = activityMatcherBlock(type, kind);
-  if (blocked) throw Error(blocked);
-  const key = { application: "applications", title: "titles", url: "urls" }[
-    kind
-  ];
-  if (!key) throw Error("Choose what to match.");
-  if (kind === "title" && type.mode === "regex")
-    value = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return { ...type, [key]: [...type[key], value] };
+  if (kind === "url") return { ...type, urls: [...type.urls, value] };
+  const combos = type.combinations || [];
+  const escaped =
+    type.mode === "regex"
+      ? value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      : value;
+  if (kind === "application")
+    return type.titles.length
+      ? { ...type, combinations: [...combos, { app: value, title: "" }] }
+      : { ...type, applications: [...type.applications, value] };
+  if (kind === "title")
+    return type.applications.length
+      ? { ...type, combinations: [...combos, { app: "", title: escaped }] }
+      : { ...type, titles: [...type.titles, escaped] };
+  if (kind === "app-title") {
+    if (!app) throw Error("This activity has no application to combine with.");
+    return { ...type, combinations: [...combos, { app, title: escaped }] };
+  }
+  throw Error("Choose what to match.");
 }
 export function analyzeActivityTypes(data, types, start, end) {
   return analyze(

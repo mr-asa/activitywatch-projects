@@ -1322,3 +1322,10 @@ dialog input[type="number"] {
 .activity-rule-fields select {
   align-self: flex-start;
 }
+.activity-combinations {
+  grid-column: 1 / -1;
+}
+.unassigned-tools .check-label {
+  margin: 0;
+  white-space: nowrap;
+}

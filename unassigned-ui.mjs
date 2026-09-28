@@ -5,11 +5,8 @@ import {
   activityTypeBreakdown,
 } from "./unassigned-core.mjs";
 import { merge, normalizeProject } from "./projects-core.mjs";
-import {
-  normalizeActivityType,
-  addActivityMatcher,
-  activityMatcherBlock,
-} from "./activity-core.mjs";
+import { persistControl } from "./ui-prefs.mjs";
+import { normalizeActivityType, addActivityMatcher } from "./activity-core.mjs";
 export function setupUnassigned({
   state,
   persist,
@@ -33,7 +30,7 @@ export function setupUnassigned({
   panel.className = "unassigned-panel";
   panel.hidden = true;
   panel.innerHTML =
-    '<div class="section-heading"><div><h2>Not assigned · activities</h2><p id="unassigned-scope" class="muted"></p></div><button id="close-unassigned" aria-label="Close unassigned activities">×</button></div><div class="unassigned-tools"><input id="unassigned-search" type="search" aria-label="Search unassigned activities" placeholder="Search titles, applications, or URLs"><button id="all-unassigned">Show whole day</button></div><p id="unassigned-count" class="muted"></p><div id="unassigned-rows"></div>';
+    '<div class="section-heading"><div><h2>Not assigned · activities</h2><p id="unassigned-scope" class="muted"></p></div><button id="close-unassigned" aria-label="Close unassigned activities">×</button></div><div class="unassigned-tools"><input id="unassigned-search" type="search" aria-label="Search unassigned activities" placeholder="Search titles, applications, or URLs"><label id="hide-typed-label" class="check-label" title="Hide rows that match any activity type, leaving only completely unmarked activity"><input type="checkbox" id="hide-typed-unassigned"> Hide activities</label><button id="all-unassigned">Show whole day</button></div><p id="unassigned-count" class="muted"></p><div id="unassigned-rows"></div>';
   document.querySelector(".timeline-panel").after(panel);
   const dialog = document.createElement("dialog");
   dialog.id = "assign-dialog";
@@ -43,7 +40,7 @@ export function setupUnassigned({
   const typeDialog = document.createElement("dialog");
   typeDialog.id = "type-assign-dialog";
   typeDialog.innerHTML =
-    '<form id="type-assign-form"><div class="dialog-heading"><h2>Add activity to an activity type</h2><button type="button" id="close-type-assign" aria-label="Close activity type assignment">×</button></div><p id="type-assign-source" class="assignment-source"></p><label for="type-assign-type">Activity type</label><select id="type-assign-type"></select><label for="type-assign-kind">Match using</label><select id="type-assign-kind"><option value="url">Website URL</option><option value="application">Whole application</option><option value="title">Window title fragment</option></select><label for="type-assign-value">Value to add</label><input id="type-assign-value" required><p id="type-assign-hint" class="field-help"></p><p class="field-help">Activity types never change project attribution. The matcher applies to previously recorded days too.</p><p id="type-assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-type-assign" type="button">Cancel</button><button id="save-type-assign" class="primary" type="submit">Add to type</button></div></form>';
+    '<form id="type-assign-form"><div class="dialog-heading"><h2>Add activity to an activity type</h2><button type="button" id="close-type-assign" aria-label="Close activity type assignment">×</button></div><p id="type-assign-source" class="assignment-source"></p><label for="type-assign-type">Activity type</label><select id="type-assign-type"></select><label for="type-assign-kind">Match using</label><select id="type-assign-kind"><option value="url">Website URL</option><option value="application">Whole application</option><option value="app-title">Window title · in this application</option><option value="title">Window title · in any application</option></select><label for="type-assign-value">Value to add</label><input id="type-assign-value" required><p id="type-assign-hint" class="field-help"></p><p class="field-help">Activity types never change project attribution. The matcher applies to previously recorded days too.</p><p id="type-assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-type-assign" type="button">Cancel</button><button id="save-type-assign" class="primary" type="submit">Add to type</button></div></form>';
   document.body.append(typeDialog);
   function node(tag, cls, text) {
     const n = document.createElement(tag);
@@ -125,13 +122,35 @@ export function setupUnassigned({
     drawRows();
   }
   let visibleLimit = 50;
+  const typeCache = new WeakMap();
+  function rowTypes(row, typeResult) {
+    let cached = typeCache.get(row);
+    if (cached?.typeResult !== typeResult) {
+      cached = {
+        typeResult,
+        found: activityTypeBreakdown(row.ranges, typeResult),
+      };
+      typeCache.set(row, cached);
+    }
+    return cached.found;
+  }
   function drawRows() {
     const term = $("unassigned-search").value.trim().toLocaleLowerCase();
-    const filtered = rows.filter((r) =>
+    const typeResult = state.activityTypeResult?.();
+    const hasTypes = Boolean(typeResult?.projects.length);
+    $("hide-typed-label").hidden = !hasTypes;
+    const hideTyped = hasTypes && $("hide-typed-unassigned").checked;
+    const matching = rows.filter((r) =>
       [r.title, r.app, r.url].join(" ").toLocaleLowerCase().includes(term),
     );
+    // Rows carrying any activity type tag (including Type needs review).
+    const filtered = hideTyped
+      ? matching.filter((r) => !rowTypes(r, typeResult).length)
+      : matching;
+    const hidden = matching.length - filtered.length;
     $("unassigned-count").textContent =
-      `${filtered.length} activities · ${time(filtered.reduce((n, r) => n + r.seconds, 0))}`;
+      `${filtered.length} activities · ${time(filtered.reduce((n, r) => n + r.seconds, 0))}` +
+      (hidden ? ` · ${hidden} with activity types hidden` : "");
     $("unassigned-rows").replaceChildren();
     for (const row of filtered.slice(0, visibleLimit)) {
       const card = node("article", "unassigned-row");
@@ -141,10 +160,9 @@ export function setupUnassigned({
         node("div", "muted", row.app),
       );
       if (row.url) content.append(node("div", "activity-url", row.url));
-      const typeResult = state.activityTypeResult?.();
-      if (typeResult?.projects.length) {
+      if (hasTypes) {
         const types = node("div", "activity-type-tags");
-        const found = activityTypeBreakdown(row.ranges, typeResult);
+        const found = rowTypes(row, typeResult);
         let typed = 0;
         for (const t of found) {
           typed += t.seconds;
@@ -234,9 +252,11 @@ export function setupUnassigned({
         node(
           "p",
           "empty",
-          rows.length
-            ? "No activities match this search."
-            : "No unassigned activity in this period.",
+          !rows.length
+            ? "No unassigned activity in this period."
+            : hidden
+              ? "Every matching activity already has an activity type."
+              : "No activities match this search.",
         ),
       );
     resizeFrame();
@@ -295,26 +315,29 @@ export function setupUnassigned({
   function chooseTypeKind() {
     const id = $("type-assign-type").value,
       type = (state.config.activityTypes || []).find((t) => t.id === id);
-    for (const option of $("type-assign-kind").options) {
-      const block = type ? activityMatcherBlock(type, option.value) : "";
-      option.disabled =
-        Boolean(block) || (option.value === "url" && !typeValue("url"));
-      option.title = block;
-    }
-    if ($("type-assign-kind").selectedOptions[0]?.disabled)
-      $("type-assign-kind").value =
-        [...$("type-assign-kind").options].find((o) => !o.disabled)?.value ||
-        "";
+    const url = $("type-assign-kind").querySelector('[value="url"]');
+    url.disabled = !typeValue("url");
+    if (url.disabled && $("type-assign-kind").value === "url")
+      $("type-assign-kind").value = "app-title";
     const kind = $("type-assign-kind").value;
-    $("type-assign-value").value = kind ? typeValue(kind) : "";
-    $("type-assign-value").disabled = !kind;
-    $("type-assign-hint").textContent = !kind
-      ? "This type combines applications and titles; edit it in Activity types."
-      : kind === "url"
-        ? "Matches this page and its subpages. Needs browser tracking."
-        : kind === "application"
-          ? "Matches every window of this application."
-          : "Matches windows whose title contains this text, in any application.";
+    $("type-assign-value").value = typeValue(kind);
+    // Say when an addition becomes a separate combination, so it is clear
+    // that the type's existing app × title matching stays as it was.
+    const separate =
+      kind === "app-title" ||
+      (type && kind === "title" && type.applications.length) ||
+      (type && kind === "application" && type.titles.length);
+    $("type-assign-hint").textContent =
+      {
+        url: "Matches this page and its subpages. Needs browser tracking.",
+        application: "Matches every window of this application.",
+        "app-title": `Matches ${selected.app} windows whose title contains this text.`,
+        title:
+          "Matches windows whose title contains this text, in any application.",
+      }[kind] +
+      (separate
+        ? " Added as a separate combination; the type's other matchers are unchanged."
+        : "");
     $("save-type-assign").textContent =
       id === "__new__" ? "Continue to new type" : "Add to type";
   }
@@ -329,12 +352,14 @@ export function setupUnassigned({
       ),
       new Option("+ Create new activity type", "__new__"),
     );
+    $("type-assign-kind").querySelector('[value="app-title"]').textContent =
+      `Window title · in ${row.app}`;
     const suggested = suggestedRule(row);
     $("type-assign-kind").value =
       suggested.kind === "url"
         ? "url"
         : suggested.keyword
-          ? "title"
+          ? "app-title"
           : "application";
     chooseTypeKind();
     placeDialog(typeDialog);
@@ -359,13 +384,15 @@ export function setupUnassigned({
           applications: kind === "application" ? [value] : [],
           titles: kind === "title" ? [value] : [],
           urls: kind === "url" ? [value] : [],
+          combinations:
+            kind === "app-title" ? [{ app: selected.app, title: value }] : [],
         });
         return;
       }
       const type = types.find((t) => t.id === id);
       if (!type) throw Error("Select an activity type.");
       const next = normalizeActivityType(
-        addActivityMatcher(type, kind, value),
+        addActivityMatcher(type, kind, value, selected.app),
         types,
       );
       state.saving = true;
@@ -479,7 +506,8 @@ export function setupUnassigned({
     panel.hidden = true;
     resizeFrame();
   };
-  $("unassigned-search").oninput = () => {
+  persistControl($("hide-typed-unassigned"), "hideTypedUnassigned");
+  $("unassigned-search").oninput = $("hide-typed-unassigned").onchange = () => {
     visibleLimit = 50;
     drawRows();
   };

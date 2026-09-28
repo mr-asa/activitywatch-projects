@@ -62,7 +62,10 @@ async function setup(page, config = sample(), transform = () => {}) {
     } else if (path.endsWith("/info")) data = { hostname: "TEST" };
     else if (path.endsWith("/buckets"))
       data = {
-        "aw-watcher-window_TEST": { type: "currentwindow" },
+        "aw-watcher-window_TEST": {
+          type: "currentwindow",
+          created: "2026-09-01T00:00:00Z",
+        },
         "aw-watcher-afk_TEST": { type: "afkstatus" },
       };
     else if (path.endsWith("/query/")) data = [fixture];
@@ -720,24 +723,40 @@ test("unassigned activity can be added to an existing or new activity type", asy
   await row
     .getByRole("button", { name: "Add to activity type…", exact: true })
     .click();
-  // An application-wide type cannot take a title without narrowing it.
-  await expect(
-    page.locator('#type-assign-kind option[value="title"]'),
-  ).toBeDisabled();
-  await expect(page.locator("#type-assign-kind")).toHaveValue("application");
-  await expect(page.locator("#type-assign-value")).toHaveValue("chrome.exe");
+  // A title added to an application-wide type becomes a separate combination.
+  await expect(page.locator("#type-assign-kind")).toHaveValue("app-title");
+  await expect(page.locator("#type-assign-value")).toHaveValue(
+    "Personal browsing",
+  );
+  await expect(page.locator("#type-assign-hint")).toContainText(
+    "separate combination",
+  );
+  await page.locator("#type-assign-value").fill("Personal");
   await page.getByRole("button", { name: "Add to type", exact: true }).click();
   await confirm(page);
   await expect(page.locator("#type-assign-dialog")).not.toBeVisible();
-  expect(settings.project_tracker.activityTypes[0].applications).toEqual([
-    "Telegram",
-    "chrome.exe",
+  const saved = settings.project_tracker.activityTypes[0];
+  expect(saved.applications).toEqual(["Telegram"]);
+  expect(saved.titles).toEqual([]);
+  expect(saved.combinations).toEqual([
+    { app: "chrome.exe", title: "Personal" },
   ]);
   expect(settings.project_tracker.projects).toEqual(cfg.projects);
   await expect(row.locator(".activity-type-tag")).toHaveText("Messaging");
   await page.locator("#unassigned-panel").screenshot({
     path: "test-results/unassigned-activity-types.png",
   });
+  // Both remaining rows now carry Messaging, so hiding typed rows empties the list.
+  await page.getByLabel("Hide activities").check();
+  await expect(page.locator(".unassigned-row")).toHaveCount(0);
+  await expect(page.locator("#unassigned-count")).toContainText(
+    "2 with activity types hidden",
+  );
+  await expect(page.locator("#unassigned-rows")).toContainText(
+    "already has an activity type",
+  );
+  await page.getByLabel("Hide activities").uncheck();
+  await expect(page.locator(".unassigned-row")).toHaveCount(2);
 
   const telegram = page
     .locator(".unassigned-row")
@@ -746,15 +765,104 @@ test("unassigned activity can be added to an existing or new activity type", asy
     .getByRole("button", { name: "Add to activity type…", exact: true })
     .click();
   await page.locator("#type-assign-type").selectOption("__new__");
-  await page.locator("#type-assign-kind").selectOption("title");
-  await expect(page.locator("#type-assign-value")).toHaveValue("Shared task");
   await page
     .getByRole("button", { name: "Continue to new type", exact: true })
     .click();
   await expect(page.locator("#activity-type-editor")).toBeVisible();
-  await expect(page.locator("#activity-titles")).toHaveValue("Shared task");
+  await expect(page.locator("#activity-combinations")).toHaveValue(
+    "Telegram.exe | Shared task",
+  );
   await expect(page.locator("#activity-apps")).toHaveValue("");
+  await page.locator("#activity-name").fill("Tasks");
+  await page
+    .getByRole("button", { name: "Save activity type", exact: true })
+    .click();
+  await confirm(page);
+  await expect
+    .poll(() => settings.project_tracker.activityTypes[1]?.combinations)
+    .toEqual([{ app: "Telegram.exe", title: "Shared task" }]);
+  // Editing a type keeps its combinations.
+  await page
+    .getByRole("button", { name: "Edit activity type Tasks", exact: true })
+    .click();
+  await expect(page.locator("#activity-combinations")).toHaveValue(
+    "Telegram.exe | Shared task",
+  );
   expect(errors).toEqual([]);
+});
+
+test("workload presets cover rolling days and a whole project span", async ({
+  page,
+}) => {
+  const queries = [];
+  await setup(page);
+  await page.route("**/api/0/query/", async (route) => {
+    queries.push(route.request().postDataJSON().timeperiods[0]);
+    await route.fallback();
+  });
+  const range = page.getByLabel("Workload range");
+  await range.selectOption("last7");
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-09-21");
+  await expect(page.getByLabel("Chart through")).toHaveValue("2026-09-27");
+  await range.selectOption("last30");
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-08-29");
+  await page.getByLabel("Previous chart period").click();
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-07-30");
+  await expect(page.getByLabel("Chart through")).toHaveValue("2026-08-28");
+
+  await range.selectOption("project");
+  await expect(page.getByLabel("Previous chart period")).toBeDisabled();
+  await expect(page.locator("#workload-status")).toContainText("whole project");
+  // History is scanned from the window bucket creation date.
+  const scanStart = Date.parse(queries.at(-1).split("/")[0]);
+  expect(scanStart).toBeLessThanOrEqual(Date.parse("2026-09-01T00:00:00Z"));
+  expect(scanStart).toBeGreaterThan(Date.parse("2026-08-30T00:00:00Z"));
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-09-22");
+  await expect(page.getByLabel("Chart through")).toHaveValue("2026-09-22");
+  await expect(page.locator("#workload-chart svg")).toHaveCount(1);
+});
+
+test("view preferences survive a reload", async ({ page }) => {
+  const cfg = sample();
+  cfg.activityTypes = [
+    {
+      id: "chat",
+      name: "Messaging",
+      color: "#8ca8ff",
+      applications: ["Telegram"],
+      titles: [],
+      urls: [],
+      mode: "text",
+    },
+  ];
+  await setup(page, cfg);
+  await page.locator("#report-period").selectOption("week");
+  await page.locator("#show-archived").check();
+  await page.getByLabel("Workload range").selectOption("last7");
+  await page.getByLabel("Workload project").selectOption("demo");
+  await page.locator("#workload-trend").uncheck();
+  await page.getByLabel("Daily work target").fill("6");
+  await page.getByLabel("Show activity Messaging").uncheck();
+  await page.getByLabel("Activity project scope").selectOption("demo");
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  await page.getByLabel("Hide activities").check();
+
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "Edit Demo", exact: true }),
+  ).toBeEnabled();
+  await expect(page.locator("#report-period")).toHaveValue("week");
+  await expect(page.locator("#show-archived")).toBeChecked();
+  await expect(page.getByLabel("Workload range")).toHaveValue("last7");
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-09-21");
+  await expect(page.getByLabel("Workload project")).toHaveValue("demo");
+  await expect(page.locator("#workload-trend")).not.toBeChecked();
+  await expect(page.getByLabel("Daily work target")).toHaveValue("6");
+  await expect(page.getByLabel("Show activity Messaging")).not.toBeChecked();
+  await expect(page.getByLabel("Activity project scope")).toHaveValue("demo");
+  await expect(page.getByLabel("Hide activities")).toBeChecked();
 });
 
 test("legacy projects.html forwards to the dashboard with its parameters", async ({

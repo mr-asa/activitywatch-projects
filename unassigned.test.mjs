@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { analyze } from "./projects-core.mjs";
-import { addActivityMatcher } from "./activity-core.mjs";
+import {
+  addActivityMatcher,
+  activityRules,
+  normalizeActivityType,
+  parseCombinations,
+  formatCombinations,
+} from "./activity-core.mjs";
 import {
   subtract,
   unassignedActivities,
@@ -165,16 +171,49 @@ assert.deepEqual(
 assert.deepEqual(addActivityMatcher(appType, "url", "https://t.me/").urls, [
   "https://t.me/",
 ]);
-assert.throws(() => addActivityMatcher(appType, "title", "Chat"), /narrow/);
-assert.throws(
-  () =>
-    addActivityMatcher(
-      { ...appType, applications: [], titles: ["x"] },
-      "application",
-      "Code",
-    ),
-  /only match those titles/,
+// Additions that would change the app × title meaning become combinations.
+const withTitle = addActivityMatcher(appType, "title", "Chat");
+assert.deepEqual(withTitle.applications, ["Telegram"]);
+assert.deepEqual(withTitle.titles, []);
+assert.deepEqual(withTitle.combinations, [{ app: "", title: "Chat" }]);
+assert.deepEqual(
+  addActivityMatcher(
+    { ...appType, applications: [], titles: ["x"] },
+    "application",
+    "Code",
+  ).combinations,
+  [{ app: "Code", title: "" }],
 );
+const inApp = normalizeActivityType(
+  addActivityMatcher(appType, "app-title", "OpenCode", "Obsidian.exe"),
+);
+assert.deepEqual(inApp.combinations, [
+  { app: "Obsidian.exe", title: "OpenCode" },
+]);
+assert.deepEqual(
+  activityRules(inApp).map((r) => [r.appFilter, r.mode, r.pattern]),
+  [
+    ["Telegram", "regex", ".*"],
+    ["Obsidian.exe", "text", "OpenCode"],
+  ],
+);
+assert.throws(
+  () => addActivityMatcher(appType, "app-title", "OpenCode", ""),
+  /no application/,
+);
+assert.deepEqual(
+  parseCombinations("Obsidian | OpenCode\r\n | Jupyter\nFigma |"),
+  [
+    { app: "Obsidian", title: "OpenCode" },
+    { app: "", title: "Jupyter" },
+    { app: "Figma", title: "" },
+  ],
+);
+assert.equal(
+  formatCombinations(parseCombinations("Obsidian | OpenCode")),
+  "Obsidian | OpenCode",
+);
+assert.throws(() => parseCombinations("Obsidian OpenCode"), /App \| title/);
 assert.deepEqual(
   addActivityMatcher(
     { ...appType, applications: [], titles: ["a"], mode: "regex" },

@@ -23,6 +23,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `workload-core.mjs` / `workload-ui.mjs` | Daily workload chart (own data range, independent of the report period). |
 | `activity-core.mjs` / `activity-ui.mjs` | Activity types (independent second classification of the same time). |
 | `time-charts.mjs` | Proportion charts. |
+| `ui-prefs.mjs` | Per-browser view preferences in `localStorage` (report period, chart range and lines, filters). Never stored in ActivityWatch settings; saved automatically on change; unknown values fall back to defaults. |
 
 UI modules follow a `setupX({ state, persist, render, … })` pattern and return `{ update, … }`; `render()` in `projects-app.mjs` calls every panel's `update()`.
 
@@ -33,7 +34,7 @@ UI modules follow a `setupX({ state, persist, render, … })` pattern and return
   - `projects[]`: `{ id, name, color, kind: "project" | "non-project", archived, rulesThrough, rules[], keywords[], urls[] }`. `keywords`/`urls` are derived legacy mirrors of plain rules.
   - rule: `{ id, type: "title" | "url" | "editor-project" | "editor-file", mode: "text" | "regex", pattern, ignoreCase, from, through, appFilter }`.
   - `manualAssignments[]`: `{ id, projectId, host, start, end, note }` (ISO timestamps, per device, non-overlapping).
-  - `activityTypes[]`: `{ id, name, color, applications[], titles[], urls[], mode }`.
+  - `activityTypes[]`: `{ id, name, color, applications[], titles[], urls[], combinations[], mode }`.
 - `project_tracker_backup` — previous configuration (written on every save).
 - `project_tracker_history` — up to 20 previous configurations.
 
@@ -47,7 +48,7 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 - Manual assignments override automatic rules for the same moment (only on their `host`).
 - Rule `from`/`through` are inclusive local calendar dates with **midnight** boundaries (not the start-of-day offset). `rulesThrough` on a project caps all its rules.
 - Report days start at ActivityWatch's `startOfDay` setting (default `04:00`).
-- Activity types run the same engine over the same data but never affect project attribution. In a type, applications × titles combine with AND; URLs are alternatives. `addActivityMatcher` refuses additions that would silently narrow/widen a type.
+- Activity types run the same engine over the same data but never affect project attribution. In a type, applications × titles combine with AND; URLs and `combinations` (`{ app, title }`, either may be blank) are standalone alternatives. `addActivityMatcher` stores an addition as a combination whenever adding it to the main lists would change their meaning.
 - Non-project categories count toward tracked time, not project totals.
 
 ## Performance notes

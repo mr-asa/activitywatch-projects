@@ -2,7 +2,10 @@ import {
   normalizeActivityType,
   analyzeActivityTypes,
   scopedActivityTypes,
+  parseCombinations,
+  formatCombinations,
 } from "./activity-core.mjs";
+import { restoredOption, setPref } from "./ui-prefs.mjs";
 export function setupActivities({
   state,
   persist,
@@ -23,7 +26,7 @@ export function setupActivities({
   dialog.id = "activity-type-editor";
   dialog.className = "workflow-dialog";
   dialog.innerHTML =
-    '<form id="activity-type-form"><div class="dialog-heading"><h2>Activity type</h2><button type="button" id="activity-close">Close</button></div><label>Name<input id="activity-name" maxlength="80" required></label><label>Color<input id="activity-color" type="color" value="#8ca8ff"></label><div class="activity-rule-fields"><label>Applications · one per line<textarea id="activity-apps" rows="3" placeholder="Telegram&#10;Discord"></textarea></label><label>Title patterns · one per line<textarea id="activity-titles" rows="3" placeholder="Optional title fragments"></textarea></label><label>Title matching<select id="activity-mode"><option value="text">Plain text</option><option value="regex">Regex</option></select></label><label>Website URLs · one per line<textarea id="activity-urls" rows="3" placeholder="https://www.youtube.com/"></textarea></label></div><p class="field-help">Applications alone match any title in those apps. When titles are entered, both app and title must match; blank apps means any app. Website rules are alternatives and need browser tracking. These rules apply to recorded history and never assign a project.</p><p id="activity-type-error" role="alert" class="error"></p><div class="dialog-actions"><button id="activity-delete" class="danger" type="button">Delete type</button><span class="spacer"></span><button id="activity-save" class="primary" type="submit">Save activity type</button></div></form>';
+    '<form id="activity-type-form"><div class="dialog-heading"><h2>Activity type</h2><button type="button" id="activity-close">Close</button></div><label>Name<input id="activity-name" maxlength="80" required></label><label>Color<input id="activity-color" type="color" value="#8ca8ff"></label><div class="activity-rule-fields"><label>Applications · one per line<textarea id="activity-apps" rows="3" placeholder="Telegram&#10;Discord"></textarea></label><label>Title patterns · one per line<textarea id="activity-titles" rows="3" placeholder="Optional title fragments"></textarea></label><label>Title matching<select id="activity-mode"><option value="text">Plain text</option><option value="regex">Regex</option></select></label><label>Website URLs · one per line<textarea id="activity-urls" rows="3" placeholder="https://www.youtube.com/"></textarea></label><label class="activity-combinations">App + title combinations · one per line<textarea id="activity-combinations" rows="3" placeholder="Obsidian.exe | OpenCode&#10; | Jupyter&#10;Figma |"></textarea></label></div><p class="field-help">Applications alone match any title in those apps. When titles are entered, both app and title must match; blank apps means any app. Website rules are alternatives and need browser tracking. Combinations are separate alternatives written as App | title fragment: leave the app blank for any app, or the title blank for the whole app. These rules apply to recorded history and never assign a project.</p><p id="activity-type-error" role="alert" class="error"></p><div class="dialog-actions"><button id="activity-delete" class="danger" type="button">Delete type</button><span class="spacer"></span><button id="activity-save" class="primary" type="submit">Save activity type</button></div></form>';
   document.body.append(dialog);
   const node = (tag, text) => {
     const n = document.createElement(tag);
@@ -42,6 +45,7 @@ export function setupActivities({
       ["activity-urls", "urls"],
     ])
       $(id).value = (type?.[key] || []).join("\n");
+    $("activity-combinations").value = formatCombinations(type?.combinations);
     $("activity-mode").value = type?.mode || "text";
     $("activity-type-error").textContent = "";
     $("activity-delete").hidden = !editing;
@@ -100,6 +104,7 @@ export function setupActivities({
           applications: lines("activity-apps"),
           titles: lines("activity-titles"),
           urls: lines("activity-urls"),
+          combinations: parseCombinations($("activity-combinations").value),
           mode: $("activity-mode").value,
         },
         types,
@@ -127,7 +132,10 @@ export function setupActivities({
     if (state.saving) e.preventDefault();
   });
   $("add-activity-type").onclick = () => open();
-  $("activity-scope").onchange = () => draw();
+  $("activity-scope").onchange = () => {
+    setPref("activityScope", $("activity-scope").value);
+    draw();
+  };
   function draw() {
     if (!cache) return;
     const summary = scopedActivityTypes(
@@ -196,11 +204,13 @@ export function setupActivities({
       new Option("Unassigned project time", "unassigned"),
       new Option("Project conflicts", "conflict"),
     );
-    $("activity-scope").value = [...$("activity-scope").options].some(
-      (o) => o.value === selected,
-    )
-      ? selected
-      : "";
+    $("activity-scope").value = restoredOption(
+      $("activity-scope"),
+      "activityScope",
+      [...$("activity-scope").options].some((o) => o.value === selected)
+        ? selected
+        : "",
+    );
     typeResult();
     draw();
   }

@@ -7,6 +7,7 @@ import {
 } from "./workflow-core.mjs";
 import { unassignedActivities } from "./unassigned-core.mjs";
 import { clipSorted } from "./projects-core.mjs";
+import { persistControl } from "./ui-prefs.mjs";
 
 export function setupWorkflow({
   state,
@@ -84,6 +85,8 @@ export function setupWorkflow({
     load();
   };
   $("show-archived").onchange = render;
+  persistControl($("report-period"), "reportPeriod");
+  persistControl($("show-archived"), "showArchived");
   const stat = node("div");
   stat.append(node("span", "Non-project time"));
   const total = node("strong", "—");
