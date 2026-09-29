@@ -1501,3 +1501,28 @@ dialog input[type="number"] {
     display: none;
   }
 }
+
+.url-levels {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 4px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+.url-levels-label {
+  margin-right: 4px;
+  color: #a7b5c4;
+}
+.url-levels-sep {
+  color: #6c7888;
+}
+.url-levels .url-level {
+  padding: 2px 8px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.url-levels .url-level[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}

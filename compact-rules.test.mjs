@@ -109,6 +109,26 @@ const separate = addRule(
 );
 assert.equal(separate.merged, false);
 assert.equal(separate.rules.at(-1).pattern, "Gamma");
+// Readable links keep their rule id and collapse with their encoded form.
+{
+  const encoded = r("https://example.com/%D0%B4%D0%B8%D1%81%D0%BA", {
+    type: "url",
+  });
+  const out = expandGroup(
+    {
+      type: "url",
+      mode: "text",
+      patterns: [
+        "https://example.com/диск",
+        "https://example.com/%D0%B4%D0%B8%D1%81%D0%BA",
+      ].join("\n"),
+    },
+    [encoded],
+  );
+  assert.equal(out.length, 1);
+  assert.equal(out[0].id, encoded.id);
+  assert.equal(out[0].pattern, encoded.pattern);
+}
 console.log(
   "PASS: lossless grouping, multiline validation, optional exact application matching, separate project totals",
 );

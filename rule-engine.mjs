@@ -90,6 +90,15 @@ export function clipRule(ranges, rule) {
     .map(([s, e]) => [Math.max(s, start), Math.min(e, end)])
     .filter(([s, e]) => e > s);
 }
+// Links as people read them (Cyrillic instead of %D0%B5…). Display only:
+// stored rules keep the canonical encoded form; both match the same pages.
+export function readableUrl(url) {
+  try {
+    return decodeURI(url);
+  } catch {
+    return String(url ?? "");
+  }
+}
 // "Telegram", "telegram.exe" and a full path all name the same application.
 export function applicationKey(value) {
   return String(value || "")

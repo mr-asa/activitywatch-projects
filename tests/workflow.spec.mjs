@@ -67,6 +67,12 @@ async function setup(page, config = sample(), transform = () => {}) {
           created: "2026-09-01T00:00:00Z",
         },
         "aw-watcher-afk_TEST": { type: "afkstatus" },
+        ...(fixture.web0.length && {
+          "aw-watcher-web-chrome_TEST": {
+            type: "web.tab.current",
+            hostname: "TEST",
+          },
+        }),
       };
     else if (path.endsWith("/query/")) data = [fixture];
     else throw Error(path);
@@ -1150,4 +1156,85 @@ test("dialogs open where the ActivityWatch page is scrolled to", async ({
     .evaluate((b) => b.click());
   await expect(frame.locator("#editor")).not.toBeVisible();
   expect(await scrollY()).toBe(700);
+});
+test("URL rules can be cut to a folder with readable links and live coverage", async ({
+  page,
+}) => {
+  const folder =
+    "https://disk.example.com/client/disk/Twin%20%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82/2609_DEMO";
+  const { settings } = await setup(page, sample(), (fixture) => {
+    const t = Date.parse(fixture.afk[0].timestamp);
+    const at = (s) => new Date(t + s * 1000).toISOString();
+    fixture.windows = [
+      {
+        timestamp: at(0),
+        duration: 60,
+        data: { app: "maya.exe", title: "Demo scene" },
+      },
+      {
+        timestamp: at(60),
+        duration: 120,
+        data: { app: "chrome.exe", title: "Disk" },
+      },
+    ];
+    fixture.web0 = [
+      {
+        timestamp: at(60),
+        duration: 60,
+        data: { url: folder + "/MOV", title: "Disk" },
+      },
+      {
+        timestamp: at(120),
+        duration: 60,
+        data: { url: folder, title: "Disk" },
+      },
+    ];
+  });
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  const rows = page.locator(".unassigned-row");
+  await expect(rows).toHaveCount(2);
+  await expect(rows.first()).toContainText("Twin проект/2609_DEMO");
+  await page.getByLabel("Search unassigned activities").fill("проект");
+  await expect(rows).toHaveCount(2);
+  await rows
+    .filter({ hasText: "/MOV" })
+    .getByRole("button", { name: "Add to project", exact: true })
+    .click();
+  await expect(page.locator("#assign-kind")).toHaveValue("url");
+  await expect(page.locator("#assign-rule")).toHaveValue(
+    "https://disk.example.com/client/disk/Twin проект/2609_DEMO/MOV",
+  );
+  await expect(page.locator("#assign-coverage")).toContainText(
+    "Matches 1 unassigned entry",
+  );
+  await page.getByRole("button", { name: "Match 2609_DEMO and below" }).click();
+  await expect(page.locator("#assign-rule")).toHaveValue(
+    "https://disk.example.com/client/disk/Twin проект/2609_DEMO",
+  );
+  await expect(page.locator("#assign-coverage")).toContainText(
+    "Matches 2 unassigned entries",
+  );
+  await expect(
+    page.getByRole("button", { name: "Match 2609_DEMO and below" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Match the whole site" }).click();
+  await expect(page.locator("#assign-coverage")).toContainText(
+    "the whole site",
+  );
+  await page
+    .locator("#assign-rule")
+    .fill("https://disk.example.com/client/disk/Twin проект/2609_DEMO");
+  await page.getByRole("button", { name: "Add rule", exact: true }).click();
+  await confirm(page);
+  await expect
+    .poll(() => settings.project_tracker.projects[0].rules?.at(-1))
+    .toMatchObject({ type: "url", pattern: folder });
+  await expect(rows).toHaveCount(0);
+  // The rule editor shows the link readably and keeps the rule's identity.
+  await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
+  await expect(page.locator("#rule-rows textarea").last()).toHaveValue(
+    "https://disk.example.com/client/disk/Twin проект/2609_DEMO",
+  );
 });

@@ -284,3 +284,40 @@ assert.deepEqual(
   ["a", String.raw`Doc \(1\)\.txt`],
 );
 assert.throws(() => addActivityMatcher(appType, "url", "  "), /Enter a value/);
+// URL levels: site, each folder, and the exact link with its query.
+{
+  const { urlLevels, urlCoverage } = await import("./unassigned-core.mjs");
+  const { readableUrl } = await import("./rule-engine.mjs");
+  const link =
+    "https://disk.example.com/a/%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%20X/MOV?id=1";
+  assert.equal(
+    readableUrl(link),
+    "https://disk.example.com/a/проект X/MOV?id=1",
+  );
+  assert.equal(
+    readableUrl("https://example.com/%E0%A4%A"),
+    "https://example.com/%E0%A4%A",
+  );
+  assert.deepEqual(
+    urlLevels(link).map((l) => l.label),
+    ["disk.example.com", "a", "проект X", "MOV", "?id=1"],
+  );
+  assert.deepEqual(urlLevels("file:///C:/x"), []);
+  const rows = [
+    { url: link, seconds: 30 },
+    {
+      url: "https://disk.example.com/a/%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%20X",
+      seconds: 20,
+    },
+    {
+      url: "https://disk.example.com/a/%D0%BF%D1%80%D0%BE%D0%B5%D0%BA%D1%82%20XY",
+      seconds: 5,
+    },
+    { title: "no url", seconds: 99 },
+  ];
+  assert.deepEqual(urlCoverage(rows, urlLevels(link)[2].value), {
+    count: 2,
+    seconds: 50,
+  });
+  assert.equal(urlCoverage(rows, urlLevels(link)[0].value).count, 3);
+}

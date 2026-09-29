@@ -1,5 +1,10 @@
 import { editorValue } from "./projects-core.mjs";
-import { projectRules, ruleMatches, clipRule } from "./rule-engine.mjs";
+import {
+  projectRules,
+  ruleMatches,
+  clipRule,
+  readableUrl,
+} from "./rule-engine.mjs";
 import { groupRules, expandGroup } from "./rule-groups.mjs";
 import { matchTitle, matchUrl } from "./projects-core.mjs";
 export function setupRuleEditor({ state }) {
@@ -53,7 +58,9 @@ export function setupRuleEditor({ state }) {
       card.querySelector(`[data-key="${key}"]`).value = group[key];
     card.querySelector('[data-key="ignoreCase"]').checked = group.ignoreCase;
     const area = card.querySelector('[data-key="patterns"]');
-    area.value = group.entries.map((r) => r.pattern).join("\n");
+    area.value = group.entries
+      .map((r) => (group.type === "url" ? readableUrl(r.pattern) : r.pattern))
+      .join("\n");
     area.rows = Math.min(6, Math.max(3, group.entries.length));
     const hint = () => {
       const mode = card.querySelector('[data-key="mode"]').value,

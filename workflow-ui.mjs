@@ -3,6 +3,7 @@ import { compareConfigs, validateConfig } from "./workflow-core.mjs";
 import { setupExport } from "./export-ui.mjs";
 import { unassignedActivities } from "./unassigned-core.mjs";
 import { clipSorted } from "./projects-core.mjs";
+import { readableUrl } from "./rule-engine.mjs";
 import { persistControl } from "./ui-prefs.mjs";
 
 export function setupWorkflow({
@@ -133,7 +134,7 @@ export function setupWorkflow({
         detail.addEventListener("toggle", () => {
           if (!detail.open || populated) return;
           populated = true;
-          if (row.url) detail.append(node("p", row.url));
+          if (row.url) detail.append(node("p", readableUrl(row.url)));
           const allocations = new Map();
           for (const s of state.result.segments) {
             const sec = clipSorted(row.ranges, s.start, s.end).reduce(

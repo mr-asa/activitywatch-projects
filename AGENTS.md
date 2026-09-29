@@ -101,6 +101,7 @@ After deploying, the dashboard needs **Ctrl+F5** (modules are cached).
 ## Conventions and gotchas
 
 - **`.gitignore` is a whitelist** (`/*` then `!/file`). A new tracked file must be added there, and a new runtime file must also be added to `$files` in `deploy.ps1`.
+- Links are shown with `readableUrl()` (decoded) but URL rules are stored normalized (`normalizeRule` → encoded `URL.href`); `expandGroup` matches ids and duplicates after normalization. The "+ Project" dialog offers `urlLevels()` (site / folders / exact link) with `urlCoverage()` over the unassigned rows.
 - UI text is English. Build DOM with `textContent` / `createElement`; `innerHTML` only for static templates (no user data).
 - Open modal dialogs with `openModal()` / `placeDialog()` from `dialogs.mjs`: inside the ActivityWatch iframe a dialog is placed in the currently visible part of the frame; never scroll the ActivityWatch page to show a dialog.
 - While any dialog is open, a document-level `wheel` handler (`dialogs.mjs`) cancels scrolling unless an element inside the dialog can still scroll that way, so neither the page nor the ActivityWatch page around the frame moves. New scrollable areas inside dialogs need `overflow: auto|scroll` to be recognised.

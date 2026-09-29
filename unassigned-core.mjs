@@ -4,7 +4,9 @@ import {
   duration,
   browserFamily,
   clipSorted,
+  matchUrl,
 } from "./projects-core.mjs";
+import { readableUrl } from "./rule-engine.mjs";
 function subtractSorted(a, b) {
   const out = [];
   let j = 0;
@@ -201,4 +203,47 @@ export function suggestedRule(row) {
         : row.title.replace(/^\*+/, "").trim(),
     url: usable ? row.url : "",
   };
+}
+
+// Levels a URL rule can be cut to: the site, each folder of the path, and the
+// full link with its query. A URL rule also covers everything below its path.
+export function urlLevels(url) {
+  let u;
+  try {
+    u = new URL(url);
+  } catch {
+    return [];
+  }
+  if (!["http:", "https:"].includes(u.protocol)) return [];
+  const segment = (s) => {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s;
+    }
+  };
+  const levels = [{ label: u.host, value: u.origin + "/", site: true }];
+  let path = "";
+  for (const part of u.pathname.split("/").filter(Boolean)) {
+    path += "/" + part;
+    levels.push({ label: segment(part), value: readableUrl(u.origin + path) });
+  }
+  if (u.search)
+    levels.push({
+      label: "?" + readableUrl(u.search.slice(1)),
+      value: readableUrl(u.origin + u.pathname + u.search),
+      query: true,
+    });
+  return levels;
+}
+// Rows (from unassignedActivities) whose page a URL rule would match.
+export function urlCoverage(rows, pattern) {
+  let count = 0,
+    seconds = 0;
+  for (const r of rows)
+    if (r.url && matchUrl(r.url, pattern)) {
+      count++;
+      seconds += r.seconds;
+    }
+  return { count, seconds };
 }

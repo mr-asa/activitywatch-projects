@@ -1,10 +1,12 @@
 import { placeDialog } from "./dialogs.mjs";
-import { projectRules, normalizeRule } from "./rule-engine.mjs";
+import { projectRules, normalizeRule, readableUrl } from "./rule-engine.mjs";
 import { addRule } from "./rule-groups.mjs";
 import {
   unassignedActivities,
   suggestedRule,
   activityTypeBreakdown,
+  urlLevels,
+  urlCoverage,
 } from "./unassigned-core.mjs";
 import { merge, normalizeProject } from "./projects-core.mjs";
 import { persistControl } from "./ui-prefs.mjs";
@@ -42,7 +44,7 @@ export function setupUnassigned({
   const dialog = document.createElement("dialog");
   dialog.id = "assign-dialog";
   dialog.innerHTML =
-    '<form id="assign-form"><div class="dialog-heading"><h2>Add activity to a project</h2><button type="button" id="close-assign" aria-label="Close assignment">×</button></div><p id="assign-source" class="assignment-source"></p><label for="assign-project">Project</label><select id="assign-project"></select><label for="assign-kind">Match using</label><select id="assign-kind"><option value="keyword">Window title keyword</option><option value="url">Page URL</option><option value="regex">Window title regex</option></select><label for="assign-app">Application (optional)</label><input id="assign-app" list="recorded-apps" placeholder="Any app · e.g. Telegram"><label for="assign-rule">Rule to add</label><textarea id="assign-rule" rows="3" required></textarea><div class="rule-dates"><label>Valid from<input id="assign-from" type="date" aria-label="Assignment rule valid from"></label><label>Valid through<input id="assign-through" type="date" aria-label="Assignment rule valid through"></label></div><p id="assign-hint" class="field-help"></p><p class="field-help">This rule will apply to other matching activity and previously recorded days too.</p><p id="assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-assign" type="button">Cancel</button><button id="save-assign" class="primary" type="submit">Add rule</button></div></form>';
+    '<form id="assign-form"><div class="dialog-heading"><h2>Add activity to a project</h2><button type="button" id="close-assign" aria-label="Close assignment">×</button></div><p id="assign-source" class="assignment-source"></p><label for="assign-project">Project</label><select id="assign-project"></select><label for="assign-kind">Match using</label><select id="assign-kind"><option value="keyword">Window title keyword</option><option value="url">Page URL</option><option value="regex">Window title regex</option></select><label for="assign-app">Application (optional)</label><input id="assign-app" list="recorded-apps" placeholder="Any app · e.g. Telegram"><label for="assign-rule">Rule to add</label><textarea id="assign-rule" rows="3" required></textarea><div id="assign-levels" class="url-levels" role="group" aria-label="Page URL level" hidden></div><p id="assign-coverage" class="field-help" role="status"></p><div class="rule-dates"><label>Valid from<input id="assign-from" type="date" aria-label="Assignment rule valid from"></label><label>Valid through<input id="assign-through" type="date" aria-label="Assignment rule valid through"></label></div><p id="assign-hint" class="field-help"></p><p class="field-help">This rule will apply to other matching activity and previously recorded days too.</p><p id="assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-assign" type="button">Cancel</button><button id="save-assign" class="primary" type="submit">Add rule</button></div></form>';
   document.body.append(dialog);
   const typeDialog = document.createElement("dialog");
   typeDialog.id = "type-assign-dialog";
@@ -147,7 +149,10 @@ export function setupUnassigned({
     $("hide-typed-label").hidden = !hasTypes;
     const hideTyped = hasTypes && $("hide-typed-unassigned").checked;
     const matching = rows.filter((r) =>
-      [r.title, r.app, r.url].join(" ").toLocaleLowerCase().includes(term),
+      [r.title, r.app, r.url, readableUrl(r.url || "")]
+        .join(" ")
+        .toLocaleLowerCase()
+        .includes(term),
     );
     // Rows carrying any activity type tag (including Type needs review).
     const filtered = hideTyped
@@ -165,7 +170,11 @@ export function setupUnassigned({
         node("strong", "", row.title),
         node("div", "muted", row.app),
       );
-      if (row.url) content.append(node("div", "activity-url", row.url));
+      if (row.url) {
+        const link = node("div", "activity-url", readableUrl(row.url));
+        link.title = row.url;
+        content.append(link);
+      }
       if (hasTypes) {
         const types = node("div", "activity-type-tags");
         const found = rowTypes(row, typeResult);
@@ -271,17 +280,65 @@ export function setupUnassigned({
       );
     resizeFrame();
   }
+  // URL rules: clickable path levels and how much unassigned time a rule covers.
+  function drawLevels() {
+    const box = $("assign-levels"),
+      url = $("assign-kind").value === "url";
+    box.hidden = !url;
+    box.replaceChildren();
+    if (!url) return;
+    const current = $("assign-rule").value.trim();
+    box.append(node("span", "url-levels-label", "Match from:"));
+    urlLevels(selected.url).forEach((level, i) => {
+      if (i) box.append(node("span", "url-levels-sep", level.query ? "" : "/"));
+      const covered = urlCoverage(rows, level.value);
+      const b = node("button", "url-level", level.label);
+      b.type = "button";
+      b.dataset.value = level.value;
+      b.title = `${level.value}\n${covered.count} unassigned ${covered.count === 1 ? "entry" : "entries"} · ${time(covered.seconds)}`;
+      b.setAttribute(
+        "aria-label",
+        `Match ${level.site ? "the whole site" : level.query ? "only this exact link" : level.label + " and below"}`,
+      );
+      b.setAttribute("aria-pressed", String(level.value === current));
+      b.onclick = () => {
+        $("assign-rule").value = level.value;
+        drawLevels();
+        coverage();
+      };
+      box.append(b);
+    });
+  }
+  function coverage() {
+    const out = $("assign-coverage");
+    out.textContent = "";
+    if ($("assign-kind").value !== "url") return;
+    const value = $("assign-rule").value.trim();
+    let site = false;
+    try {
+      site = new URL(value).pathname === "/";
+    } catch {
+      return;
+    }
+    const covered = urlCoverage(rows, value);
+    out.textContent =
+      `Matches ${covered.count} unassigned ${covered.count === 1 ? "entry" : "entries"} in this list · ${time(covered.seconds)}` +
+      (site ? " · the whole site" : " · this folder and everything below it");
+  }
   function chooseKind() {
     $("assign-app").disabled = $("assign-kind").value === "url";
     const suggested = suggestedRule(selected),
       kind = $("assign-kind").value;
-    $("assign-rule").value = kind === "url" ? suggested.url : suggested.keyword;
+    $("assign-rule").value =
+      kind === "url" ? readableUrl(suggested.url) : suggested.keyword;
     $("assign-hint").textContent =
       kind === "url"
         ? "Use a project-specific URL. Its subpages also match; a homepage would match the whole site."
         : kind === "regex"
           ? "Enter a JavaScript regex without / delimiters. Matching ignores capitalization."
           : "Use a distinctive part of the title. Matching ignores capitalization.";
+    drawLevels();
+    coverage();
   }
   function assign(row) {
     selected = row;
@@ -310,7 +367,7 @@ export function setupUnassigned({
     $("assign-project").focus();
   }
   function typeValue(kind) {
-    if (kind === "url") return suggestedRule(selected).url;
+    if (kind === "url") return readableUrl(suggestedRule(selected).url);
     if (kind === "application") return selected.app;
     return suggestedRule(selected).keyword;
   }
@@ -503,6 +560,13 @@ export function setupUnassigned({
     }
   };
   $("assign-kind").onchange = chooseKind;
+  $("assign-rule").oninput = () => {
+    if ($("assign-kind").value !== "url") return;
+    const current = $("assign-rule").value.trim();
+    for (const b of $("assign-levels").querySelectorAll(".url-level"))
+      b.setAttribute("aria-pressed", String(b.dataset.value === current));
+    coverage();
+  };
   $("assign-project").onchange = updateSubmit;
   $("close-assign").onclick = close;
   $("cancel-assign").onclick = close;

@@ -63,11 +63,15 @@ export function expandGroup(input, entries = []) {
   ];
   if (!patterns.length)
     throw Error("Enter at least one pattern, or remove this rule group.");
-  return patterns.map((pattern) =>
-    normalizeRule({
-      ...input,
-      id: entries.find((r) => r.pattern === pattern)?.id,
-      pattern,
-    }),
-  );
+  // Links may be shown in readable form; compare them once normalized.
+  const seen = new Set();
+  return patterns
+    .map((pattern) => {
+      const rule = normalizeRule({ ...input, pattern });
+      const id = entries.find(
+        (r) => r.pattern === pattern || r.pattern === rule.pattern,
+      )?.id;
+      return id ? { ...rule, id } : rule;
+    })
+    .filter((rule) => !seen.has(rule.pattern) && seen.add(rule.pattern));
 }
