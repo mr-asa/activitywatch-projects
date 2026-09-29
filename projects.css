@@ -999,10 +999,11 @@ button.share-segment:hover {
   display: block;
 }
 .workload-chart [role="button"] {
-  cursor: crosshair;
+  cursor: pointer;
   outline: none;
 }
-.workload-chart [role="button"]:focus {
+/* Highlight only for keyboard focus; a mouse click opens the day instead. */
+.workload-chart [role="button"]:focus-visible {
   fill: #ffffff12;
   stroke: #90a8bc;
 }

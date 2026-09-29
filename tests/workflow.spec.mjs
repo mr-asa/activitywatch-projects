@@ -822,6 +822,25 @@ test("workload presets cover rolling days and a whole project span", async ({
   await expect(page.locator("#workload-chart svg")).toHaveCount(1);
 });
 
+test("clicking a chart day opens it in the report at full width", async ({
+  page,
+}) => {
+  await setup(page);
+  await page.locator("#report-period").selectOption("week");
+  const chart = page.locator("#workload-chart");
+  await chart.locator("svg").waitFor();
+  // The drawing uses the panel width instead of a scaled fixed canvas.
+  const [panel, svg] = await chart.evaluate((c) => [
+    c.clientWidth,
+    c.querySelector("svg").viewBox.baseVal.width,
+  ]);
+  expect(Math.abs(panel - svg)).toBeLessThan(5);
+  await chart.getByRole("button", { name: /^2026-09-24:/ }).click();
+  await expect(page.locator("#date")).toHaveValue("2026-09-24");
+  await expect(page.locator("#report-period")).toHaveValue("day");
+  await expect(page.locator("#range-label")).toContainText("24");
+});
+
 test("view preferences survive a reload", async ({ page }) => {
   const cfg = sample();
   cfg.activityTypes = [

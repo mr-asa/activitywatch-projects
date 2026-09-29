@@ -123,7 +123,28 @@ export function setupWorkload({ state, api, resizeFrame }) {
     };
   const hiddenTypes = new Set(pref("hiddenActivityLines", []));
   const chartCache = new WeakMap();
+  // Drill down: show the clicked day in the main report above the chart.
+  function openDay(date) {
+    const period = document.getElementById("report-period");
+    if (period && period.value !== "day") {
+      period.value = "day";
+      setPref("reportPeriod", "day");
+    }
+    const input = document.getElementById("date");
+    input.value = date;
+    input.dispatchEvent(new Event("change"));
+    document
+      .querySelector(".stats")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  // Redraw at the new width when the panel resizes (cached data, no reload).
+  let drawnWidth = 0;
+  new ResizeObserver(() => {
+    const width = $("workload-chart").clientWidth;
+    if (result && width && Math.abs(width - drawnWidth) > 4) chart();
+  }).observe($("workload-chart"));
   function chart() {
+    drawnWidth = $("workload-chart").clientWidth;
     if (!result) return;
     const aggregate = $("workload-project").value === "";
     const project = aggregate
@@ -241,7 +262,11 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const days = layers.days,
       ns = "http://www.w3.org/2000/svg",
       svg = document.createElementNS(ns, "svg");
-    const W = Math.max(900, days.length * 14 + 110),
+    // Draw at the panel's real width; very long ranges scroll instead of cramping.
+    const W = Math.max(
+        $("workload-chart").clientWidth || 900,
+        days.length * 14 + 110,
+      ),
       H = 330,
       L = 58,
       R = nonProject ? 58 : 24,
@@ -509,10 +534,20 @@ export function setupWorkload({ state, api, resizeFrame }) {
         fill: "transparent",
         tabindex: 0,
         role: "button",
-        "aria-label": `${d.date}: ${hours(d.seconds)}`,
+        "aria-label": `${d.date}: ${hours(d.seconds)}. Open this day in the report`,
       });
-      for (const event of ["pointerenter", "focus", "click"])
+      const tip = document.createElementNS(ns, "title");
+      tip.textContent = `${d.date} · click to open this day in the report`;
+      hit.append(tip);
+      for (const event of ["pointerenter", "focus"])
         hit.addEventListener(event, () => describe(d, i));
+      hit.addEventListener("click", () => openDay(d.date));
+      hit.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openDay(d.date);
+        }
+      });
       // Regular labels plus the last day; skip a regular label that would
       // crowd the last one.
       const step = Math.max(1, Math.ceil(days.length / 9)),
