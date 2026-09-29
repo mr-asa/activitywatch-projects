@@ -1313,6 +1313,11 @@ dialog input[type="number"] {
 .rule-dates input[type="date"] {
   width: 160px;
 }
+@media (max-width: 650px) {
+  .rule-dates {
+    grid-template-columns: 1fr;
+  }
+}
 #project-name,
 #activity-name,
 #assign-app,
