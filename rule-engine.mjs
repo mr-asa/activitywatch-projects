@@ -129,13 +129,21 @@ export function readableUrl(url) {
   }
 }
 // "Telegram", "telegram.exe" and a full path all name the same application.
+const applicationKeys = new Map();
 export function applicationKey(value) {
-  return String(value || "")
-    .trim()
-    .split(/[\\/]/)
-    .pop()
-    .replace(/[.]exe$/i, "")
-    .toLocaleLowerCase();
+  const text = String(value || "");
+  let key = applicationKeys.get(text);
+  if (key === undefined) {
+    if (applicationKeys.size > 10000) applicationKeys.clear();
+    key = text
+      .trim()
+      .split(/[\\/]/)
+      .pop()
+      .replace(/[.]exe$/i, "")
+      .toLocaleLowerCase();
+    applicationKeys.set(text, key);
+  }
+  return key;
 }
 export function applicationMatches(filter, app) {
   if (!String(filter || "").trim()) return true;

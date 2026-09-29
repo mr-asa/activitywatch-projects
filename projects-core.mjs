@@ -172,18 +172,32 @@ export function discoverBrowsers(buckets, host) {
   }
   return { sources, warnings };
 }
+// Lower-cased and normalised forms of titles and patterns, computed once per
+// distinct string: every rule is matched against every unique title.
+const titleForms = new Map();
+function titleForm(value) {
+  const text = String(value || "");
+  let form = titleForms.get(text);
+  if (!form) {
+    if (titleForms.size > 300000) titleForms.clear();
+    const lower = text.toLocaleLowerCase();
+    form = {
+      lower,
+      clean: lower
+        .replace(/\s*\[modified\]\s*/gi, " ")
+        .replace(/\s+/g, " ")
+        .trim(),
+    };
+    titleForms.set(text, form);
+  }
+  return form;
+}
 export function matchTitle(title, keyword) {
-  const raw = String(title || "").toLocaleLowerCase(),
-    rule = String(keyword || "").toLocaleLowerCase();
-  if (!rule.trim()) return false;
-  if (raw.includes(rule)) return true;
-  const clean = (s) =>
-    s
-      .replace(/\s*\[modified\]\s*/gi, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  const normalized = clean(rule);
-  return Boolean(normalized) && clean(raw).includes(normalized);
+  const raw = titleForm(title),
+    rule = titleForm(keyword);
+  if (!rule.lower.trim()) return false;
+  if (raw.lower.includes(rule.lower)) return true;
+  return Boolean(rule.clean) && raw.clean.includes(rule.clean);
 }
 // Input must be sorted, disjoint ranges (as returned by merge).
 export function clipSorted(ranges, start, end) {
@@ -219,6 +233,13 @@ function prepare(data, start, end) {
   const windows = data.windows
     .map((e) => ({ ...e, ranges: clipSorted(active, ...range(e)) }))
     .filter((e) => e.ranges.length);
+  // Windows by start time, to find those overlapping an interval quickly.
+  windows.forEach((w, i) => (w.index = i));
+  const byStart = [...windows].sort((a, b) => a.ranges[0][0] - b.ranges[0][0]);
+  const longest = windows.reduce(
+    (n, w) => Math.max(n, w.ranges.at(-1)[1] - w.ranges[0][0]),
+    0,
+  );
   const tracked = merge(windows.flatMap((e) => e.ranges));
   const focusByFamily = new Map();
   for (const w of windows) {
@@ -265,6 +286,8 @@ function prepare(data, start, end) {
     end,
     range,
     windows,
+    byStart,
+    longest,
     tracked,
     titleGroups,
     urlGroups,
@@ -277,13 +300,28 @@ function prepare(data, start, end) {
 export function analyze(data, projects, start, end, options = {}) {
   const {
     range,
-    windows,
+    byStart,
+    longest,
     tracked,
     titleGroups,
     urlGroups,
     focusByFamily,
     editorFocus,
   } = prepare(data, start, end);
+  // Windows overlapping [from, to), in their original order.
+  const overlapping = (from, to) => {
+    let lo = 0,
+      hi = byStart.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (byStart[mid].ranges[0][0] < from - longest) lo = mid + 1;
+      else hi = mid;
+    }
+    const found = [];
+    for (let i = lo; i < byStart.length && byStart[i].ranges[0][0] < to; i++)
+      if (byStart[i].ranges.at(-1)[1] > from) found.push(byStart[i]);
+    return found.sort((a, b) => a.index - b.index);
+  };
   const evidence = [];
   const add = (project, ranges, kind, label, manual = false, details = {}) => {
     for (const [s, e] of ranges)
@@ -362,12 +400,7 @@ export function analyze(data, projects, start, end, options = {}) {
     if (!project) continue;
     const assignmentStart = Date.parse(assignment.start),
       assignmentEnd = Date.parse(assignment.end);
-    for (const w of windows) {
-      if (
-        w.ranges[0][0] >= assignmentEnd ||
-        w.ranges.at(-1)[1] <= assignmentStart
-      )
-        continue;
+    for (const w of overlapping(assignmentStart, assignmentEnd)) {
       add(
         project,
         clipSorted(w.ranges, assignmentStart, assignmentEnd),

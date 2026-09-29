@@ -521,3 +521,47 @@ assert.equal(failedEditors[0].unavailable, true);
   const empty = days.map((x) => ({ ...x, tracked: 0 }));
   assert.equal(chartBuckets(empty, [], 150).days[0].tracked, 0);
 }
+// Manual assignments find overlapping windows via the start-time index,
+// including a long window that began well before the assignment.
+{
+  const base = Date.parse("2026-09-22T08:00:00Z");
+  const ev = (offsetMin, minutes, title) => ({
+    timestamp: new Date(base + offsetMin * 60000).toISOString(),
+    duration: minutes * 60,
+    data: { app: "maya.exe", title },
+  });
+  const longData = {
+    windows: [ev(0, 180, "Long"), ev(180, 10, "Short"), ev(190, 10, "Later")],
+    afk: [{ ...ev(0, 200, ""), data: { status: "not-afk" } }],
+    browsers: [],
+  };
+  const proj = normalizeProject({
+    id: "x",
+    name: "X",
+    color: "#65d6b4",
+    keywords: ["nothing"],
+  });
+  const assignment = {
+    id: "a",
+    host: "h",
+    projectId: "x",
+    start: new Date(base + 120 * 60000).toISOString(),
+    end: new Date(base + 185 * 60000).toISOString(),
+  };
+  const r = analyze(longData, [proj], base, base + 200 * 60000, {
+    host: "h",
+    manualAssignments: [assignment],
+  });
+  assert.equal(r.assigned, 65 * 60);
+  assert.deepEqual(
+    r.evidence.map((e) => e.label),
+    ["Long", "Short"],
+  );
+  const { sliceData } = await import("./workload-core.mjs");
+  const cut = sliceData(longData, base + 185 * 60000, base + 195 * 60000);
+  assert.deepEqual(
+    cut.windows.map((w) => w.data.title),
+    ["Short", "Later"],
+  );
+  assert.equal(cut.afk.length, 1);
+}

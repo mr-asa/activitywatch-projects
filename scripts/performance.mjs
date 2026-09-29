@@ -43,8 +43,21 @@ for (const days of [7, 30, 90]) {
       );
   }
   const end = start + days * 86400000;
+  // Twenty short manual assignments per day, as "all occurrences" creates.
+  const manualAssignments = [];
+  for (let day = 0; day < days; day++)
+    for (let k = 0; k < 20; k++) {
+      const from = start + day * 86400000 + k * 1200000;
+      manualAssignments.push({
+        id: `m${day}-${k}`,
+        host: "demo",
+        projectId: `p${k % 8}`,
+        start: new Date(from).toISOString(),
+        end: new Date(from + 60000).toISOString(),
+      });
+    }
   const [result, analysisMs] = measure(() =>
-    analyze(data, projects, start, end),
+    analyze(data, projects, start, end, { host: "demo", manualAssignments }),
   );
   const [, activityMs] = measure(() =>
     analyzeActivityTypes(data, types, start, end),
@@ -56,6 +69,7 @@ for (const days of [7, 30, 90]) {
     JSON.stringify({
       days,
       events: data.windows.length,
+      manual: manualAssignments.length,
       analysisMs,
       activityMs,
       unassignedMs,

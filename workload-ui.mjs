@@ -7,6 +7,7 @@ import {
   workloadLayers,
   stackedWorkload,
   chartBuckets,
+  sliceData,
 } from "./workload-core.mjs";
 export function setupWorkload({ state, api, resizeFrame }) {
   const section = document.createElement("section");
@@ -647,7 +648,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   function applyProjectSpan() {
     const id = $("workload-project").value;
     const full = analyze(
-      data,
+      fullHistory.data,
       state.config.projects,
       fullHistory.start,
       fullHistory.end,
@@ -668,6 +669,8 @@ export function setupWorkload({ state, api, resizeFrame }) {
     loadedFrom = dayStart(from);
     loadedAt = Math.min(dayStart(localDate(next)), fullHistory.end);
     loadedThrough = through;
+    // Recalculations (e.g. after settings changes) only need the shown span.
+    data = sliceData(fullHistory.data, loadedFrom, loadedAt);
     key = null;
     calculate();
     $("workload-status").textContent = spans.length
@@ -734,6 +737,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
       fullHistory = projectMode && {
         start: +start,
         end: snapshotEnd,
+        data: nextData,
       };
       if (projectMode) {
         if (applyProjectSpan() && warnings.length)
@@ -848,7 +852,20 @@ export function setupWorkload({ state, api, resizeFrame }) {
       busy || (!projects.length && !(state.config.activityTypes || []).length);
     if (requestedHost !== state.host) load();
     if (data && stable({ config: state.config, host: state.host }) !== key)
-      calculate();
+      scheduleCalculate();
+  }
+  // Let the rest of the page update first; the chart follows a moment later.
+  let pendingCalculation = false;
+  function scheduleCalculate() {
+    if (pendingCalculation) return;
+    pendingCalculation = true;
+    $("workload-detail").textContent = "Updating chart…";
+    requestAnimationFrame(() =>
+      setTimeout(() => {
+        pendingCalculation = false;
+        calculate();
+      }, 0),
+    );
   }
   return { update };
 }

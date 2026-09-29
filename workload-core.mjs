@@ -246,3 +246,26 @@ export function chartBuckets(days, stack = [], plotWidth = 900) {
   }
   return { unit, days: buckets, stack: layers };
 }
+
+// The part of loaded data that overlaps [start, end): analysing a short span
+// of a long loaded history then costs only that span.
+export function sliceData(data, start, end) {
+  const overlaps = (e) => {
+    const t = Date.parse(e.timestamp);
+    return t < end && t + e.duration * 1000 > start;
+  };
+  return {
+    ...data,
+    windows: data.windows.filter(overlaps),
+    afk: data.afk.filter(overlaps),
+    browsers: (data.browsers || []).map((b) => ({
+      ...b,
+      events: b.events.filter(overlaps),
+    })),
+    editors: (data.editors || []).map((source) =>
+      source.events
+        ? { ...source, events: source.events.filter(overlaps) }
+        : source,
+    ),
+  };
+}

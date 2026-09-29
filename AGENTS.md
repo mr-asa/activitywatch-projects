@@ -60,6 +60,8 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 
 - `analyze()` groups windows by unique `(app, title)` and browser events by URL, so each rule is matched once per unique value; regexes are cached (`rule-engine.mjs`). Keep this shape when adding rule types.
 - Results are cached by object identity (`state.data`, `state.config`, `state.result`); replace objects instead of mutating them.
+- Manual assignments find their windows through a start-time index (`byStart` + longest window span) in `prepare()`; never loop over all windows per assignment (thousands of assignments × a long history froze the page). Title and application normal forms are memoised per distinct string (`titleForm`, `applicationKey`).
+- After "Whole project" finds a span, the chart keeps only that span's data (`sliceData`); its recalculation after settings changes is deferred a frame (`scheduleCalculate`) so the rest of the page updates first.
 - Active window intervals and source groups are shared between analyses through a `WeakMap` keyed by data identity and exact bounds (one prepared range per data object). Changing rules still recalculates attribution.
 - Unassigned window ownership uses compressed event boundaries and successor links to consume each span once in original source order; preserve this priority for overlapping/duplicate windows.
 - `loadRange()` (`projects-core.mjs`) is the shared fetch for an arbitrary range (workload chart, export).
