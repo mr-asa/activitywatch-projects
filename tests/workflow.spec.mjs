@@ -1060,3 +1060,33 @@ test("assign application time collects all titles despite search and preserves a
     )
     .toBe(120);
 });
+test("scrolling inside an open dialog never scrolls the page behind it", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 520 });
+  await setup(page);
+  await page
+    .getByRole("button", { name: "Reports & export", exact: true })
+    .click();
+  const dialog = page.locator("#report-dialog");
+  await expect(dialog.getByLabel("Export preview")).toContainText("Date");
+  await page.evaluate(() => window.scrollTo(0, 200));
+  const pageScroll = () => page.evaluate(() => window.scrollY);
+  const before = await pageScroll();
+  expect(before).toBeGreaterThan(0);
+  const box = await dialog.boundingBox();
+  await page.mouse.move(box.x + 40, box.y + 40);
+  for (let i = 0; i < 6; i++) await page.mouse.wheel(0, 800);
+  await expect
+    .poll(() => dialog.evaluate((d) => d.scrollTop))
+    .toBeGreaterThan(0);
+  expect(await pageScroll()).toBe(before);
+  // Over the backdrop, too.
+  await page.mouse.move(5, 5);
+  await page.mouse.wheel(0, -800);
+  await page.mouse.wheel(0, 800);
+  expect(await pageScroll()).toBe(before);
+  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await page.mouse.wheel(0, 300);
+  await expect.poll(pageScroll).toBeGreaterThan(before);
+});

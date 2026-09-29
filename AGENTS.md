@@ -102,6 +102,7 @@ After deploying, the dashboard needs **Ctrl+F5** (modules are cached).
 - **`.gitignore` is a whitelist** (`/*` then `!/file`). A new tracked file must be added there, and a new runtime file must also be added to `$files` in `deploy.ps1`.
 - UI text is English. Build DOM with `textContent` / `createElement`; `innerHTML` only for static templates (no user data).
 - Dialogs inside the ActivityWatch iframe are positioned manually (`window.frameElement`); follow the existing `placeDialog` pattern.
+- While any dialog is open, a document-level `wheel` handler (`projects-app.mjs`) cancels scrolling unless an element inside the dialog can still scroll that way, so neither the page nor the ActivityWatch page around the frame moves. New scrollable areas inside dialogs need `overflow: auto|scroll` to be recognised.
 - Every configuration save goes through `persist()`, which shows a before/after preview and requires confirmation.
 - Tests use invented names and `example.com` URLs. Never commit real project names, links, exported settings, activity data, screenshots or local backups.
 - Keep the README human-oriented (see top of this file). Document mechanics here instead.

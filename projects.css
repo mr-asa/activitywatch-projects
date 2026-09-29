@@ -375,6 +375,7 @@ dialog {
   border-radius: 14px;
   width: min(590px, calc(100% - 24px));
   max-height: 90vh;
+  overscroll-behavior: contain;
   padding: 25px;
   box-shadow: 0 30px 100px #0009;
 }
