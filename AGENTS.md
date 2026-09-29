@@ -39,6 +39,7 @@ UI modules follow a `setupX({ state, persist, render, … })` pattern and return
   - `activityTypes[]`: `{ id, name, color, applications[], titles[], urls[], combinations[], mode }`.
 - `project_tracker_backup` — previous configuration (written on every save).
 - `project_tracker_history` — up to 20 previous configurations.
+- `project_tracker_history_start` — `{ <hostname>: ISO time }`, written by `scripts/import-manictime.mjs`: where imported history starts (buckets' `created` is newer). The workload "Whole project" range uses the earlier of this and the window bucket's `created`.
 - `project_tracker_export_presets` — `{ version: 1, presets: [{ id, name, spec }] }`, saved export presets. Written directly (read-merge-write, no preview): presets never affect attribution. Not included in settings export/backups. The working export spec is a view preference (`exportSpec`, `exportPreset` in `ui-prefs`).
 
 If `project_tracker` is missing, the app starts with an empty config and creates it on first save. Reserved IDs: `conflict`, `unassigned`.
@@ -80,6 +81,7 @@ npm run test:ui                        # browser tests; all API calls are mocked
 node scripts/performance.mjs           # synthetic 7/30/90-day processing timings
 npm run format                         # Prettier
 npm run screenshots                    # regenerate docs/images/ for the READMEs
+node scripts/import-manictime.mjs --dry-run   # ManicTime → ActivityWatch import (see file header)
 npm run deploy                         # tests + copy runtime files (Windows)
 ./deploy.ps1 -ValidateOnly             # tests + print resolved destination
 ./deploy.ps1 -Destination 'C:/path'    # explicit destination

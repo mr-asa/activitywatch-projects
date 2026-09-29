@@ -639,8 +639,14 @@ export function setupWorkload({ state, api, resizeFrame }) {
       through = $("workload-through").value;
     if (projectMode) {
       // Window bucket creation marks the start of recorded history.
-      const created = Date.parse(
-        state.buckets?.["aw-watcher-window_" + state.host]?.created,
+      // Imported history (scripts/import-manictime.mjs) predates the bucket.
+      const created = Math.min(
+        ...[
+          state.buckets?.["aw-watcher-window_" + state.host]?.created,
+          state.settings?.project_tracker_history_start?.[state.host],
+        ]
+          .map((t) => Date.parse(t))
+          .filter(Number.isFinite),
       );
       from = reportDay(Number.isFinite(created) ? created : Date.now());
       through = reportDay(Date.now());
