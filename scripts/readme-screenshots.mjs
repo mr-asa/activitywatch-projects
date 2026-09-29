@@ -292,7 +292,10 @@ await page.route("**/api/0/**", async (route) => {
   if (path.includes("/settings")) {
     if (route.request().method() !== "GET")
       return route.fulfill({ status: 403 });
-    json = { startOfDay: "04:00", project_tracker: config };
+    // The dashboard reads settings key by key.
+    const settings = { startOfDay: "04:00", project_tracker: config };
+    const key = path.split("/settings/")[1];
+    json = key ? (settings[key] ?? null) : settings;
   } else if (path.endsWith("/info")) json = { hostname: HOST };
   else if (path.endsWith("/buckets") || path.endsWith("/buckets/"))
     json = {
@@ -326,6 +329,10 @@ await page.route("**/api/0/**", async (route) => {
 await page.goto("http://demo.local/");
 await page.getByRole("button", { name: "Edit Website redesign" }).waitFor();
 await page.locator("#workload-chart svg").waitFor();
+await page
+  .locator("#workload-status")
+  .filter({ hasText: "selected range loaded" })
+  .waitFor();
 await page.waitForTimeout(500);
 await mkdir(OUT, { recursive: true });
 const shot = (name, target = page, options = {}) =>
@@ -373,6 +380,20 @@ await shot("not-assigned.png", page.locator("#unassigned-panel"));
 await page.locator("#close-unassigned").click();
 await page.locator("#workload-chart svg").waitFor();
 await shot("workload.png", page.locator("#workload-panel"));
+
+// 6. Export: the "Daily overview" preset over the last 7 days.
+await page
+  .getByRole("button", { name: "Reports & export", exact: true })
+  .click();
+const exporter = page.locator("#report-dialog");
+await exporter.getByLabel("Preset").selectOption("builtin:day-overview");
+await exporter.getByLabel("Range", { exact: true }).selectOption("last7");
+await exporter
+  .getByLabel("Export preview")
+  .filter({ hasText: TODAY })
+  .waitFor();
+await page.waitForTimeout(300);
+await shot("export.png", exporter);
 
 await browser.close();
 console.log("Screenshots written to docs/images/");

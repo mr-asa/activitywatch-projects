@@ -25,7 +25,7 @@ What I really liked:
 ## What's inside
 
 ### Projects at a glance
-Each project has its own card: color, total time, and a split between apps and browser. A colored timeline shows what I worked on and when during the day.
+Each project has its own card: color, total time, and a split between apps and browser. A colored timeline shows what I worked on and when during the day. Everything on the page covers the period you pick: a day, a week, a month or any range, and **Today** brings you straight back.
 
 ![Totals, timeline, project cards and activity types](docs/images/overview.png)
 
@@ -56,12 +56,14 @@ Each row shows which activity types it already belongs to, so it's clear at once
 Projects answer "who was this for?". Activity types answer "what was I doing?": messaging, video, design, coding, whatever you choose. They're counted independently, so the same hour can be both *Client A* and *Messaging* without making your day any longer.
 
 ### Daily workload
-Hours per day for a week, a month or any period: for one project or all of them at once, with a daily target, a 7-day trend and the share of non-project time. Long periods fit the screen as weekly or monthly averages, and days you have already looked at open instantly: the browser remembers finished days until you change your rules.
+Hours per day for a week, a month or any period: for one project or all of them at once, with a daily target, a 7-day trend and the share of non-project time. Long periods fit the screen as weekly or monthly averages, and days you have already looked at open instantly: the browser remembers finished days until you change your rules. The days the report above shows are highlighted; click a day, or drag across several, to open them in the report.
 
 ![Daily workload chart](docs/images/workload.png)
 
 ### Reports and export
 Build exactly the table you need and keep it as a preset. Rows are days, weeks, months or the whole range, optionally one per project or activity type. Each column is something you pick: time, share of time, number of sessions, longest or average session, active days, first or last activity — for a project, an activity type or all your time, optionally only within another project. So "date – hours" for one project, "share of calls in project X per day" or "how often and how long I was in messengers last week" are all a few clicks. Durations can be decimal hours, minutes or h:mm, optionally rounded (to 6 or 15 minutes, for instance); dates follow any pattern you type, such as `DD.MM.YYYY`, `ddd, D MMM` or `YYYY-[W]WW`. Download as **CSV**, **TSV**, **Markdown** or **JSON**, or copy straight into a spreadsheet. Built-in presets give a starting point; your own presets are saved in ActivityWatch. Exports contain only time figures, no window titles or addresses.
+
+![Export dialog with a column builder and a live preview](docs/images/export.png)
 
 ### Safe to experiment
 Before saving, every change shows the numbers **"before → after"**. The last 20 versions of your settings are kept, and any of them can be restored in one click.
@@ -91,6 +93,12 @@ You need [ActivityWatch](https://activitywatch.net/) running with its window and
 4. Click **+ Add project**, give it a name and a rule, and your history starts filling in.
 
 Tested on Windows with ActivityWatch 0.14. Other platforms may work but haven't been verified.
+
+## Speed
+
+Open ActivityWatch at `http://127.0.0.1:5600` rather than `localhost:5600`. On Windows, `localhost` tries IPv6 first while ActivityWatch listens only on IPv4, so every request loses about 200 ms. For a dashboard that makes several requests in a row, that adds up to seconds: the first report load drops from about 3.3 s to 0.3 s. The rest of the ActivityWatch interface gets faster too.
+
+The browser keeps view preferences (chart range, filters, export options) and the chart cache separately for each address, so they start empty on the new one. Projects, rules and presets are stored in ActivityWatch and don't depend on the address.
 
 ## For developers
 
