@@ -260,8 +260,21 @@ assert.equal(
     .filter((s) => ["p", "q"].includes(s.project))
     .reduce((n, s) => n + (s.end - s.start) / 1000, 0),
 );
-for (let i = 0; i < allSummary.days.length; i++)
-  assert.equal(stack.at(-1).days[i].top, allSummary.days[i].seconds);
+// Work layers first, then non-project and unclassified; the top is all time.
+assert.deepEqual(
+  stack.map((l) => [l.id, l.extra]),
+  [
+    ["p", false],
+    ["q", false],
+    ["rest", true],
+    ["unclassified", true],
+  ],
+);
+const allLayers = workloadLayers(layeredResult, allSummary);
+for (let i = 0; i < allSummary.days.length; i++) {
+  assert.equal(stack[1].days[i].top, allSummary.days[i].seconds);
+  assert.equal(stack.at(-1).days[i].top, allLayers.days[i].tracked);
+}
 
 // Optional editor watchers: foreground/AFK gating, no title fallback regression.
 const { loadEditors, editorValue } = await import("./projects-core.mjs");

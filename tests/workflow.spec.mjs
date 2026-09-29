@@ -727,6 +727,29 @@ test("workload line overlays use distinct units and an editable whole-day target
   );
   await page.locator("#workload-all").uncheck();
   await expect(page.locator('[data-series="work"]')).toHaveCount(0);
+  // All projects: work, non-project and unclassified layers add up to the day.
+  await page.getByLabel("Workload project").selectOption("");
+  for (const id of ["demo", "q", "rest", "unclassified"])
+    await expect(
+      page.locator(`#workload-chart path[data-stack="${id}"]`),
+    ).toHaveCount(1);
+  await expect(
+    page.locator('#workload-chart path[data-series="tracked"]'),
+  ).toHaveCount(1);
+  await page.locator("#workload-chart rect[role=button]").first().focus();
+  await expect(page.locator("#workload-detail")).toContainText(
+    "All active time: 6.5 h",
+  );
+  await expect(page.locator("#workload-detail")).toContainText(
+    "Unclassified: 0.5 h",
+  );
+  await page
+    .locator("#workload-panel")
+    .screenshot({ path: "test-results/workload-stack.png" });
+  await page.locator("#workload-total").uncheck();
+  await expect(
+    page.locator('#workload-chart path[data-series="tracked"]'),
+  ).toHaveCount(0);
 });
 
 test("activity types remain independent and all projects stack without double counting", async ({

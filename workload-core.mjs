@@ -116,28 +116,41 @@ export function workloadLayers(
   };
 }
 
+// Layers stacked bottom-up: project work, then non-project categories, then
+// unclassified time (not assigned + needs review). The top of the last layer is
+// all active time of the day. Non-work layers carry `extra: true`.
 export function stackedWorkload(result, summary, startOfDay = "04:00") {
   const accumulated = summary.days.map(() => 0);
-  return result.projects
-    .filter((p) => p.kind !== "non-project")
-    .map((p) => {
-      const totals = new Map(
-        projectWorkload(result, p.id, startOfDay).days.map((d) => [
-          d.date,
-          d.seconds,
-        ]),
-      );
-      return {
-        id: p.id,
-        name: p.name,
-        color: p.color,
-        days: summary.days.map((d, i) => {
-          const seconds = totals.get(d.date) || 0,
-            bottom = accumulated[i];
-          accumulated[i] += seconds;
-          return { date: d.date, seconds, bottom, top: accumulated[i] };
-        }),
-      };
-    })
-    .filter((p) => p.days.some((d) => d.seconds > 0));
+  const daily = (ids) => {
+    const totals = new Map();
+    for (const id of ids)
+      for (const d of projectWorkload(result, id, startOfDay).days)
+        totals.set(d.date, (totals.get(d.date) || 0) + d.seconds);
+    return totals;
+  };
+  const layer = (id, name, color, totals, extra = false) => ({
+    id,
+    name,
+    color,
+    extra,
+    days: summary.days.map((d, i) => {
+      const seconds = totals.get(d.date) || 0,
+        bottom = accumulated[i];
+      accumulated[i] += seconds;
+      return { date: d.date, seconds, bottom, top: accumulated[i] };
+    }),
+  });
+  const work = result.projects.filter((p) => p.kind !== "non-project"),
+    other = result.projects.filter((p) => p.kind === "non-project");
+  return [
+    ...work.map((p) => layer(p.id, p.name, p.color, daily([p.id]))),
+    ...other.map((p) => layer(p.id, p.name, p.color, daily([p.id]), true)),
+    layer(
+      "unclassified",
+      "Unclassified",
+      "#7d8896",
+      daily(["unassigned", "conflict"]),
+      true,
+    ),
+  ].filter((p) => p.days.some((d) => d.seconds > 0));
 }

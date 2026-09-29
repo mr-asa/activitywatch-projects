@@ -52,6 +52,7 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 - Report days start at ActivityWatch's `startOfDay` setting (default `04:00`).
 - Activity types run the same engine over the same data but never affect project attribution. In a type, applications × titles combine with AND; URLs and `combinations` (`{ app, title }`, either may be blank) are standalone alternatives. `addActivityMatcher` stores an addition as a combination whenever adding it to the main lists would change their meaning.
 - Non-project categories count toward tracked time, not project totals.
+- Workload chart, All projects: `stackedWorkload` stacks work layers, then non-project categories and one "Unclassified" layer (not assigned + needs review), flagged `extra`; the stack top equals all active time (`tracked`), also drawn as the optional "All active time" line.
 
 ## Performance notes
 
