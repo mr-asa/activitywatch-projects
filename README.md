@@ -61,7 +61,7 @@ Hours per day for a week, a month or any period: for one project or all of them 
 ![Daily workload chart](docs/images/workload.png)
 
 ### Reports and export
-Choose any date range and the categories you need, and get exactly the table you want: for example, just "date – hours" for one project, a table with one column per project, or totals per week or month. Time can be decimal hours, minutes or h:mm, optionally rounded (to 6 or 15 minutes, for instance). Download it as **CSV**, **TSV**, **Markdown** or **JSON**, or copy it straight into a spreadsheet. The dialog remembers your choices. Exports contain only time per category, no window titles or addresses.
+Build exactly the table you need and keep it as a preset. Rows are days, weeks, months or the whole range, optionally one per project or activity type. Each column is something you pick: time, share of time, number of sessions, longest or average session, active days, first or last activity — for a project, an activity type or all your time, optionally only within another project. So "date – hours" for one project, "share of calls in project X per day" or "how often and how long I was in messengers last week" are all a few clicks. Durations can be decimal hours, minutes or h:mm, optionally rounded (to 6 or 15 minutes, for instance). Download as **CSV**, **TSV**, **Markdown** or **JSON**, or copy straight into a spreadsheet. Built-in presets give a starting point; your own presets are saved in ActivityWatch. Exports contain only time figures, no window titles or addresses.
 
 ### Safe to experiment
 Before saving, every change shows the numbers **"before → after"**. The last 20 versions of your settings are kept, and any of them can be restored in one click.

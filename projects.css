@@ -1331,65 +1331,154 @@ dialog input[type="number"] {
   white-space: nowrap;
 }
 
-.export-controls {
-  display: grid;
-  gap: 10px;
+.export-dialog {
+  width: min(1400px, calc(100vw - 32px));
 }
-.export-group {
-  border: 1px solid #37414c;
-  border-radius: 8px;
-  padding: 8px 12px 10px;
-  margin: 0;
+.export-layout {
+  display: grid;
+  gap: 16px;
+}
+.export-form {
+  display: grid;
+  gap: 2px;
+  font-size: 13px;
   min-width: 0;
 }
-.export-group legend {
-  padding: 0 6px;
-  color: #a7b5c4;
+.export-form select,
+.export-form input:not([type="checkbox"]) {
+  padding: 4px 6px;
+  font-size: 13px;
+  min-width: 0;
 }
-.export-row {
+.export-form button {
+  margin: 0;
+  padding: 4px 10px;
+  font-size: 13px;
+}
+.export-line {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 8px 14px;
-  margin: 4px 0;
+  gap: 6px 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #2c343d;
 }
-.export-row label:not(.check-label) {
+.export-line-title {
+  flex: 0 0 64px;
+  align-self: center;
+  color: #a7b5c4;
+  font-weight: 600;
+}
+.export-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
-.export-categories {
+.export-field > span {
+  font-size: 11px;
+  color: #a7b5c4;
+}
+.export-presets .export-field select {
+  min-width: 240px;
+}
+.export-badge {
+  align-self: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #3a3322;
+  color: #e6b56d;
+  font-size: 12px;
+}
+.export-checks {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  max-height: 160px;
+  gap: 4px 12px;
+  align-self: center;
+}
+.export-picker {
+  position: relative;
+  align-self: flex-end;
+}
+.export-picker summary {
+  padding: 4px 10px;
+  border: 1px solid #46505e;
+  border-radius: 7px;
+  cursor: pointer;
+  background: #171c23;
+}
+.export-picker-list {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  left: 0;
+  display: grid;
+  gap: 4px;
+  min-width: 220px;
+  max-height: 260px;
   overflow: auto;
-  margin: 8px 0;
+  padding: 8px 10px;
+  border: 1px solid #46505e;
+  border-radius: 8px;
+  background: #1b2129;
+  box-shadow: 0 8px 24px #0008;
+}
+.export-picker-list div {
+  display: flex;
+  gap: 6px;
+}
+.export-columns {
+  flex: 1 1 560px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.export-column {
+  display: grid;
+  grid-template-columns:
+    minmax(90px, 1.2fr) minmax(90px, 1fr) minmax(90px, 1fr)
+    minmax(80px, 1fr) minmax(80px, 1fr) auto;
+  gap: 4px;
+  align-items: center;
+}
+.export-column-head span {
+  font-size: 11px;
+  color: #a7b5c4;
+}
+.export-column select:disabled {
+  opacity: 0.35;
+}
+.export-column-tools {
+  display: flex;
+  gap: 2px;
+}
+.export-column-tools button {
+  padding: 4px 8px;
+}
+.export-columns > button {
+  justify-self: start;
+}
+.export-status {
+  margin: 0 0 6px;
+  font-size: 13px;
 }
 .export-actions {
   display: flex;
   flex-wrap: wrap;
 }
 .export-preview {
-  max-height: 320px;
+  max-height: 420px;
   overflow: auto;
+  margin: 6px 0 0;
   padding: 10px 12px;
   border: 1px solid #37414c;
   border-radius: 8px;
   background: #11151a;
-  font-size: 13px;
+  font-size: 12px;
   white-space: pre;
 }
-.export-dialog {
-  width: min(1320px, calc(100vw - 32px));
-}
-.export-layout {
-  display: grid;
-  gap: 16px;
-}
-@media (min-width: 1000px) {
+@media (min-width: 1100px) {
   .export-layout {
-    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     align-items: start;
   }
   .export-output {
@@ -1398,5 +1487,16 @@ dialog input[type="number"] {
   }
   .export-preview {
     max-height: 70vh;
+  }
+}
+@media (max-width: 650px) {
+  .export-line-title {
+    flex-basis: 100%;
+  }
+  .export-column {
+    grid-template-columns: 1fr 1fr;
+  }
+  .export-column-head {
+    display: none;
   }
 }

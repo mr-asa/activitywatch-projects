@@ -192,10 +192,10 @@ test("archive hides cards without losing history; cutoff stops rules", async ({
   await expect(page.locator("#assigned")).toHaveText("0h 0m");
   expect(settings.project_tracker.projects[0].rulesThrough).toBe("2026-09-21");
 });
-test("export builds a timesheet for one project and downloads it", async ({
+test("export builds custom columns and manages saved presets", async ({
   page,
 }) => {
-  await setup(page);
+  const { settings } = await setup(page);
   await page.locator("#report-period").selectOption("week");
   await expect(page.locator("#range-label")).toContainText("Sep 21");
   await page
@@ -203,30 +203,55 @@ test("export builds a timesheet for one project and downloads it", async ({
     .click();
   const dialog = page.locator("#report-dialog");
   const preview = dialog.getByLabel("Export preview");
-  await expect(preview).toContainText("Demo");
-  await expect(preview).not.toContainText("Not assigned");
-  await dialog.getByLabel("Not assigned").check();
-  await expect(preview).toContainText("Not assigned");
-  await dialog
-    .getByRole("button", { name: "Timesheet: date + decimal hours" })
-    .click();
-  await dialog.getByRole("button", { name: "Select none" }).click();
-  await dialog.getByLabel("Demo").check();
+  await dialog.getByLabel("Preset").selectOption("builtin:timesheet");
+  await dialog.getByLabel("Column 1 of").selectOption("p:demo");
+  await expect(dialog.locator(".export-badge")).toHaveText("modified");
   await dialog.getByLabel("Decimals").selectOption("3");
   await expect(preview).toHaveText("Date,Hours\n2026-09-22,0.017\n");
+  // A second column: share of all active time.
+  await dialog.getByRole("button", { name: "+ Add column" }).click();
+  await dialog.getByLabel("Column 2 value").selectOption("share");
+  await dialog.getByLabel("Column 2 of").selectOption("p:demo");
+  await dialog.getByLabel("Column 2 name").fill("Demo share");
+  await expect(preview).toHaveText(
+    "Date,Hours,Demo share\n2026-09-22,0.017,33.333\n",
+  );
+  // Save as a named preset in ActivityWatch settings, then delete it.
+  await dialog.getByRole("button", { name: "Save as…" }).click();
+  await dialog.getByLabel("Preset name").fill("Demo timesheet");
+  await dialog.getByRole("button", { name: "Save preset" }).click();
+  await expect(dialog.locator(".export-badge")).toHaveCount(0);
+  expect(settings.project_tracker_export_presets.presets[0].name).toBe(
+    "Demo timesheet",
+  );
+  expect(
+    settings.project_tracker_export_presets.presets[0].spec.columns,
+  ).toHaveLength(2);
+  await dialog.getByLabel("Split rows by").selectOption("projects");
+  await expect(preview).toContainText("Date,Category,Hours,Demo share");
+  await dialog.getByLabel("Preset").selectOption({ label: "Demo timesheet" });
+  await expect(preview).toHaveText(
+    "Date,Hours,Demo share\n2026-09-22,0.017,33.333\n",
+  );
+  await dialog.getByRole("button", { name: "Delete" }).click();
+  await dialog.getByRole("button", { name: "Confirm delete" }).click();
+  await expect
+    .poll(() => settings.project_tracker_export_presets.presets.length)
+    .toBe(0);
   await dialog.getByLabel("Format", { exact: true }).selectOption("md");
-  await expect(preview).toContainText("| Date | Hours |");
+  await expect(preview).toContainText("| Date | Hours | Demo share |");
   const pending = page.waitForEvent("download");
   await dialog.getByRole("button", { name: "Download", exact: true }).click();
   expect((await pending).suggestedFilename()).toBe(
     "activity-export_2026-09-21_2026-09-27.md",
   );
-  // Options are remembered for the next export.
+  // The working spec is remembered for the next export.
   await page.reload();
   await page
     .getByRole("button", { name: "Reports & export", exact: true })
     .click();
   await expect(page.getByLabel("Format", { exact: true })).toHaveValue("md");
+  await expect(page.getByLabel("Column 2 name")).toHaveValue("Demo share");
 });
 test("recovery validates imports and restores revisions with undo history", async ({
   page,

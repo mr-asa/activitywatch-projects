@@ -6,7 +6,11 @@ import {
   compareConfigs,
   revisionHistory,
 } from "./workflow-core.mjs";
-import { buildExport, serializeExport } from "./export-core.mjs";
+import {
+  buildExport,
+  exportCategories,
+  serializeExport,
+} from "./export-core.mjs";
 const t = +new Date("2026-09-22T03:59:30"),
   e = (app, title) => ({
     timestamp: new Date(t).toISOString(),
@@ -69,24 +73,30 @@ assert.equal(
 // The event crosses the 04:00 day boundary: 30 s on each report day.
 const table = buildExport(
   {
-    segments: result.segments,
-    categories: [{ id: "demo", name: "=SUM(1,2)", kind: "project" }],
+    projectSegments: result.segments,
+    categories: exportCategories({
+      projects: [{ id: "demo", name: "=SUM(1,2)" }],
+    }),
     start: t,
     end: t + 60000,
   },
-  { unit: "seconds" },
+  {
+    unit: "seconds",
+    split: "projects",
+    columns: [{ metric: "time", target: "row" }],
+  },
 );
 assert.deepEqual(
-  table.rows.map((r) => [r.date, r.time]),
+  table.rows.map((r) => r.cells),
   [
-    ["2026-09-21", 30],
-    ["2026-09-22", 30],
+    ["2026-09-21", "=SUM(1,2)", 30],
+    ["2026-09-22", "=SUM(1,2)", 30],
   ],
 );
 assert(serializeExport(table, "csv").includes("'=SUM"));
 assert(
   serializeExport(
-    { ...table, rows: [{ ...table.rows[0], category: "a|b" }] },
+    { ...table, rows: [{ cells: ["2026-09-21", "a|b", 30] }] },
     "md",
   ).includes("a\\|b"),
 );

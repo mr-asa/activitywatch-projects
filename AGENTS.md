@@ -20,7 +20,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `unassigned-core.mjs` / `unassigned-ui.mjs` | "Not assigned · activities" list: grouping of unassigned time by app/title/URL, activity-type breakdown per row, add-to-project / add-to-activity-type dialogs. |
 | `manual-ui.mjs` | Manual interval assignments (single, all occurrences, whole application). |
 | `workflow-core.mjs` / `workflow-ui.mjs` | Config validation, report bounds, before/after previews, revision history, explanations, settings import/export. |
-| `export-core.mjs` / `export-ui.mjs` | "Reports & export" dialog: own date range, category selection (projects or activity types, optionally within one project), grouping (day/week/month/whole range), long or pivot layout, units/rounding/separators, CSV/TSV/Markdown/JSON, download or clipboard. Options live in `ui-prefs` (`exportOptions`, `exportRange`). |
+| `export-core.mjs` / `export-ui.mjs` | "Reports & export": a spec (range, row grouping/split, user-built columns, formatting) → table → CSV/TSV/Markdown/JSON. Columns = metric × target set (`all`, `work`, `nonproject`, `p:<id>`, `t:<id>`, `row`) × optional `within` × share base. Presets: built-in + saved. |
 | `workload-core.mjs` / `workload-ui.mjs` | Daily workload chart (own data range, independent of the report period). |
 | `activity-core.mjs` / `activity-ui.mjs` | Activity types (independent second classification of the same time). |
 | `time-charts.mjs` | Proportion charts. |
@@ -38,6 +38,7 @@ UI modules follow a `setupX({ state, persist, render, … })` pattern and return
   - `activityTypes[]`: `{ id, name, color, applications[], titles[], urls[], combinations[], mode }`.
 - `project_tracker_backup` — previous configuration (written on every save).
 - `project_tracker_history` — up to 20 previous configurations.
+- `project_tracker_export_presets` — `{ version: 1, presets: [{ id, name, spec }] }`, saved export presets. Written directly (read-merge-write, no preview): presets never affect attribution. Not included in settings export/backups. The working export spec is a view preference (`exportSpec`, `exportPreset` in `ui-prefs`).
 
 If `project_tracker` is missing, the app starts with an empty config and creates it on first save. Reserved IDs: `conflict`, `unassigned`.
 
@@ -59,7 +60,7 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 - Active window intervals and source groups are shared between analyses through a `WeakMap` keyed by data identity and exact bounds (one prepared range per data object). Changing rules still recalculates attribution.
 - Unassigned window ownership uses compressed event boundaries and successor links to consume each span once in original source order; preserve this priority for overlapping/duplicate windows.
 - `loadRange()` (`projects-core.mjs`) is the shared fetch for an arbitrary range (workload chart, export).
-- Export rounds each cell first (rounding step), and totals sum the rounded cells, so a timesheet adds up.
+- Export: duration cells are rounded first; a Total row sums rounded `time` cells (so timesheets add up) and recomputes other metrics over the whole range. Sessions merge breaks shorter than `sessionGap`, count in the period where they start, and measure active time, not wall span. Activity types are analysed only when the spec references them (`specNeedsTypes`).
 - Workload loading reuses a report snapshot only when the same host and its requested range cover the chart range. Explicit "Refresh chart" bypasses reuse. Independent workload window/editor requests run concurrently.
 - `state.dataRange` records the fetched bounds and requested end; analysis must not extend a snapshot beyond its fetched end.
 - Browser Performance measures prefixed `projects:` record the latest API (including JSON parsing), analysis, and synchronous render durations without event contents. Render includes analysis and panel updates, not subsequent browser paint.
