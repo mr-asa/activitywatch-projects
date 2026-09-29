@@ -38,7 +38,8 @@ UI modules follow a `setupX({ state, persist, render, … })` pattern and return
   - `manualAssignments[]`: `{ id, projectId, host, start, end, note }` (ISO timestamps, per device, non-overlapping).
   - `activityTypes[]`: `{ id, name, color, applications[], titles[], urls[], combinations[], mode }`.
 - `project_tracker_backup` — previous configuration (written on every save).
-- `project_tracker_history` — up to 20 previous configurations.
+- `project_tracker_history` — up to 20 previous configurations, cut to about 3 MB (always keeps the newest).
+- The dashboard reads settings **per key** (`settings/<key>`, missing → `null`); never `GET settings` as a whole — it includes the megabyte history.
 - `project_tracker_history_start` — `{ <hostname>: ISO time }`, written by `scripts/import-manictime.mjs`: where imported history starts (buckets' `created` is newer). The workload "Whole project" range uses the earlier of this and the window bucket's `created`.
 - `project_tracker_export_presets` — `{ version: 1, presets: [{ id, name, spec }] }`, saved export presets. Written directly (read-merge-write, no preview): presets never affect attribution. Not included in settings export/backups. The working export spec is a view preference (`exportSpec`, `exportPreset` in `ui-prefs`).
 

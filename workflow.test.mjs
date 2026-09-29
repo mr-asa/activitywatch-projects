@@ -175,6 +175,19 @@ assert.throws(() =>
   }),
 );
 assert.equal(revisionHistory(Array(20).fill({}), cfg).length, 20);
+// Large configurations keep fewer revisions: about 3 MB, newest first.
+{
+  const big = { config: { blob: "x".repeat(1_000_000) } };
+  const kept = revisionHistory(Array(10).fill(big), {
+    projects: [{ blob: "y".repeat(1_000_000) }],
+  });
+  assert.equal(kept.length, 2);
+  assert.equal(kept[0].config.projects[0].blob.length, 1_000_000);
+  assert.equal(
+    revisionHistory([], { projects: [{ blob: "z".repeat(5_000_000) }] }).length,
+    1,
+  );
+}
 console.log(
   "PASS: evidence, categories, archive boundaries, manual precedence, previews, report splitting, exports, import validation, revisions",
 );

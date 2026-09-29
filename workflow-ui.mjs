@@ -302,7 +302,7 @@ export function setupWorkflow({
     settings.body.append(
       node(
         "p",
-        "Backups contain project rules, colors, archive settings and manual assignments, not raw activity. Restoring replaces the current configuration after a preview. Up to 20 previous configurations are retained locally.",
+        "Backups contain project rules, colors, archive settings and manual assignments, not raw activity. Restoring replaces the current configuration after a preview. Up to 20 previous configurations are retained locally (fewer when the configuration is large: about 3 MB in total).",
       ),
     );
     settings.body.append(
@@ -345,7 +345,14 @@ export function setupWorkflow({
     settings.body.append(list);
     show(settings.dialog);
     try {
-      const stored = await api("settings");
+      const [history, backup] = await Promise.all([
+        api("settings/project_tracker_history"),
+        api("settings/project_tracker_backup"),
+      ]);
+      const stored = {
+        project_tracker_history: history,
+        project_tracker_backup: backup,
+      };
       const revisions = stored.project_tracker_history || [];
       list.replaceChildren();
       if (!revisions.length && stored.project_tracker_backup)

@@ -58,7 +58,7 @@ async function setup(page, config = sample(), transform = () => {}) {
       const key = path.split("/settings/")[1];
       if (route.request().method() === "POST")
         settings[key] = route.request().postDataJSON();
-      data = key ? settings[key] : settings;
+      data = key ? (settings[key] ?? null) : settings;
     } else if (path.endsWith("/info")) data = { hostname: "TEST" };
     else if (path.endsWith("/buckets"))
       data = {

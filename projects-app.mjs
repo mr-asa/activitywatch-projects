@@ -54,6 +54,18 @@ function node(tag, className, text) {
   if (text !== undefined) n.textContent = text;
   return n;
 }
+// Only the keys the dashboard uses: all settings include the configuration
+// history (megabytes) and would be transferred on every refresh.
+const SETTINGS_KEYS = [
+  "startOfDay",
+  KEY,
+  "project_tracker_export_presets",
+  "project_tracker_history_start",
+];
+async function readSettings(keys) {
+  const values = await Promise.all(keys.map((k) => api("settings/" + k)));
+  return Object.fromEntries(keys.map((k, i) => [k, values[i] ?? undefined]));
+}
 async function api(path, body) {
   const started = performance.now();
   const response = await fetch("/api/0/" + path, {
@@ -148,7 +160,7 @@ async function load({ auto = false } = {}) {
   $("refresh").disabled = true;
   try {
     const [settings, info, buckets] = await Promise.all([
-      api("settings"),
+      readSettings(SETTINGS_KEYS),
       api("info"),
       api("buckets"),
     ]);
@@ -497,7 +509,7 @@ async function persist(
   };
   if (!(await workflow.previewChanges(candidate, true)))
     throw Error("Changes were not saved.");
-  const latest = await api("settings");
+  const latest = await readSettings([KEY, "project_tracker_history"]);
   if (latest[KEY]?.revision !== state.config.revision)
     throw Error(
       "Projects changed in another tab. Close this editor and refresh before saving again.",
@@ -520,7 +532,7 @@ async function persist(
     await api("settings/project_tracker_backup", latest[KEY]);
   }
   await api("settings/" + KEY, next);
-  const saved = (await api("settings"))[KEY];
+  const saved = await api("settings/" + KEY);
   if (stable(saved) !== stable(next))
     throw Error("Save could not be verified. Refresh before trying again.");
   state.config = saved;

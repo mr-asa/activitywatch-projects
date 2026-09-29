@@ -186,7 +186,7 @@ export function setupExport({ state, api, dialog, show, download, notice }) {
 
   async function savePresets(change) {
     try {
-      const latest = (await api("settings"))[PRESETS_KEY];
+      const latest = await api("settings/" + PRESETS_KEY);
       const list = change(
         Array.isArray(latest?.presets) ? [...latest.presets] : [],
       );

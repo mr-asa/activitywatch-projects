@@ -136,7 +136,7 @@ export function revisionHistory(
   config,
   now = new Date().toISOString(),
 ) {
-  return [
+  const entries = [
     {
       savedAt: now,
       config: {
@@ -147,5 +147,16 @@ export function revisionHistory(
       },
     },
     ...(Array.isArray(history) ? history : []),
-  ].slice(0, 20);
+  ];
+  // Up to 20 revisions within about 3 MB (always the newest one): every save
+  // rewrites the history, and many manual assignments make each copy large.
+  const kept = [];
+  let size = 0;
+  for (const entry of entries.slice(0, 20)) {
+    size += JSON.stringify(entry).length;
+    if (kept.length && size > HISTORY_BYTES) break;
+    kept.push(entry);
+  }
+  return kept;
 }
+const HISTORY_BYTES = 3_000_000;
