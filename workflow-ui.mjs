@@ -62,16 +62,14 @@ export function setupWorkflow({
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
-  const toolbar = node("section");
-  toolbar.className = "workflow-toolbar";
-  toolbar.innerHTML =
-    '<label>Report period<select id="report-period"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="range">Custom range</option></select></label><label class="check-label"><input type="checkbox" id="show-archived"> Show archived</label>';
+  // Tools live in the page header; the period select and "Show archived"
+  // are part of the page (period bar, projects heading).
+  const toolbar = $("tool-buttons");
   toolbar.append(
     button("Explain activities", () => explain()),
     button("Reports & export", () => exporter.open()),
     button("Settings & recovery", () => recovery()),
   );
-  document.querySelector(".toolbar").after(toolbar);
   $("report-period").onchange = () => {
     state.ownDate = true;
     syncRangeInput();
@@ -93,7 +91,7 @@ export function setupWorkflow({
   const total = node("strong", "—");
   total.id = "non-project-total";
   stat.append(total);
-  document.querySelector(".stats .stat-note").before(stat);
+  document.querySelector(".stats").append(stat);
   const fields = node("div");
   fields.className = "workflow-fields";
   fields.innerHTML =

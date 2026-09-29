@@ -14,9 +14,26 @@
           <h1>Projects<span class="dot"></span></h1>
           <p class="muted">Your day, organized by what you worked on.</p>
         </div>
-        <button id="add-project" class="primary" disabled>+ Add project</button>
+        <div class="tools" aria-label="Tools">
+          <div id="tool-buttons" class="tool-buttons"></div>
+          <div class="tool-status">
+            <button id="refresh">Refresh</button
+            ><span id="updated" class="muted">Loading…</span
+            ><a id="full-page" target="_blank" rel="noopener"
+              >Open full page ↗</a
+            >
+          </div>
+        </div>
       </header>
-      <section class="toolbar" aria-label="Date controls">
+      <section class="toolbar period-bar" aria-label="Report period">
+        <label class="period-select"
+          >Period<select id="report-period">
+            <option value="day">Day</option>
+            <option value="week">Week</option>
+            <option value="month">Month</option>
+            <option value="range">Custom range</option>
+          </select></label
+        >
         <div class="date-controls">
           <button id="prev-day" aria-label="Previous day">←</button
           ><input id="date" type="date" aria-label="Report date" /><input
@@ -25,59 +42,73 @@
             aria-label="Report through"
             hidden
           /><button id="next-day" aria-label="Next day">→</button
-          ><button id="today">Today</button>
+          ><button id="today" title="Back to today, one day">Today</button>
         </div>
-        <div class="tools">
-          <span id="period-label" class="muted"></span
-          ><button id="refresh">Refresh</button
-          ><a id="full-page" target="_blank" rel="noopener">Open full page ↗</a>
-        </div>
+        <span id="period-label" class="muted"></span>
       </section>
       <div id="notice" role="status" class="notice" hidden></div>
-      <section class="stats" aria-label="Time summary">
-        <div><span>Project time</span><strong id="assigned">—</strong></div>
-        <div><span>Not assigned</span><strong id="unassigned">—</strong></div>
-        <div>
-          <span>Needs review</span
-          ><strong
-            id="conflicts"
-            title="Active time matching two or more categories. These minutes are excluded from category totals until resolved."
-            >—</strong
-          >
-        </div>
-        <div class="stat-note">
-          Only active time.<br />Background tabs and idle time are excluded.
-        </div>
-      </section>
-      <section class="timeline-panel">
-        <div class="section-heading">
-          <h2>Your timeline</h2>
-          <span id="range-label" class="muted"></span>
-        </div>
-        <div
-          id="timeline"
-          role="img"
-          aria-label="Project activity over the selected period"
-        ></div>
-        <div id="legend"></div>
-      </section>
-      <div class="section-heading">
-        <h2>Your projects <span id="project-count"></span></h2>
-        <span id="updated" class="muted">Loading…</span>
-      </div>
       <section
-        id="projects"
-        class="project-grid"
-        aria-label="Projects"
-      ></section>
-      <section id="review" class="review" hidden>
-        <h2>Some time matches more than one project</h2>
-        <p>
-          These minutes stay outside project totals until the rules are made
-          more specific.
-        </p>
-        <ul id="review-list"></ul>
+        id="report"
+        class="report-section"
+        aria-label="Report for the selected period"
+      >
+        <section class="stats" aria-label="Time summary">
+          <div><span>Project time</span><strong id="assigned">—</strong></div>
+          <div><span>Not assigned</span><strong id="unassigned">—</strong></div>
+          <div>
+            <span>Needs review</span
+            ><strong
+              id="conflicts"
+              title="Active time matching two or more categories. These minutes are excluded from category totals until resolved."
+              >—</strong
+            >
+          </div>
+        </section>
+        <section id="review" class="review" hidden>
+          <h2>Some time matches more than one project</h2>
+          <p>
+            These minutes stay outside project totals until the rules are made
+            more specific.
+          </p>
+          <ul id="review-list"></ul>
+        </section>
+        <section class="timeline-panel">
+          <div class="section-heading">
+            <h2>Your timeline</h2>
+            <span id="range-label" class="muted"></span>
+          </div>
+          <div
+            id="timeline"
+            role="img"
+            aria-label="Project activity over the selected period"
+          ></div>
+          <div id="legend"></div>
+        </section>
+        <div class="section-heading projects-heading">
+          <h2>Your projects <span id="project-count"></span></h2>
+          <div class="heading-actions">
+            <label class="check-label"
+              ><input type="checkbox" id="show-archived" /> Show archived</label
+            ><button id="add-project" class="primary" disabled>
+              + Add project
+            </button>
+          </div>
+        </div>
+        <section
+          id="projects"
+          class="project-grid"
+          aria-label="Projects"
+        ></section>
       </section>
+      <section
+        id="history"
+        class="history-section"
+        aria-label="History"
+      ></section>
+      <p class="field-help active-note">
+        Only active time counts everywhere on this page: background tabs and
+        idle time are excluded.
+      </p>
       <details class="help">
         <summary>How do I track a new project?</summary>
         <div class="help-content">

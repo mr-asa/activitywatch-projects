@@ -6,13 +6,13 @@ export function setupManual({ state, persist, render, notice }) {
   const button = document.createElement("button");
   button.id = "assign-interval";
   button.textContent = "Assign interval";
-  document.querySelector(".tools").prepend(button);
+  document.getElementById("tool-buttons").prepend(button);
   const panel = document.createElement("details");
   panel.className = "help";
   panel.id = "manual-list";
   panel.innerHTML =
     '<summary>Manual assignments <span id="manual-count"></span></summary><p class="field-help">Overrides automatic rules only during the chosen interval and on this device. Only recorded non-idle activity counts. Removing an assignment restores automatic matching.</p><div id="manual-items"></div>';
-  document.querySelector("footer").before(panel);
+  document.getElementById("report").append(panel);
   const dialog = document.createElement("dialog");
   dialog.id = "manual-dialog";
   dialog.innerHTML =

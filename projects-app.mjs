@@ -1,6 +1,7 @@
 import { lockScrollBehindDialogs, openModal } from "./dialogs.mjs";
 import { setupActivities } from "./activity-ui.mjs";
 import { setupWorkload } from "./workload-ui.mjs";
+import { setPref } from "./ui-prefs.mjs";
 import { setupWorkflow } from "./workflow-ui.mjs";
 import { reportBounds, revisionHistory } from "./workflow-core.mjs";
 import { projectRules, stable, localDate } from "./rule-engine.mjs";
@@ -630,7 +631,11 @@ $("confirm-delete").onclick = removeProject;
 $("editor").addEventListener("cancel", (e) => {
   if (state.saving) e.preventDefault();
 });
-$("refresh").onclick = () => load();
+// One refresh for the whole page: the report and the chart's newest days.
+$("refresh").onclick = () => {
+  load();
+  workload.reload();
+};
 $("date").onchange = $("date-through").onchange = () => {
   state.ownDate = true;
   load();
@@ -657,7 +662,11 @@ for (const [id, delta] of [
     state.ownDate = true;
     load();
   };
+// Back to the default view: today, one day.
 $("today").onclick = () => {
+  $("report-period").value = "day";
+  setPref("reportPeriod", "day");
+  $("date-through").hidden = true;
   $("date").value = todayDate();
   state.ownDate = true;
   load();

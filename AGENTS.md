@@ -28,6 +28,8 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `dialogs.mjs` | Dialog placement inside the ActivityWatch frame and the wheel lock behind open dialogs. |
 | `ui-prefs.mjs` | Per-browser view preferences in `localStorage` (report period, chart range and lines, filters). Never stored in ActivityWatch settings; saved automatically on change; unknown values fall back to defaults. |
 
+Page layout (`index.html` slots): header with `#tool-buttons` (Assign interval, Explain activities, Reports & export, Settings & recovery) and one Refresh (report + chart's newest days); the period bar (`#report-period`, dates, Today = back to one day); `#report` holds everything for the report period (totals, review, breakdown, timeline, Not assigned, projects with their own "+ Add project" and "Show archived", activity types, manual assignments); `#history` holds the workload chart with its own range, the report's days highlighted and "Open this range in the report". Modules insert into these slots, not relative to each other.
+
 UI modules follow a `setupX({ state, persist, render, … })` pattern and return `{ update, … }`; `render()` in `projects-app.mjs` calls every panel's `update()`.
 
 ## Data model (ActivityWatch settings)

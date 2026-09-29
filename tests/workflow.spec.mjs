@@ -117,9 +117,7 @@ test("workload reuses a covered report but explicit refresh fetches fresh data",
   );
   await expect(page.locator("#workload-stats")).toContainText("0.02 h");
   expect(queries).toBe(before);
-  await page
-    .getByRole("button", { name: "Refresh chart", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Recalculate", exact: true }).click();
   await expect(page.locator("#workload-status")).toContainText(
     "selected range loaded",
   );
@@ -628,9 +626,7 @@ test("workload loads current week automatically and reuses range across projects
   );
   await expect(page.getByLabel("Chart from")).toHaveValue("2026-09-21");
   await expect(page.getByLabel("Chart through")).toHaveValue("2026-09-27");
-  await page
-    .getByRole("button", { name: "Refresh chart", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Recalculate", exact: true }).click();
   await expect(page.locator("#workload-status")).toContainText(
     "selected range loaded",
   );
@@ -707,9 +703,7 @@ test("workload line overlays use distinct units and an editable whole-day target
   await page.getByLabel("Chart from").fill("2026-09-18");
   await page.getByLabel("Chart through").fill("2026-09-24");
   await page.getByLabel("Workload project").selectOption("demo");
-  await page
-    .getByRole("button", { name: "Refresh chart", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Recalculate", exact: true }).click();
   await expect(page.locator("#workload-status")).toContainText(
     "selected range loaded",
   );
@@ -788,9 +782,7 @@ test("activity types remain independent and all projects stack without double co
   );
   await page.getByLabel("Activity project scope").selectOption("demo");
   await expect(page.locator("#activity-type-totals")).toContainText("50.0%");
-  await page
-    .getByRole("button", { name: "Refresh chart", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Recalculate", exact: true }).click();
   await expect(page.getByLabel("Workload project")).toHaveValue("");
   await expect(page.locator("#workload-stats")).toContainText("0.05 h");
   await expect(page.locator("#workload-chart [data-stack]")).toHaveCount(2);
@@ -1035,9 +1027,18 @@ test("date navigation during a load is applied after it finishes", async ({
     release;
   const gate = new Promise((r) => (release = r));
   await setup(page);
+  // Only the report's requests (22–23 Sep); Refresh also updates the chart
+  // (its week starts on the 21st, its newest day is the 27th).
   await page.route("**/api/0/query/", async (route) => {
-    queries++;
-    if (queries === 1) await gate;
+    const period = route.request().postDataJSON().timeperiods[0];
+    const start = Date.parse(period.split("/")[0]);
+    if (
+      start > Date.parse("2026-09-21T12:00:00Z") &&
+      start < Date.parse("2026-09-25T00:00:00Z")
+    ) {
+      queries++;
+      if (queries === 1) await gate;
+    }
     await route.fallback();
   });
   await page.locator("#refresh").click();
@@ -1403,9 +1404,7 @@ test("the chart caches complete days and fetches only what is missing", async ({
 
   // "Refresh chart" ignores the cache and fetches the whole range at once.
   periods.length = 0;
-  await page
-    .getByRole("button", { name: "Refresh chart", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Recalculate", exact: true }).click();
   await expect(status).toContainText("selected range loaded");
   expect(periods.some(week)).toBe(true);
 });
@@ -1440,6 +1439,7 @@ test("selecting days on the chart opens them as a report range", async ({
   const status = page.locator("#workload-status");
   await expect(status).toContainText("2026-09-21 – 2026-09-27");
   const hits = page.locator("#workload-chart rect[role=button]");
+  await page.locator("#workload-chart").scrollIntoViewIfNeeded();
   // Drag from Monday to Wednesday.
   const first = await hits.nth(0).boundingBox(),
     third = await hits.nth(2).boundingBox();
@@ -1454,9 +1454,10 @@ test("selecting days on the chart opens them as a report range", async ({
   await expect(page.locator("#date-through")).toBeVisible();
   await expect(page.locator("#range-label")).toContainText("Sep 21");
   await expect(page.locator("#range-label")).toContainText("Sep 24");
+  // The chart now marks the report's days.
   await expect(
-    page.locator("#workload-chart [data-selection]"),
-  ).toHaveAttribute("opacity", "0.16");
+    page.locator("#workload-chart [data-report-days]"),
+  ).toHaveAttribute("data-report-days", "2026-09-21|2026-09-23");
   // The report's arrows move the range by its own length.
   await page.getByRole("button", { name: "Next day" }).click();
   await expect(page.locator("#date")).toHaveValue("2026-09-24");
@@ -1549,4 +1550,33 @@ test("needs review lists the conflicting activities with each project's rule", a
     .click();
   await expect(page.locator("#manual-dialog")).toBeVisible();
   await expect(page.locator("#manual-dialog")).toContainText("needs review");
+});
+test("the period bar resets to today and the history chart follows the report", async ({
+  page,
+}) => {
+  await setup(page);
+  const report = page.locator("#workload-chart [data-report-days]");
+  // The chart marks the report's days (the page opens on a UTC-midnight
+  // period, so the first day depends on the time zone).
+  await expect(report).toHaveAttribute("data-report-days", /|2026-09-2[12]$/);
+  // "Open this range in the report": the chart's week becomes the report.
+  await page
+    .getByRole("button", { name: "Open this range in the report" })
+    .click();
+  await expect(page.locator("#report-period")).toHaveValue("range");
+  await expect(page.locator("#date")).toHaveValue("2026-09-21");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-27");
+  await expect(report).toHaveAttribute(
+    "data-report-days",
+    "2026-09-21|2026-09-27",
+  );
+  // "Today": back to one day, today.
+  await page.getByRole("button", { name: "Today", exact: true }).click();
+  await expect(page.locator("#report-period")).toHaveValue("day");
+  await expect(page.locator("#date-through")).toBeHidden();
+  await expect(page.locator("#date")).toHaveValue("2026-09-27");
+  await expect(report).toHaveAttribute(
+    "data-report-days",
+    "2026-09-27|2026-09-27",
+  );
 });

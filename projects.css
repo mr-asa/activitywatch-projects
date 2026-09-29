@@ -169,7 +169,7 @@ textarea {
 }
 .stats {
   display: grid;
-  grid-template-columns: 1.2fr 1fr 1fr 1.4fr;
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin: 12px 0;
 }
@@ -193,11 +193,6 @@ textarea {
 }
 .stats > div:first-child strong {
   color: var(--accent);
-}
-.stat-note {
-  font-size: 12px;
-  color: var(--muted);
-  align-self: center;
 }
 .timeline-panel {
   padding: 12px;
@@ -485,9 +480,6 @@ label {
   }
   .timeline-panel {
     padding: 15px;
-  }
-  .stat-note {
-    font-size: 11px;
   }
   dialog {
     padding: 18px;
@@ -878,7 +870,6 @@ button.share-segment:hover {
   }
 }
 
-.workflow-toolbar,
 .workflow-fields {
   display: flex;
   gap: 12px;
@@ -886,13 +877,8 @@ button.share-segment:hover {
   align-items: center;
   margin: 8px 0;
 }
-.workflow-toolbar label,
 .workflow-fields label {
   margin: 0;
-}
-.workflow-toolbar select {
-  width: auto;
-  min-width: 120px;
 }
 .workflow-fields {
   padding: 12px;
@@ -946,9 +932,6 @@ button.share-segment:hover {
   .workflow-fields label {
     display: block;
     margin-bottom: 10px;
-  }
-  .workflow-toolbar {
-    align-items: stretch;
   }
   .workflow-dialog {
     padding: 14px;
@@ -1093,27 +1076,20 @@ button.share-segment:hover {
 
 /* Dashboard composition: full-width charts, adjacent compact summaries. */
 header .eyebrow,
-header .muted {
+header > div > .muted {
   display: none;
 }
 .toolbar {
   border: 0;
   padding: 4px 0;
 }
-.workflow-toolbar {
-  gap: 8px;
-  margin: 6px 0;
-}
 .stats {
-  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 .stats strong {
   font-size: 23px;
   margin-top: 0;
-}
-.stat-note {
-  max-width: 190px;
 }
 .section-heading {
   gap: 8px;
@@ -1217,13 +1193,6 @@ input[type="radio"],
   }
   .stats {
     grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-  .stat-note {
-    grid-column: 1 / -1;
-    max-width: none;
-  }
-  .stat-note br {
-    display: none;
   }
 }
 @media (max-width: 650px) {
@@ -1557,4 +1526,69 @@ dialog input[type="number"] {
 }
 #date-through {
   margin-left: 6px;
+}
+
+/* Page structure: header with tools, the report period bar, the report
+   (everything for that period) and the history chart below it. */
+header {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+header .tools {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.tool-buttons,
+.tool-status,
+.heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.period-bar {
+  justify-content: flex-start;
+  gap: 12px 18px;
+}
+.period-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-weight: 600;
+}
+.period-select select {
+  width: auto;
+}
+.period-bar #period-label {
+  margin-left: auto;
+}
+.projects-heading {
+  margin-top: 18px;
+}
+.heading-actions .check-label {
+  margin: 0;
+}
+.history-section {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.workload-hint {
+  margin: 6px 0 0;
+}
+.active-note {
+  margin: 14px 0 0;
+}
+@media (max-width: 650px) {
+  header .tools {
+    align-items: flex-start;
+  }
+  .tool-buttons,
+  .tool-status,
+  .heading-actions {
+    justify-content: flex-start;
+  }
 }

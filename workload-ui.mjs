@@ -15,8 +15,8 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · selected range · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Refresh chart</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="project">Whole project</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
-  document.getElementById("projects").previousElementSibling.before(section);
+    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="project">Whole project</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
+  document.getElementById("history").append(section);
   const $ = (id) => document.getElementById(id);
   let summaries = null, // day summaries of the shown days
     shown = null, // { host, from, through } of the shown days
@@ -153,8 +153,10 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const width = $("workload-chart").clientWidth;
     if (summaries && width && Math.abs(width - drawnWidth) > 4) chart();
   }).observe($("workload-chart"));
+  let drawnReport = null;
   function chart() {
     drawnWidth = $("workload-chart").clientWidth;
+    drawnReport = `${state.start}|${state.end}`;
     if (!summaries) return;
     const aggregate = $("workload-project").value === "";
     const project = aggregate
@@ -311,6 +313,42 @@ export function setupWorkload({ state, api, resizeFrame }) {
           { x: W - R + 10, y: yy + 4, fill: "#e6b56d", "font-size": 12 },
           `${i * 25}%`,
         );
+    }
+    // The report period's days, so it is clear what the panels above show.
+    if (state.start && state.end) {
+      const first = reportDay(state.start),
+        last = reportDay(state.end - 1);
+      const shown = days
+        .map((d, i) => (d.to >= first && d.from <= last ? i : -1))
+        .filter((i) => i >= 0);
+      if (shown.length) {
+        const left = (i) => (i === 0 ? L : (x(i - 1) + x(i)) / 2),
+          right = (i) =>
+            i === days.length - 1 ? W - R : (x(i) + x(i + 1)) / 2;
+        const from = left(shown[0]),
+          to = right(shown.at(-1));
+        shape("rect", {
+          x: from,
+          y: T,
+          width: to - from,
+          height: PH,
+          fill: "#d5e5f0",
+          opacity: 0.1,
+          "data-report-days": `${first}|${last}`,
+        });
+        // Above the plot, clear of the axis labels.
+        shape(
+          "text",
+          {
+            x: (from + to) / 2,
+            y: T - 8,
+            "text-anchor": "middle",
+            fill: "#a7b5c4",
+            "font-size": 11,
+          },
+          "Report",
+        );
+      }
     }
     const runs = [];
     let run = [];
@@ -858,7 +896,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
         keepRaw(loaded.fetched, from, through) || (rawCovers() ? raw : null);
       $("workload-status").textContent = [status, ...warnings].join(" ");
       chart();
-      $("workload-load").textContent = "Refresh chart";
+      $("workload-load").textContent = "Recalculate";
       if (key !== configKey()) scheduleCalculate();
       // Quietly after the page settles, so it never delays the first view.
       else if (!rawCovers()) setTimeout(() => prefetchRaw(run), 1500);
@@ -886,6 +924,9 @@ export function setupWorkload({ state, api, resizeFrame }) {
     };
   }
   $("workload-load").onclick = () => load({ force: true });
+  $("workload-open").onclick = () => {
+    if (shown) openRange(shown.from, shown.through);
+  };
   $("workload-project").onchange = () => {
     setPref("workloadProject", $("workload-project").value);
     // Summaries hold every category, so another project only redraws; a
@@ -952,6 +993,9 @@ export function setupWorkload({ state, api, resizeFrame }) {
       busy || (!projects.length && !(state.config.activityTypes || []).length);
     if (requestedHost !== state.host) load();
     if (summaries && !busy && configKey() !== key) scheduleCalculate();
+    // The report period moved: redraw its highlight (no recalculation).
+    else if (summaries && drawnReport !== `${state.start}|${state.end}`)
+      chart();
   }
   // Let the rest of the page update first; the chart follows a moment later.
   let pendingCalculation = false;
@@ -966,5 +1010,9 @@ export function setupWorkload({ state, api, resizeFrame }) {
       }, 0),
     );
   }
-  return { update };
+  return {
+    update,
+    // Main "Refresh": new days only; complete days come from the cache.
+    reload: () => load(),
+  };
 }
