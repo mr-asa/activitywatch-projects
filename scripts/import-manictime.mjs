@@ -170,8 +170,18 @@ const plan = [
 if (target === "main") {
   for (const [id] of plan) {
     if (!buckets[id]) throw Error(`Bucket ${id} not found.`);
-    const earlier = await api(
-      `buckets/${id}/events?end=${new Date(until - 1).toISOString()}&limit=1`,
+    // The server's end filter is inclusive and imprecise; check timestamps.
+    const earlier = (
+      await api(
+        `buckets/${id}/events?end=${new Date(until).toISOString()}&limit=10`,
+      )
+    ).filter(
+      (e) =>
+        Date.parse(e.timestamp) < until &&
+        // The AFK watcher may backdate one long "afk" interval on its first
+        // start; only active time before the cut-off would double count.
+        (!id.startsWith("aw-watcher-afk_") ||
+          (e.data?.status === "not-afk" && e.duration > 0)),
     );
     if (earlier.length)
       throw Error(
