@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { groupRules, expandGroup } from "./rule-groups.mjs";
+import { groupRules, expandGroup, addRule } from "./rule-groups.mjs";
 import { normalizeRule, applicationMatches } from "./rule-engine.mjs";
 import { analyze } from "./projects-core.mjs";
 const r = (pattern, extra = {}) => normalizeRule({ pattern, ...extra });
@@ -65,6 +65,50 @@ assert.equal(
   analyze(data, [p("all", "")], start, start + 120000).assigned,
   120,
 );
+// The same application written differently is one group.
+assert.equal(
+  groupRules([
+    r("A", { appFilter: "Telegram" }),
+    r("B", { appFilter: "telegram.exe" }),
+    r("C", { appFilter: "C:/Apps/Telegram.exe" }),
+  ]).length,
+  1,
+);
+// Adding joins the matching group right after its last rule, in its spelling.
+const base = [
+  r("Alpha", { appFilter: "Telegram" }),
+  r("Other", { type: "url", pattern: "https://example.com/a" }),
+];
+const joined = addRule(base, r("Beta", { appFilter: "telegram.exe" }));
+assert.equal(joined.merged, true);
+assert.deepEqual(
+  joined.rules.map((x) => [x.pattern, x.appFilter]),
+  [
+    ["Alpha", "Telegram"],
+    ["Beta", "Telegram"],
+    ["https://example.com/a", ""],
+  ],
+);
+assert.equal(groupRules(joined.rules).length, 2);
+// Known patterns are not added twice; case matters only when it matters.
+assert.equal(
+  addRule(base, r("alpha", { appFilter: "Telegram" })).duplicate,
+  true,
+);
+assert.equal(
+  addRule(
+    [r("Alpha", { ignoreCase: false })],
+    r("alpha", { ignoreCase: false }),
+  ).duplicate,
+  false,
+);
+// Different settings start a new group at the end.
+const separate = addRule(
+  base,
+  r("Gamma", { appFilter: "Telegram", from: "2026-09-01" }),
+);
+assert.equal(separate.merged, false);
+assert.equal(separate.rules.at(-1).pattern, "Gamma");
 console.log(
   "PASS: lossless grouping, multiline validation, optional exact application matching, separate project totals",
 );

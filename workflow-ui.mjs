@@ -1,3 +1,4 @@
+import { openModal } from "./dialogs.mjs";
 import { compareConfigs, validateConfig } from "./workflow-core.mjs";
 import { setupExport } from "./export-ui.mjs";
 import { unassignedActivities } from "./unassigned-core.mjs";
@@ -45,17 +46,7 @@ export function setupWorkflow({
     return { dialog: d, body };
   }
   function show(d) {
-    if (window.frameElement) {
-      d.style.top = "16px";
-      d.style.bottom = "auto";
-      d.style.margin = "0 auto";
-      d.style.maxHeight = Math.max(240, window.parent.innerHeight - 100) + "px";
-      window.frameElement.scrollIntoView({
-        block: "start",
-        behavior: "instant",
-      });
-    }
-    d.showModal();
+    openModal(d);
   }
   function download(text, name, type) {
     const url = URL.createObjectURL(new Blob([text], { type }));

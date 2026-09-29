@@ -1,3 +1,4 @@
+import { openModal } from "./dialogs.mjs";
 import { intersect } from "./projects-core.mjs";
 import { normalizeAssignment } from "./rule-engine.mjs";
 export function setupManual({ state, persist, render, notice }) {
@@ -105,18 +106,7 @@ export function setupManual({ state, persist, render, notice }) {
     const end = Math.min(state.end, Date.now());
     times(occurrences[0] || [Math.max(state.start, end - 15 * 60000), end]);
     selectionChanged();
-    if (window.frameElement) {
-      dialog.style.top = "16px";
-      dialog.style.bottom = "auto";
-      dialog.style.margin = "0 auto";
-      dialog.style.maxHeight =
-        Math.max(240, window.parent.innerHeight - 100) + "px";
-      window.frameElement.scrollIntoView({
-        block: "start",
-        behavior: "instant",
-      });
-    }
-    dialog.showModal();
+    openModal(dialog);
   }
   const close = () => {
     if (!state.saving) dialog.close();

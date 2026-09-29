@@ -1,3 +1,4 @@
+import { openModal } from "./dialogs.mjs";
 import {
   normalizeActivityType,
   analyzeActivityTypes,
@@ -50,18 +51,7 @@ export function setupActivities({
     $("activity-type-error").textContent = "";
     $("activity-delete").hidden = !editing;
     $("activity-delete").textContent = "Delete type";
-    if (window.frameElement) {
-      dialog.style.top = "16px";
-      dialog.style.bottom = "auto";
-      dialog.style.margin = "0 auto";
-      dialog.style.maxHeight =
-        Math.max(240, window.parent.innerHeight - 100) + "px";
-      window.frameElement.scrollIntoView({
-        block: "start",
-        behavior: "instant",
-      });
-    }
-    dialog.showModal();
+    openModal(dialog);
   }
   async function save(types) {
     if (state.saving) return;

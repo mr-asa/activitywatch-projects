@@ -1,4 +1,6 @@
+import { placeDialog } from "./dialogs.mjs";
 import { projectRules, normalizeRule } from "./rule-engine.mjs";
+import { addRule } from "./rule-groups.mjs";
 import {
   unassignedActivities,
   suggestedRule,
@@ -307,14 +309,6 @@ export function setupUnassigned({
     dialog.showModal();
     $("assign-project").focus();
   }
-  function placeDialog(d) {
-    if (!window.frameElement) return;
-    d.style.top = "16px";
-    d.style.bottom = "auto";
-    d.style.margin = "0 auto";
-    d.style.maxHeight = Math.max(240, window.parent.innerHeight - 100) + "px";
-    window.frameElement.scrollIntoView({ block: "start", behavior: "instant" });
-  }
   function typeValue(kind) {
     if (kind === "url") return suggestedRule(selected).url;
     if (kind === "application") return selected.app;
@@ -478,8 +472,14 @@ export function setupUnassigned({
         (p) => p.id === $("assign-project").value,
       );
       if (!p) throw Error("Select an existing project or create a new one.");
+      const added = addRule(projectRules(p), rule);
+      if (added.duplicate) {
+        $("assign-error").textContent =
+          `${p.name} already has this pattern in a rule group with the same settings.`;
+        return;
+      }
       const next = normalizeProject(
-        { ...p, rules: [...projectRules(p), rule] },
+        { ...p, rules: added.rules },
         state.config.projects,
       );
       state.saving = true;
@@ -491,7 +491,7 @@ export function setupUnassigned({
       dialog.close();
       render();
       notice(
-        `Rule added to ${next.name}. Project totals have been recalculated.`,
+        `${added.merged ? "Pattern added to an existing rule group" : "Rule added"} in ${next.name}. Project totals have been recalculated.`,
         "success",
       );
     } catch (error) {

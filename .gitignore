@@ -50,5 +50,6 @@
 !/activity-core.mjs
 !/activity-ui.mjs
 !/ui-prefs.mjs
+!/dialogs.mjs
 !/scripts/
 !/scripts/**

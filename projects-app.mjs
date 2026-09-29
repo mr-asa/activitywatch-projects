@@ -1,3 +1,4 @@
+import { lockScrollBehindDialogs, openModal } from "./dialogs.mjs";
 import { setupActivities } from "./activity-ui.mjs";
 import { setupWorkload } from "./workload-ui.mjs";
 import { setupWorkflow } from "./workflow-ui.mjs";
@@ -475,16 +476,8 @@ function openEditor(id = null, seed = null) {
   $("form-error").textContent = "";
   $("delete-project").hidden = !p;
   $("delete-confirm").hidden = true;
-  if (window.frameElement) {
-    const d = $("editor");
-    d.style.top = "16px";
-    d.style.bottom = "auto";
-    d.style.margin = "0 auto";
-    d.style.maxHeight = Math.max(240, window.parent.innerHeight - 100) + "px";
-    window.frameElement.scrollIntoView({ block: "start", behavior: "instant" });
-  }
-  $("editor").showModal();
-  $("project-name").focus();
+  openModal($("editor"));
+  $("project-name").focus({ preventScroll: true });
 }
 function closeEditor() {
   if (!state.saving) $("editor").close();
@@ -642,44 +635,7 @@ $("today").onclick = () => {
 const ruleEditor = setupRuleEditor({ state });
 const manual = setupManual({ state, persist, render, notice });
 state.manualUI = manual;
-// While a dialog is open, the wheel scrolls only inside it: never the page
-// behind it or the ActivityWatch page around the frame (which would move the
-// dialog out of view once its own content reaches the end).
-function canScroll(el, dx, dy) {
-  const vertical = Math.abs(dy) >= Math.abs(dx),
-    delta = vertical ? dy : dx;
-  for (; el && el !== document.documentElement; el = el.parentElement) {
-    const style = getComputedStyle(el);
-    if (!/auto|scroll/.test(vertical ? style.overflowY : style.overflowX))
-      continue;
-    const [pos, size, view] = vertical
-      ? [el.scrollTop, el.scrollHeight, el.clientHeight]
-      : [el.scrollLeft, el.scrollWidth, el.clientWidth];
-    if (delta < 0 ? pos > 0 : pos + view < size - 1) return true;
-  }
-  return false;
-}
-document.addEventListener(
-  "wheel",
-  (e) => {
-    const dialogs = [...document.querySelectorAll("dialog[open]")];
-    if (!dialogs.length) return;
-    // Over the backdrop the target is the dialog itself, outside its box.
-    const inside = dialogs.some((d) => {
-      if (!d.contains(e.target)) return false;
-      if (e.target !== d) return true;
-      const r = d.getBoundingClientRect();
-      return (
-        e.clientX >= r.left &&
-        e.clientX <= r.right &&
-        e.clientY >= r.top &&
-        e.clientY <= r.bottom
-      );
-    });
-    if (!inside || !canScroll(e.target, e.deltaX, e.deltaY)) e.preventDefault();
-  },
-  { passive: false },
-);
+lockScrollBehindDialogs();
 const workflow = setupWorkflow({
   state,
   api,

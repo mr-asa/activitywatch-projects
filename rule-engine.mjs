@@ -90,16 +90,18 @@ export function clipRule(ranges, rule) {
     .map(([s, e]) => [Math.max(s, start), Math.min(e, end)])
     .filter(([s, e]) => e > s);
 }
+// "Telegram", "telegram.exe" and a full path all name the same application.
+export function applicationKey(value) {
+  return String(value || "")
+    .trim()
+    .split(/[\\/]/)
+    .pop()
+    .replace(/[.]exe$/i, "")
+    .toLocaleLowerCase();
+}
 export function applicationMatches(filter, app) {
   if (!String(filter || "").trim()) return true;
-  const clean = (value) =>
-    String(value || "")
-      .trim()
-      .split(/[\\/]/)
-      .pop()
-      .replace(/[.]exe$/i, "")
-      .toLocaleLowerCase();
-  return clean(filter) === clean(app);
+  return applicationKey(filter) === applicationKey(app);
 }
 const regexCache = new Map();
 function compiled(pattern, flags) {

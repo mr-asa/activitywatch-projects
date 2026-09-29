@@ -1090,3 +1090,64 @@ test("scrolling inside an open dialog never scrolls the page behind it", async (
   await page.mouse.wheel(0, 300);
   await expect.poll(pageScroll).toBeGreaterThan(before);
 });
+test("a rule added from unassigned activity joins the matching rule group", async ({
+  page,
+}) => {
+  const { settings } = await setup(page);
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  await page
+    .locator(".unassigned-row")
+    .filter({ hasText: "Personal browsing" })
+    .getByRole("button", { name: "Add to project", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Add rule", exact: true }).click();
+  await confirm(page);
+  await expect(page.locator("#notice")).toContainText(
+    "Pattern added to an existing rule group in Demo",
+  );
+  expect(
+    settings.project_tracker.projects[0].rules.map((r) => r.pattern),
+  ).toEqual(["Demo", "Personal browsing"]);
+  await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
+  await expect(page.locator("#rule-rows textarea")).toHaveCount(1);
+  await expect(page.locator("#rule-rows textarea")).toHaveValue(
+    "Demo\nPersonal browsing",
+  );
+});
+test("dialogs open where the ActivityWatch page is scrolled to", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 600 });
+  await setup(page);
+  // ActivityWatch embeds the dashboard in a frame below its own header.
+  await page.route("**/aw-host.html", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: '<body style="margin:0"><div style="height:400px">ActivityWatch</div><div class="col-md-6"><iframe src="/?start=2026-09-22T00:00:00Z&end=2026-09-23T00:00:00Z" style="border:0;width:100%"></iframe></div></body>',
+    }),
+  );
+  await page.goto("/aw-host.html");
+  const frame = page.frameLocator("iframe");
+  await expect(
+    frame.getByRole("button", { name: "Edit Demo", exact: true }),
+  ).toBeEnabled();
+  await page.evaluate(() => window.scrollTo(0, 700));
+  const scrollY = () => page.evaluate(() => window.scrollY);
+  // Click without Playwright scrolling the page to the button.
+  await frame
+    .getByRole("button", { name: "Edit Demo", exact: true })
+    .evaluate((b) => b.click());
+  await expect(frame.locator("#editor")).toBeVisible();
+  expect(await scrollY()).toBe(700);
+  const box = await frame.locator("#editor").boundingBox();
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(box.y + box.height).toBeLessThanOrEqual(600);
+  await frame
+    .locator("#editor")
+    .getByRole("button", { name: "Cancel", exact: true })
+    .evaluate((b) => b.click());
+  await expect(frame.locator("#editor")).not.toBeVisible();
+  expect(await scrollY()).toBe(700);
+});

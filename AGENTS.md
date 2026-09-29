@@ -16,7 +16,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `projects-app.mjs` | Entry point: state, data loading, rendering of cards/timeline/legend, persistence, wiring of all panels. |
 | `projects-core.mjs` | Pure analysis: `analyze()` (time attribution), interval helpers (`merge`, `intersect`, `clipSorted`, `duration`), URL/title matching, browser & editor source discovery. |
 | `rule-engine.mjs` | Rule normalization/matching (`normalizeRule`, `ruleMatches`, date bounds, app filter), manual assignment validation, `stable()` JSON, `localDate()`. |
-| `rule-groups.mjs`, `compact-rule-editor.mjs` | Grouped multiline rule editor (one alternative per line; group settings shared). |
+| `rule-groups.mjs`, `compact-rule-editor.mjs` | Grouped multiline rule editor (one alternative per line; group settings shared). Groups are derived from settings (type, mode, case, dates, application by `applicationKey`); `addRule` joins a new rule to its group and skips known patterns. |
 | `unassigned-core.mjs` / `unassigned-ui.mjs` | "Not assigned · activities" list: grouping of unassigned time by app/title/URL, activity-type breakdown per row, add-to-project / add-to-activity-type dialogs. |
 | `manual-ui.mjs` | Manual interval assignments (single, all occurrences, whole application). |
 | `workflow-core.mjs` / `workflow-ui.mjs` | Config validation, report bounds, before/after previews, revision history, explanations, settings import/export. |
@@ -24,6 +24,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `workload-core.mjs` / `workload-ui.mjs` | Daily workload chart (own data range, independent of the report period). |
 | `activity-core.mjs` / `activity-ui.mjs` | Activity types (independent second classification of the same time). |
 | `time-charts.mjs` | Proportion charts. |
+| `dialogs.mjs` | Dialog placement inside the ActivityWatch frame and the wheel lock behind open dialogs. |
 | `ui-prefs.mjs` | Per-browser view preferences in `localStorage` (report period, chart range and lines, filters). Never stored in ActivityWatch settings; saved automatically on change; unknown values fall back to defaults. |
 
 UI modules follow a `setupX({ state, persist, render, … })` pattern and return `{ update, … }`; `render()` in `projects-app.mjs` calls every panel's `update()`.
@@ -101,8 +102,8 @@ After deploying, the dashboard needs **Ctrl+F5** (modules are cached).
 
 - **`.gitignore` is a whitelist** (`/*` then `!/file`). A new tracked file must be added there, and a new runtime file must also be added to `$files` in `deploy.ps1`.
 - UI text is English. Build DOM with `textContent` / `createElement`; `innerHTML` only for static templates (no user data).
-- Dialogs inside the ActivityWatch iframe are positioned manually (`window.frameElement`); follow the existing `placeDialog` pattern.
-- While any dialog is open, a document-level `wheel` handler (`projects-app.mjs`) cancels scrolling unless an element inside the dialog can still scroll that way, so neither the page nor the ActivityWatch page around the frame moves. New scrollable areas inside dialogs need `overflow: auto|scroll` to be recognised.
+- Open modal dialogs with `openModal()` / `placeDialog()` from `dialogs.mjs`: inside the ActivityWatch iframe a dialog is placed in the currently visible part of the frame; never scroll the ActivityWatch page to show a dialog.
+- While any dialog is open, a document-level `wheel` handler (`dialogs.mjs`) cancels scrolling unless an element inside the dialog can still scroll that way, so neither the page nor the ActivityWatch page around the frame moves. New scrollable areas inside dialogs need `overflow: auto|scroll` to be recognised.
 - Every configuration save goes through `persist()`, which shows a before/after preview and requires confirmation.
 - Tests use invented names and `example.com` URLs. Never commit real project names, links, exported settings, activity data, screenshots or local backups.
 - Keep the README human-oriented (see top of this file). Document mechanics here instead.
