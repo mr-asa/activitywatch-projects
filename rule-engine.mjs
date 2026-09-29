@@ -84,6 +84,35 @@ export function ruleBounds(rule) {
   }
   return [start, end];
 }
+// A project's common dates (rulesFrom / rulesThrough) narrow each rule.
+export function boundedRule(rule, project) {
+  const from =
+      [rule.from, project.rulesFrom].filter(Boolean).sort().at(-1) || "",
+    through =
+      [rule.through, project.rulesThrough].filter(Boolean).sort()[0] || "";
+  return from === (rule.from || "") && through === (rule.through || "")
+    ? rule
+    : { ...rule, from, through };
+}
+// When a project can receive time at all: its date-bounded rules plus its
+// manual assignments. start = -Infinity / end = Infinity when unbounded;
+// start = Infinity when nothing can match.
+export function projectSpan(project, manualAssignments = []) {
+  let start = Infinity,
+    end = -Infinity;
+  for (const rule of projectRules(project)) {
+    const [s, e] = ruleBounds(boundedRule(rule, project));
+    if (e <= s) continue;
+    start = Math.min(start, s);
+    end = Math.max(end, e);
+  }
+  for (const a of manualAssignments)
+    if (a.projectId === project.id) {
+      start = Math.min(start, Date.parse(a.start));
+      end = Math.max(end, Date.parse(a.end));
+    }
+  return { start, end };
+}
 export function clipRule(ranges, rule) {
   const [start, end] = ruleBounds(rule);
   return ranges

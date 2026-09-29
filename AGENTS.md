@@ -33,7 +33,7 @@ UI modules follow a `setupX({ state, persist, render, … })` pattern and return
 
 - `project_tracker` — the configuration, `version: 1`:
   - `revision`: UUID, checked before each save (optimistic concurrency; a mismatch aborts with "changed in another tab").
-  - `projects[]`: `{ id, name, color, kind: "project" | "non-project", archived, rulesThrough, rules[], keywords[], urls[] }`. `keywords`/`urls` are derived legacy mirrors of plain rules.
+  - `projects[]`: `{ id, name, color, kind: "project" | "non-project", archived, rulesFrom, rulesThrough, rules[], keywords[], urls[] }`. `keywords`/`urls` are derived legacy mirrors of plain rules.
   - rule: `{ id, type: "title" | "url" | "editor-project" | "editor-file", mode: "text" | "regex", pattern, ignoreCase, from, through, appFilter }`.
   - `manualAssignments[]`: `{ id, projectId, host, start, end, note }` (ISO timestamps, per device, non-overlapping).
   - `activityTypes[]`: `{ id, name, color, applications[], titles[], urls[], combinations[], mode }`.
@@ -50,7 +50,7 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 - URL evidence is clipped to foreground time of the matching browser family. Editor (VS Code / Obsidian watcher) evidence is clipped to foreground time of that editor.
 - A moment matched by exactly one category → that category. Two or more → `conflict` ("Needs review"), excluded from totals. None → `unassigned`.
 - Manual assignments override automatic rules for the same moment (only on their `host`).
-- Rule `from`/`through` are inclusive local calendar dates with **midnight** boundaries (not the start-of-day offset). `rulesThrough` on a project caps all its rules.
+- Rule `from`/`through` are inclusive local calendar dates with **midnight** boundaries (not the start-of-day offset). `rulesFrom` / `rulesThrough` on a project narrow all its rules (`boundedRule`); a rule's own narrower dates still win. `projectSpan` (rules + manual assignments) bounds the workload "Whole project" scan.
 - Report days start at ActivityWatch's `startOfDay` setting (default `04:00`).
 - Activity types run the same engine over the same data but never affect project attribution. In a type, applications × titles combine with AND; URLs and `combinations` (`{ app, title }`, either may be blank) are standalone alternatives. `addActivityMatcher` stores an addition as a combination whenever adding it to the main lists would change their meaning.
 - Non-project categories count toward tracked time, not project totals.

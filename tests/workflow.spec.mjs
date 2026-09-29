@@ -1268,3 +1268,35 @@ test("dialogs fit inside ActivityWatch's scrolling content area", async ({
     await page.evaluate(() => document.getElementById("content").scrollTop),
   ).toBe(500);
 });
+test("a project's common start date limits its rules and the whole-project scan", async ({
+  page,
+}) => {
+  const queries = [];
+  const { settings } = await setup(page);
+  await page.route("**/api/0/query/", async (route) => {
+    queries.push(route.request().postDataJSON().timeperiods[0]);
+    await route.fallback();
+  });
+  await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
+  await page.locator("#project-rules-from").fill("2026-09-20");
+  await page.getByRole("button", { name: "Save project", exact: true }).click();
+  await confirm(page);
+  await expect
+    .poll(() => settings.project_tracker.projects[0].rulesFrom)
+    .toBe("2026-09-20");
+  await expect(page.locator("#assigned")).toHaveText("0h 1m");
+  // Whole project scans from the common start, not from 2026-09-01.
+  await page.getByLabel("Workload project").selectOption("demo");
+  await page.getByLabel("Workload range").selectOption("project");
+  await expect(page.locator("#workload-status")).toContainText("whole project");
+  const scanStart = Date.parse(queries.at(-1).split("/")[0]);
+  expect(scanStart).toBeGreaterThan(Date.parse("2026-09-18T00:00:00Z"));
+  expect(scanStart).toBeLessThan(Date.parse("2026-09-20T12:00:00Z"));
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-09-22");
+  // A start after the recorded time: the rules no longer match that day.
+  await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
+  await page.locator("#project-rules-from").fill("2026-09-23");
+  await page.getByRole("button", { name: "Save project", exact: true }).click();
+  await confirm(page);
+  await expect(page.locator("#assigned")).toHaveText("0h 0m");
+});

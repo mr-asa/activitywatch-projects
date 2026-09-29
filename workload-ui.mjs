@@ -1,6 +1,6 @@
 import { analyzeActivityTypes, activitySegments } from "./activity-core.mjs";
 import { analyze, discoverBrowsers, loadRange } from "./projects-core.mjs";
-import { localDate, stable } from "./rule-engine.mjs";
+import { localDate, projectSpan, stable } from "./rule-engine.mjs";
 import { pref, setPref, persistControl, restoredOption } from "./ui-prefs.mjs";
 import {
   projectWorkload,
@@ -601,6 +601,34 @@ export function setupWorkload({ state, api, resizeFrame }) {
   // "Whole project": narrow already loaded full history to the first and last
   // report day with time in the selected project (or any category).
   let fullHistory = false;
+  // Report days to scan for "Whole project": recorded history, narrowed to
+  // when the selected project can receive time (its common and per-rule
+  // dates, manual assignments). All projects scan the whole history.
+  function projectScan() {
+    // Window bucket creation marks the start of recorded history.
+    // Imported history (scripts/import-manictime.mjs) predates the bucket.
+    const created = Math.min(
+      ...[
+        state.buckets?.["aw-watcher-window_" + state.host]?.created,
+        state.settings?.project_tracker_history_start?.[state.host],
+      ]
+        .map((t) => Date.parse(t))
+        .filter(Number.isFinite),
+    );
+    let start = Number.isFinite(created) ? created : Date.now(),
+      end = Date.now();
+    const project = state.config.projects.find(
+      (p) => p.id === $("workload-project").value,
+    );
+    if (project) {
+      const span = projectSpan(project, state.config.manualAssignments || []);
+      if (span.start < span.end) {
+        start = Math.min(end, Math.max(start, span.start));
+        end = Math.max(start, Math.min(end, span.end - 1));
+      }
+    }
+    return [reportDay(start), reportDay(end)];
+  }
   function applyProjectSpan() {
     const id = $("workload-project").value;
     const full = analyze(
@@ -637,20 +665,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const projectMode = $("workload-range").value === "project";
     let from = $("workload-from").value,
       through = $("workload-through").value;
-    if (projectMode) {
-      // Window bucket creation marks the start of recorded history.
-      // Imported history (scripts/import-manictime.mjs) predates the bucket.
-      const created = Math.min(
-        ...[
-          state.buckets?.["aw-watcher-window_" + state.host]?.created,
-          state.settings?.project_tracker_history_start?.[state.host],
-        ]
-          .map((t) => Date.parse(t))
-          .filter(Number.isFinite),
-      );
-      from = reportDay(Number.isFinite(created) ? created : Date.now());
-      through = reportDay(Date.now());
-    }
+    if (projectMode) [from, through] = projectScan();
     if ($("workload-range").value === "custom" && from && through)
       setPref("workloadDates", [from, through]);
     if (!from || !through || from > through) {
@@ -744,8 +759,20 @@ export function setupWorkload({ state, api, resizeFrame }) {
   $("workload-project").onchange = () => {
     setPref("workloadProject", $("workload-project").value);
     if ($("workload-range").value !== "project") return calculate();
-    // Full history is already loaded; otherwise fetch it.
-    if (fullHistory && data && !busy) applyProjectSpan();
+    // Reuse the loaded history when it covers this project's span.
+    const [from, through] = projectScan();
+    const next = new Date(through + "T12:00:00");
+    next.setDate(next.getDate() + 1);
+    if (
+      fullHistory &&
+      data &&
+      !busy &&
+      fullHistory.start <= dayStart(from) &&
+      // A few minutes of staleness at "today" are fine for a history view.
+      fullHistory.end >=
+        Math.min(dayStart(localDate(next)), Date.now() - 300000)
+    )
+      applyProjectSpan();
     else load();
   };
   function update() {

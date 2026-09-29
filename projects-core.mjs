@@ -4,6 +4,7 @@ import {
   clipRule,
   ruleMatches,
   applicationMatches,
+  boundedRule,
 } from "./rule-engine.mjs";
 export const PALETTE = [
   "#65d6b4",
@@ -89,13 +90,26 @@ export function normalizeProject(input, others = []) {
   const rules = projectRules({ ...input, keywords, urls }).map(normalizeRule);
   if (input.kind && !["project", "non-project"].includes(input.kind))
     throw Error("Choose a supported category type.");
-  if (input.rulesThrough)
-    normalizeRule({ pattern: "validation", through: input.rulesThrough });
+  if (input.rulesFrom || input.rulesThrough)
+    try {
+      normalizeRule({
+        pattern: "validation",
+        from: input.rulesFrom,
+        through: input.rulesThrough,
+      });
+    } catch (e) {
+      throw Error(
+        e.message.includes("end date")
+          ? "Automatic rules must end on or after the day they start."
+          : e.message,
+      );
+    }
   return {
     id: input.id,
     name,
     kind: input.kind || "project",
     archived: input.archived === true,
+    rulesFrom: input.rulesFrom || "",
     rulesThrough: input.rulesThrough || "",
     color: input.color.toLowerCase(),
     rules,
@@ -285,12 +299,7 @@ export function analyze(data, projects, start, end, options = {}) {
   };
   for (const project of projects) {
     for (const original of projectRules(project)) {
-      const rule = { ...original };
-      if (
-        project.rulesThrough &&
-        (!rule.through || project.rulesThrough < rule.through)
-      )
-        rule.through = project.rulesThrough;
+      const rule = boundedRule(original, project);
       if (rule.type === "title")
         for (const group of titleGroups.values()) {
           if (!ruleMatches(rule, group.title, matchTitle, matchUrl, group.app))

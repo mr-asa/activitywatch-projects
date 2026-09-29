@@ -46,6 +46,69 @@ assert.equal(
   analyze(data, [{ ...p, rulesThrough: "2026-09-21" }], t, t + 60000).assigned,
   0,
 );
+// A common start date limits all rules; a rule's own narrower date still wins.
+assert.equal(
+  analyze(data, [{ ...p, rulesFrom: "2026-09-23" }], t, t + 60000).assigned,
+  0,
+);
+assert.equal(
+  analyze(data, [{ ...p, rulesFrom: "2026-09-22" }], t, t + 60000).assigned,
+  60,
+);
+assert.equal(
+  analyze(
+    data,
+    [
+      {
+        ...p,
+        rulesFrom: "2026-09-01",
+        rules: p.rules.map((r) => ({ ...r, from: "2026-09-23" })),
+      },
+    ],
+    t,
+    t + 60000,
+  ).assigned,
+  0,
+);
+assert.equal(
+  normalizeProject({ ...p, rulesFrom: "2026-09-10" }).rulesFrom,
+  "2026-09-10",
+);
+assert.throws(
+  () =>
+    normalizeProject({
+      ...p,
+      rulesFrom: "2026-09-10",
+      rulesThrough: "2026-09-01",
+    }),
+  /must end on or after/,
+);
+{
+  const { projectSpan } = await import("./rule-engine.mjs");
+  const day = (d) => +new Date(d + "T00:00:00");
+  const bounded = {
+    ...p,
+    rulesFrom: "2026-09-10",
+    rulesThrough: "2026-09-20",
+  };
+  assert.deepEqual(projectSpan(bounded), {
+    start: day("2026-09-10"),
+    end: day("2026-09-21"),
+  });
+  // Manual assignments widen the span; a rule without dates leaves it open.
+  assert.equal(
+    projectSpan(bounded, [
+      {
+        projectId: p.id,
+        start: "2026-08-01T10:00:00Z",
+        end: "2026-08-01T11:00:00Z",
+      },
+    ]).start,
+    Date.parse("2026-08-01T10:00:00Z"),
+  );
+  assert.equal(projectSpan(p).start, -Infinity);
+  assert.equal(projectSpan({ ...p, rules: [] }).start, Infinity);
+}
 const manual = {
   id: "m",
   host: "h",
