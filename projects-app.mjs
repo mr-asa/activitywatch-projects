@@ -123,10 +123,15 @@ function period() {
     start = new Date(params.get("start"));
     end = new Date(params.get("end"));
   } else {
+    const mode = $("report-period")?.value || "day";
+    // A range never ends before it starts.
+    if (mode === "range" && !($("date-through").value >= $("date").value))
+      $("date-through").value = $("date").value;
     const bounds = reportBounds(
       $("date").value,
-      $("report-period")?.value || "day",
+      mode,
       state.settings.startOfDay || "04:00",
+      $("date-through").value,
     );
     start = new Date(bounds[0]);
     end = new Date(bounds[1]);
@@ -620,7 +625,7 @@ $("editor").addEventListener("cancel", (e) => {
   if (state.saving) e.preventDefault();
 });
 $("refresh").onclick = () => load();
-$("date").onchange = () => {
+$("date").onchange = $("date-through").onchange = () => {
   state.ownDate = true;
   load();
 };
@@ -631,7 +636,14 @@ for (const [id, delta] of [
   $(id).onclick = () => {
     const d = new Date($("date").value + "T12:00:00");
     const mode = $("report-period").value;
-    if (mode === "month") {
+    if (mode === "range") {
+      // Move the whole range by its own length.
+      const last = new Date($("date-through").value + "T12:00:00");
+      const days = Math.round((last - d) / 86400000) + 1;
+      d.setDate(d.getDate() + delta * days);
+      last.setDate(last.getDate() + delta * days);
+      $("date-through").value = localDate(last);
+    } else if (mode === "month") {
       d.setDate(1);
       d.setMonth(d.getMonth() + delta);
     } else d.setDate(d.getDate() + delta * (mode === "week" ? 7 : 1));

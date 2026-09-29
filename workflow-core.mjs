@@ -52,7 +52,14 @@ export function validateConfig(input) {
   }
   return { version: 1, projects, manualAssignments, activityTypes };
 }
-export function reportBounds(date, period = "day", startOfDay = "04:00") {
+// Report days: "day", "week" (from Monday), "month", or "range" from
+// `date` through `through` (inclusive dates).
+export function reportBounds(
+  date,
+  period = "day",
+  startOfDay = "04:00",
+  through = date,
+) {
   const start = new Date(date + "T00:00:00");
   const [hours, minutes] = startOfDay.split(":").map(Number);
   if (period === "week")
@@ -61,7 +68,12 @@ export function reportBounds(date, period = "day", startOfDay = "04:00") {
   start.setHours(hours, minutes, 0, 0);
   const end = new Date(start);
   if (period === "month") end.setMonth(end.getMonth() + 1);
-  else end.setDate(end.getDate() + (period === "week" ? 7 : 1));
+  else if (period === "range") {
+    const last = new Date((through || date) + "T00:00:00");
+    last.setHours(hours, minutes, 0, 0);
+    end.setTime(+last);
+    end.setDate(end.getDate() + 1);
+  } else end.setDate(end.getDate() + (period === "week" ? 7 : 1));
   return [+start, +end];
 }
 export function compareConfigs(

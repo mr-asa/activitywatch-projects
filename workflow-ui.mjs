@@ -60,7 +60,7 @@ export function setupWorkflow({
   const toolbar = node("section");
   toolbar.className = "workflow-toolbar";
   toolbar.innerHTML =
-    '<label>Report period<select id="report-period"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label><label class="check-label"><input type="checkbox" id="show-archived"> Show archived</label>';
+    '<label>Report period<select id="report-period"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option><option value="range">Custom range</option></select></label><label class="check-label"><input type="checkbox" id="show-archived"> Show archived</label>';
   toolbar.append(
     button("Explain activities", () => explain()),
     button("Reports & export", () => exporter.open()),
@@ -69,10 +69,19 @@ export function setupWorkflow({
   document.querySelector(".toolbar").after(toolbar);
   $("report-period").onchange = () => {
     state.ownDate = true;
+    syncRangeInput();
     load();
   };
+  // "Custom range" shows a second date: the last day of the report.
+  function syncRangeInput() {
+    const range = $("report-period").value === "range";
+    $("date-through").hidden = !range;
+    if (range && !($("date-through").value >= $("date").value))
+      $("date-through").value = $("date").value;
+  }
   $("show-archived").onchange = render;
   persistControl($("report-period"), "reportPeriod");
+  syncRangeInput();
   persistControl($("show-archived"), "showArchived");
   const stat = node("div");
   stat.append(node("span", "Non-project time"));

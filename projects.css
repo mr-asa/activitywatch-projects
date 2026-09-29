@@ -1555,3 +1555,6 @@ dialog input[type="number"] {
 .match-preview-list li {
   margin: 2px 0;
 }
+#date-through {
+  margin-left: 6px;
+}

@@ -165,6 +165,23 @@ assert(
 );
 assert.equal(new Date(reportBounds("2026-09-23", "week")[0]).getDate(), 21);
 assert.equal(new Date(reportBounds("2026-09-23", "month")[1]).getMonth(), 9);
+// A custom range covers whole report days, both ends included.
+{
+  const [start, end] = reportBounds(
+    "2026-09-21",
+    "range",
+    "04:00",
+    "2026-09-23",
+  );
+  assert.equal(new Date(start).getDate(), 21);
+  assert.equal(new Date(start).getHours(), 4);
+  assert.equal((end - start) / 3600000, 72);
+  assert.equal(
+    reportBounds("2026-09-21", "range", "04:00", "")[1] -
+      reportBounds("2026-09-21", "range", "04:00", "")[0],
+    86400000,
+  );
+}
 assert.equal(validateConfig(cfg).projects[0].kind, "project");
 assert.throws(() => validateConfig({ ...cfg, version: 2 }));
 assert.throws(() => validateConfig({ ...cfg, projects: [p, p] }));

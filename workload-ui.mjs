@@ -15,7 +15,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · selected range · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Refresh chart</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="project">Whole project</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days.</p></details>';
+    '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · selected range · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Refresh chart</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="project">Whole project</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
   document.getElementById("projects").previousElementSibling.before(section);
   const $ = (id) => document.getElementById(id);
   let summaries = null, // day summaries of the shown days
@@ -137,6 +137,16 @@ export function setupWorkload({ state, api, resizeFrame }) {
       .querySelector(".stats")
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  // A selected span of days becomes the report's custom range.
+  function openRange(from, through) {
+    document.getElementById("report-period").value = "range";
+    setPref("reportPeriod", "range");
+    const last = document.getElementById("date-through");
+    last.value = through;
+    last.hidden = false;
+    openDay(from, "range");
+  }
+  let anchor = null; // first point of a Shift+click range (its first date)
   // Redraw at the new width when the panel resizes (cached data, no reload).
   let drawnWidth = 0;
   new ResizeObserver(() => {
@@ -497,6 +507,75 @@ export function setupWorkload({ state, api, resizeFrame }) {
         );
       if (!aggregate) metric(`Unclassified: ${value(d.unclassified)}`);
     };
+    // Range selection: drag across points, or click one and Shift+click
+    // another. A single click opens that day (week, month) as before.
+    const edges = (i) => [
+      i === 0 ? L : (x(i - 1) + x(i)) / 2,
+      i === days.length - 1 ? W - R : (x(i) + x(i + 1)) / 2,
+    ];
+    const band = shape("rect", {
+      x: L,
+      y: T,
+      width: 0,
+      height: PH,
+      fill: "#65d6b4",
+      opacity: 0,
+      "pointer-events": "none",
+      "data-selection": "",
+    });
+    const mark = (a, b) => {
+      const [left] = edges(Math.min(a, b)),
+        [, right] = edges(Math.max(a, b));
+      band.setAttribute("x", left);
+      band.setAttribute("width", right - left);
+      band.setAttribute("opacity", 0.16);
+    };
+    const indexAt = (e) => {
+      const box = svg.getBoundingClientRect();
+      const px = ((e.clientX - box.left) * W) / box.width;
+      const i = days.length === 1 ? 0 : Math.round((px - L) / spacing);
+      return Math.max(0, Math.min(days.length - 1, i));
+    };
+    const open = (a, b) => {
+      const lo = Math.min(a, b),
+        hi = Math.max(a, b);
+      if (lo === hi) openDay(days[lo].from, unit);
+      else openRange(days[lo].from, days[hi].to);
+    };
+    let drag = null;
+    svg.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      const i = indexAt(e);
+      const first = days.findIndex((d) => d.from === anchor);
+      if (e.shiftKey && first >= 0) {
+        e.preventDefault();
+        mark(first, i);
+        open(first, i);
+        return;
+      }
+      drag = { from: i, to: i };
+      svg.setPointerCapture(e.pointerId);
+    });
+    svg.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const i = indexAt(e);
+      if (i === drag.to) return;
+      drag.to = i;
+      mark(drag.from, i);
+      describe(days[i], i);
+    });
+    svg.addEventListener("pointerup", () => {
+      if (!drag) return;
+      const { from, to } = drag;
+      drag = null;
+      if (from === to) band.setAttribute("opacity", 0);
+      anchor = days[from].from;
+      open(from, to);
+    });
+    svg.addEventListener("pointercancel", () => {
+      drag = null;
+      band.setAttribute("opacity", 0);
+    });
     days.forEach((d, i) => {
       const left = i === 0 ? L : (x(i - 1) + x(i)) / 2,
         right = i === days.length - 1 ? W - R : (x(i) + x(i + 1)) / 2;
@@ -511,15 +590,21 @@ export function setupWorkload({ state, api, resizeFrame }) {
         "aria-label": `${period(d)}: ${hours(d.seconds)}${unit === "day" ? "" : " per recorded day"}. Open this ${unit} in the report`,
       });
       const tip = document.createElementNS(ns, "title");
-      tip.textContent = `${period(d)} · click to open this ${unit} in the report`;
+      tip.textContent = `${period(d)} · click to open this ${unit} in the report · drag or Shift+click to select a range`;
       hit.append(tip);
       for (const event of ["pointerenter", "focus"])
         hit.addEventListener(event, () => describe(d, i));
-      hit.addEventListener("click", () => openDay(d.from, unit));
       hit.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          openDay(d.from, unit);
+          const first = days.findIndex((p) => p.from === anchor);
+          if (e.shiftKey && first >= 0) {
+            mark(first, i);
+            open(first, i);
+          } else {
+            anchor = d.from;
+            openDay(d.from, unit);
+          }
         }
       });
       // Regular labels plus the last day; skip a regular label that would

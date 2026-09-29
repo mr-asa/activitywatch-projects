@@ -1433,3 +1433,43 @@ test("dialogs open below a fixed ActivityWatch header", async ({ page }) => {
   expect(box.y + box.height).toBeLessThanOrEqual(700);
   expect(await page.evaluate(() => window.scrollY)).toBe(500);
 });
+test("selecting days on the chart opens them as a report range", async ({
+  page,
+}) => {
+  await setup(page);
+  const status = page.locator("#workload-status");
+  await expect(status).toContainText("2026-09-21 – 2026-09-27");
+  const hits = page.locator("#workload-chart rect[role=button]");
+  // Drag from Monday to Wednesday.
+  const first = await hits.nth(0).boundingBox(),
+    third = await hits.nth(2).boundingBox();
+  const y = first.y + first.height / 2;
+  await page.mouse.move(first.x + first.width / 2, y);
+  await page.mouse.down();
+  await page.mouse.move(third.x + third.width / 2, y, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator("#report-period")).toHaveValue("range");
+  await expect(page.locator("#date")).toHaveValue("2026-09-21");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-23");
+  await expect(page.locator("#date-through")).toBeVisible();
+  await expect(page.locator("#range-label")).toContainText("Sep 21");
+  await expect(page.locator("#range-label")).toContainText("Sep 24");
+  await expect(
+    page.locator("#workload-chart [data-selection]"),
+  ).toHaveAttribute("opacity", "0.16");
+  // The report's arrows move the range by its own length.
+  await page.getByRole("button", { name: "Next day" }).click();
+  await expect(page.locator("#date")).toHaveValue("2026-09-24");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-26");
+  // Click one day, Shift+click another.
+  await hits.nth(1).click();
+  await expect(page.locator("#report-period")).toHaveValue("day");
+  await expect(page.locator("#date")).toHaveValue("2026-09-22");
+  await hits.nth(4).click({ modifiers: ["Shift"] });
+  await expect(page.locator("#report-period")).toHaveValue("range");
+  await expect(page.locator("#date")).toHaveValue("2026-09-22");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-25");
+  // The range is remembered, and a plain period hides the second date.
+  await page.locator("#report-period").selectOption("week");
+  await expect(page.locator("#date-through")).toBeHidden();
+});
