@@ -903,6 +903,9 @@ button.share-segment:hover {
   width: 100%;
   margin: 0;
 }
+.workflow-fields .project-rule-dates {
+  width: 100%;
+}
 .workflow-dialog {
   width: min(1050px, calc(100vw - 32px));
   max-height: 85vh;

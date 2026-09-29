@@ -83,7 +83,7 @@ export function setupWorkflow({
   const fields = node("div");
   fields.className = "workflow-fields";
   fields.innerHTML =
-    '<label>Category type<select id="project-kind"><option value="project">Project work</option><option value="non-project">Non-project / intentionally ignored</option></select></label><label class="check-label"><input type="checkbox" id="project-archived"> Archived (hide from cards)</label><label>Automatic rules start on<input type="date" id="project-rules-from"></label><label>Automatic rules end on<input type="date" id="project-rules-through"></label><p class="field-help">Archiving keeps historical totals. The optional dates limit all automatic rules of this project at once (each rule can still have its own, narrower dates); manual assignments still apply.</p>';
+    '<label>Category type<select id="project-kind"><option value="project">Project work</option><option value="non-project">Non-project / intentionally ignored</option></select></label><label class="check-label"><input type="checkbox" id="project-archived"> Archived (hide from cards)</label><div class="rule-dates project-rule-dates"><label>Automatic rules start on<input type="date" id="project-rules-from"></label><label>Automatic rules end on<input type="date" id="project-rules-through"></label></div><p class="field-help">Archiving keeps historical totals. The optional dates limit all automatic rules of this project at once (each rule can still have its own, narrower dates); manual assignments still apply.</p>';
   $("rule-editor").before(fields);
   const activity = dialog("activity-explanations", "Why was this assigned?");
   const explanationCache = new WeakMap();
