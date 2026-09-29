@@ -1,158 +1,196 @@
 import { localDate } from "./rule-engine.mjs";
-export function projectWorkload(result, projectId, startOfDay = "04:00") {
-  const totals = new Map(),
-    [h, m] = startOfDay.split(":").map(Number);
-  for (const s of result.segments) {
-    const included =
-      projectId === null
-        ? result.projects.some(
-            (p) => p.id === s.project && p.kind !== "non-project",
-          )
-        : s.project === projectId;
-    if (!included) continue;
-    let cursor = s.start;
-    while (cursor < s.end) {
-      const day = new Date(cursor);
-      day.setHours(h, m, 0, 0);
-      if (+day > cursor) day.setDate(day.getDate() - 1);
-      const next = new Date(day);
-      next.setDate(next.getDate() + 1);
-      const end = Math.min(s.end, +next);
-      const key = localDate(day);
-      totals.set(key, (totals.get(key) || 0) + (end - cursor) / 1000);
-      cursor = end;
-    }
-  }
-  const dates = [...totals.keys()].sort();
-  if (!dates.length)
-    return { days: [], total: 0, activeDays: 0, average: 0, busiest: null };
-  const days = [];
-  const date = new Date(dates[0] + "T12:00:00");
-  while (localDate(date) <= dates.at(-1)) {
-    const key = localDate(date);
-    days.push({ date: key, seconds: totals.get(key) || 0 });
+
+// Report dates from `from` through `through` (inclusive, "YYYY-MM-DD").
+export function reportDates(from, through) {
+  const out = [];
+  const date = new Date(from + "T12:00:00");
+  while (localDate(date) <= through && out.length < 20000) {
+    out.push(localDate(date));
     date.setDate(date.getDate() + 1);
   }
-  const total = days.reduce((sum, d) => sum + d.seconds, 0),
-    activeDays = days.filter((d) => d.seconds > 0).length;
-  return {
-    days,
-    total,
-    activeDays,
-    average: total / activeDays,
-    busiest: days.reduce((a, b) => (b.seconds > a.seconds ? b : a)),
-  };
-}
-export function workloadLayers(
-  result,
-  summary,
-  startOfDay = "04:00",
-  targetHours = null,
-) {
-  const kinds = new Map(
-      result.projects.map((p) => [p.id, p.kind || "project"]),
-    ),
-    byDay = new Map(),
-    [h, m] = startOfDay.split(":").map(Number);
-  for (const s of result.segments) {
-    let cursor = s.start;
-    while (cursor < s.end) {
-      const day = new Date(cursor);
-      day.setHours(h, m, 0, 0);
-      if (+day > cursor) day.setDate(day.getDate() - 1);
-      const next = new Date(day);
-      next.setDate(next.getDate() + 1);
-      const end = Math.min(+next, s.end),
-        date = localDate(day),
-        seconds = (end - cursor) / 1000;
-      if (!byDay.has(date))
-        byDay.set(date, {
-          tracked: 0,
-          work: 0,
-          nonProject: 0,
-          unclassified: 0,
-        });
-      const row = byDay.get(date);
-      row.tracked += seconds;
-      if (kinds.get(s.project) === "project") row.work += seconds;
-      else if (kinds.get(s.project) === "non-project")
-        row.nonProject += seconds;
-      else row.unclassified += seconds;
-      cursor = end;
-    }
-  }
-  const days = summary.days.map((d) => ({
-    ...d,
-    ...(byDay.get(d.date) || {
-      tracked: 0,
-      work: 0,
-      nonProject: 0,
-      unclassified: 0,
-    }),
-  }));
-  for (let i = 0; i < days.length; i++) {
-    const d = days[i],
-      window = days
-        .slice(Math.max(0, i - 6), i + 1)
-        .filter((d) => d.tracked > 0);
-    d.trend = window.length
-      ? window.reduce((s, r) => s + r.seconds, 0) / window.length
-      : null;
-    d.nonProjectPercent = d.tracked ? (d.nonProject / d.tracked) * 100 : null;
-    d.overtime =
-      targetHours > 0 ? Math.max(0, d.work - targetHours * 3600) : null;
-  }
-  const sum = (field) => days.reduce((s, d) => s + (d[field] || 0), 0),
-    tracked = sum("tracked");
-  return {
-    days,
-    work: sum("work"),
-    tracked,
-    nonProjectPercent: tracked ? (sum("nonProject") / tracked) * 100 : null,
-    coverage: tracked
-      ? ((tracked - sum("unclassified")) / tracked) * 100
-      : null,
-    overtime: targetHours > 0 ? sum("overtime") : null,
-  };
+  return out;
 }
 
-// Layers stacked bottom-up: project work, then non-project categories, then
-// unclassified time (not assigned + needs review). The top of the last layer is
-// all active time of the day. Non-work layers carry `extra: true`.
-export function stackedWorkload(result, summary, startOfDay = "04:00") {
-  const accumulated = summary.days.map(() => 0);
-  const daily = (ids) => {
-    const totals = new Map();
-    for (const id of ids)
-      for (const d of projectWorkload(result, id, startOfDay).days)
-        totals.set(d.date, (totals.get(d.date) || 0) + d.seconds);
-    return totals;
+// Calls add(date, seconds) for each report day that [start, end) touches.
+function splitByDay(start, end, startOfDay, add) {
+  const [h, m] = startOfDay.split(":").map(Number);
+  let cursor = start;
+  while (cursor < end) {
+    const day = new Date(cursor);
+    day.setHours(h, m, 0, 0);
+    if (+day > cursor) day.setDate(day.getDate() - 1);
+    const next = new Date(day);
+    next.setDate(next.getDate() + 1);
+    const stop = Math.min(end, +next);
+    add(localDate(day), (stop - cursor) / 1000);
+    cursor = stop;
+  }
+}
+
+// Compact per-day values the workload chart is drawn from (and cached as):
+//   projects: seconds per category id, including "conflict" and "unassigned";
+//   types:    seconds per activity type, overall ("*") and within each
+//             category id.
+// Every requested date gets a summary, so empty days are cached too.
+export function daySummaries(result, typeResult, dates, startOfDay = "04:00") {
+  const byDate = new Map(
+    dates.map((date) => [date, { date, projects: {}, types: {} }]),
+  );
+  const add = (bucket, id, date, seconds) => {
+    const day = byDate.get(date);
+    if (day) day[bucket][id] = (day[bucket][id] || 0) + seconds;
   };
-  const layer = (id, name, color, totals, extra = false) => ({
+  for (const s of result.segments)
+    splitByDay(s.start, s.end, startOfDay, (date, seconds) =>
+      add("projects", s.project, date, seconds),
+    );
+  // Both segment lists are sorted and internally disjoint: one merge pass.
+  const categories = result.segments;
+  const typed = (typeResult?.segments || []).filter(
+    (s) => s.project !== "unassigned" && s.project !== "conflict",
+  );
+  let i = 0;
+  for (const t of typed) {
+    while (i < categories.length && categories[i].end <= t.start) i++;
+    for (let k = i; k < categories.length && categories[k].start < t.end; k++) {
+      const c = categories[k],
+        start = Math.max(c.start, t.start),
+        end = Math.min(c.end, t.end);
+      if (end <= start) continue;
+      splitByDay(start, end, startOfDay, (date, seconds) => {
+        const day = byDate.get(date);
+        if (!day) return;
+        const type = (day.types[t.project] ||= {});
+        type["*"] = (type["*"] || 0) + seconds;
+        type[c.project] = (type[c.project] || 0) + seconds;
+      });
+    }
+  }
+  return dates.map((date) => byDate.get(date));
+}
+
+// Everything the chart shows for one selection (a project id, or null for all
+// projects), from day summaries: the selected series, the context layers
+// (all active time, work, non-project, unclassified, trend, target excess),
+// the stacked layers and the activity-type lines.
+export function workloadFromSummaries(
+  days,
+  projects,
+  { projectId = null, target = null, types = [] } = {},
+) {
+  const kinds = new Map(projects.map((p) => [p.id, p.kind || "project"]));
+  const work = projects.filter((p) => kinds.get(p.id) !== "non-project");
+  const sum = (values, ids) => ids.reduce((n, id) => n + (values[id] || 0), 0);
+  const activities = types.map((type, index) => ({
+    ...type,
+    field: `activity-${index}`,
+  }));
+  const rows = days.map((d) => {
+    let tracked = 0,
+      workTime = 0,
+      nonProject = 0,
+      unclassified = 0;
+    for (const [id, seconds] of Object.entries(d.projects)) {
+      tracked += seconds;
+      const kind = kinds.get(id);
+      if (kind === "project") workTime += seconds;
+      else if (kind === "non-project") nonProject += seconds;
+      else unclassified += seconds;
+    }
+    const row = {
+      date: d.date,
+      seconds:
+        projectId === null
+          ? sum(
+              d.projects,
+              work.map((p) => p.id),
+            )
+          : d.projects[projectId] || 0,
+      tracked,
+      work: workTime,
+      nonProject,
+      unclassified,
+    };
+    for (const a of activities)
+      row[a.field] = d.types[a.id]?.[projectId ?? "*"] || 0;
+    return row;
+  });
+  rows.forEach((d, i) => {
+    const recent = rows
+      .slice(Math.max(0, i - 6), i + 1)
+      .filter((r) => r.tracked > 0);
+    d.trend = recent.length
+      ? recent.reduce((n, r) => n + r.seconds, 0) / recent.length
+      : null;
+    d.nonProjectPercent = d.tracked ? (d.nonProject / d.tracked) * 100 : null;
+    d.overtime = target > 0 ? Math.max(0, d.work - target * 3600) : null;
+  });
+  const total = (field) => rows.reduce((n, d) => n + (d[field] || 0), 0);
+  const tracked = total("tracked");
+  // Stack: work projects, then non-project categories, then unclassified
+  // (not assigned + needs review); its top is all active time of the day.
+  const accumulated = rows.map(() => 0);
+  const layer = (id, name, color, values, extra) => ({
     id,
     name,
     color,
     extra,
-    days: summary.days.map((d, i) => {
-      const seconds = totals.get(d.date) || 0,
-        bottom = accumulated[i];
+    days: values.map((seconds, i) => {
+      const bottom = accumulated[i];
       accumulated[i] += seconds;
-      return { date: d.date, seconds, bottom, top: accumulated[i] };
+      return { date: rows[i].date, seconds, bottom, top: accumulated[i] };
     }),
   });
-  const work = result.projects.filter((p) => p.kind !== "non-project"),
-    other = result.projects.filter((p) => p.kind === "non-project");
-  return [
-    ...work.map((p) => layer(p.id, p.name, p.color, daily([p.id]))),
-    ...other.map((p) => layer(p.id, p.name, p.color, daily([p.id]), true)),
-    layer(
-      "unclassified",
-      "Unclassified",
-      "#7d8896",
-      daily(["unassigned", "conflict"]),
-      true,
-    ),
-  ].filter((p) => p.days.some((d) => d.seconds > 0));
+  const stack =
+    projectId === null
+      ? [
+          ...work.map((p) =>
+            layer(
+              p.id,
+              p.name,
+              p.color,
+              days.map((d) => d.projects[p.id] || 0),
+              false,
+            ),
+          ),
+          ...projects
+            .filter((p) => kinds.get(p.id) === "non-project")
+            .map((p) =>
+              layer(
+                p.id,
+                p.name,
+                p.color,
+                days.map((d) => d.projects[p.id] || 0),
+                true,
+              ),
+            ),
+          layer(
+            "unclassified",
+            "Unclassified",
+            "#7d8896",
+            rows.map((r) => r.unclassified),
+            true,
+          ),
+        ].filter((l) => l.days.some((d) => d.seconds > 0))
+      : [];
+  return {
+    summary: {
+      days: rows.map((r) => ({ date: r.date, seconds: r.seconds })),
+      total: total("seconds"),
+    },
+    layers: {
+      days: rows,
+      work: total("work"),
+      tracked,
+      nonProjectPercent: tracked ? (total("nonProject") / tracked) * 100 : null,
+      coverage: tracked
+        ? ((tracked - total("unclassified")) / tracked) * 100
+        : null,
+      overtime: target > 0 ? total("overtime") : null,
+    },
+    stack,
+    activities,
+  };
 }
 
 // Points for a chart of the given plot width: daily while a day gets at least

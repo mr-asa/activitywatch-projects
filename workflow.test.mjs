@@ -192,10 +192,12 @@ console.log(
   "PASS: evidence, categories, archive boundaries, manual precedence, previews, report splitting, exports, import validation, revisions",
 );
 
-// Workload uses report-day boundaries, fills zero-work days, and excludes other allocations.
-const { projectWorkload } = await import("./workload-core.mjs");
+// Workload day summaries use report-day boundaries, include empty days, and
+// keep every category separate.
+const { daySummaries, workloadFromSummaries, reportDates } =
+  await import("./workload-core.mjs");
 const at = (s) => +new Date(s);
-const workload = projectWorkload(
+const splitDays = daySummaries(
   {
     segments: [
       {
@@ -215,19 +217,25 @@ const workload = projectWorkload(
       },
     ],
   },
-  "demo",
+  null,
+  reportDates("2026-09-19", "2026-09-22"),
 );
 assert.deepEqual(
-  workload.days.map((d) => d.seconds),
+  splitDays.map((d) => d.projects.demo || 0),
   [30, 30, 0, 7200],
 );
-assert.equal(workload.total, 7260);
-assert.equal(workload.activeDays, 3);
-assert.equal(workload.average, 2420);
-assert.equal(workload.busiest.date, "2026-09-22");
-assert.equal(projectWorkload({ segments: [] }, "demo").days.length, 0);
+assert.equal(splitDays[3].projects.conflict, 3600);
+const demoOnly = workloadFromSummaries(
+  splitDays,
+  [{ id: "demo", kind: "project" }],
+  { projectId: "demo" },
+);
+assert.deepEqual(
+  demoOnly.summary.days.map((d) => d.seconds),
+  [30, 30, 0, 7200],
+);
+assert.equal(demoOnly.summary.total, 7260);
 
-const { workloadLayers } = await import("./workload-core.mjs");
 const base = +new Date("2026-09-22T04:00:00");
 const layeredResult = {
   projects: [
@@ -246,33 +254,59 @@ const layeredResult = {
     },
   ],
 };
-const layers = workloadLayers(
-  layeredResult,
-  projectWorkload(layeredResult, "p"),
-  "04:00",
-  8,
-);
+const layeredDays = daySummaries(layeredResult, null, ["2026-09-22"]);
+const layers = workloadFromSummaries(layeredDays, layeredResult.projects, {
+  projectId: "p",
+  target: 8,
+}).layers;
 assert.equal(layers.overtime, 3600);
 assert.equal(layers.days[0].work, 32400);
 assert.equal(layers.nonProjectPercent, 100 / 11);
 assert.equal(layers.coverage, 1000 / 11);
 assert.equal(
-  workloadLayers(
-    layeredResult,
-    projectWorkload(layeredResult, "p"),
-    "04:00",
-    null,
-  ).overtime,
+  workloadFromSummaries(layeredDays, layeredResult.projects, {
+    projectId: "p",
+  }).layers.overtime,
   null,
 );
-
+// Activity types: overall ("*") and within each category.
+{
+  const typed = daySummaries(
+    layeredResult,
+    {
+      segments: [
+        { project: "call", start: base + 5 * 3600000, end: base + 7 * 3600000 },
+        { project: "unassigned", start: base, end: base + 3600000 },
+      ],
+    },
+    ["2026-09-22"],
+  )[0].types;
+  assert.deepEqual(typed, { call: { "*": 7200, p: 3600, q: 3600 } });
+  const lines = workloadFromSummaries(
+    daySummaries(
+      layeredResult,
+      {
+        segments: [
+          {
+            project: "call",
+            start: base + 5 * 3600000,
+            end: base + 7 * 3600000,
+          },
+        ],
+      },
+      ["2026-09-22"],
+    ),
+    layeredResult.projects,
+    { projectId: "q", types: [{ id: "call", name: "Call" }] },
+  ).layers.days[0];
+  assert.equal(lines["activity-0"], 3600);
+}
 const {
   normalizeActivityType,
   analyzeActivityTypes,
   scopedActivityTypes,
   activitySegments,
 } = await import("./activity-core.mjs");
-const { stackedWorkload } = await import("./workload-core.mjs");
 const activity = normalizeActivityType({
   id: "creation",
   name: "Creation",
@@ -328,10 +362,10 @@ assert.equal(
 assert.throws(() =>
   validateConfig({ ...cfg, activityTypes: [activity, activity] }),
 );
-const allSummary = projectWorkload(layeredResult, null);
-const stack = stackedWorkload(layeredResult, allSummary);
+const everything = workloadFromSummaries(layeredDays, layeredResult.projects);
+const stack = everything.stack;
 assert.equal(
-  allSummary.total,
+  everything.summary.total,
   layeredResult.segments
     .filter((s) => ["p", "q"].includes(s.project))
     .reduce((n, s) => n + (s.end - s.start) / 1000, 0),
@@ -346,10 +380,9 @@ assert.deepEqual(
     ["unclassified", true],
   ],
 );
-const allLayers = workloadLayers(layeredResult, allSummary);
-for (let i = 0; i < allSummary.days.length; i++) {
-  assert.equal(stack[1].days[i].top, allSummary.days[i].seconds);
-  assert.equal(stack.at(-1).days[i].top, allLayers.days[i].tracked);
+for (let i = 0; i < everything.summary.days.length; i++) {
+  assert.equal(stack[1].days[i].top, everything.summary.days[i].seconds);
+  assert.equal(stack.at(-1).days[i].top, everything.layers.days[i].tracked);
 }
 
 // Optional editor watchers: foreground/AFK gating, no title fallback regression.

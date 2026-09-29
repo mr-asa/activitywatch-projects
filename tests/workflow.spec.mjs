@@ -933,10 +933,10 @@ test("workload presets cover rolling days and a whole project span", async ({
   await range.selectOption("project");
   await expect(page.getByLabel("Previous chart period")).toBeDisabled();
   await expect(page.locator("#workload-status")).toContainText("whole project");
-  // History is scanned from the window bucket creation date.
+  // History since the window bucket's creation (2026-09-01) was cached by
+  // the ranges above; only the still-running day is fetched.
   const scanStart = Date.parse(queries.at(-1).split("/")[0]);
-  expect(scanStart).toBeLessThanOrEqual(Date.parse("2026-09-01T00:00:00Z"));
-  expect(scanStart).toBeGreaterThan(Date.parse("2026-08-30T00:00:00Z"));
+  expect(scanStart).toBeGreaterThan(Date.parse("2026-09-26T12:00:00Z"));
   await expect(page.getByLabel("Chart from")).toHaveValue("2026-09-22");
   await expect(page.getByLabel("Chart through")).toHaveValue("2026-09-22");
   await expect(page.locator("#workload-chart svg")).toHaveCount(1);
@@ -1323,4 +1323,76 @@ test("long chart ranges fit the width as weekly averages", async ({ page }) => {
   await last.press("Enter");
   await expect(page.locator("#report-period")).toHaveValue("week");
   await expect(page.locator("#date")).toHaveValue("2026-09-21");
+});
+test("the chart caches complete days and fetches only what is missing", async ({
+  page,
+}) => {
+  const periods = [];
+  const { settings } = await setup(page);
+  await page.route("**/api/0/query/", async (route) => {
+    const period = route.request().postDataJSON().timeperiods[0];
+    periods.push(Date.parse(period.split("/")[0]));
+    await route.fallback();
+  });
+  // Chart requests begin at a report day's start: the week starts on the
+  // 21st and today is the 27th. The report loads the 22nd from midnight UTC.
+  const week = (t) => t < Date.parse("2026-09-21T18:00:00Z");
+  const today = (t) => t > Date.parse("2026-09-26T12:00:00Z");
+  const status = page.locator("#workload-status");
+  const total = page.locator("#workload-stats>div").first();
+
+  // Days are written to the browser cache once the chart has loaded.
+  const cached = () =>
+    page.evaluate(
+      () =>
+        new Promise((resolve) => {
+          const open = indexedDB.open("activitywatch-projects", 1);
+          open.onsuccess = () => {
+            const keys = open.result
+              .transaction("workload-days")
+              .objectStore("workload-days")
+              .getAllKeys();
+            keys.onsuccess = () => resolve(keys.result.length);
+          };
+          open.onerror = () => resolve(0);
+        }),
+    );
+  await expect.poll(cached).toBe(6);
+  periods.length = 0;
+
+  // After a reload the complete days come from the cache: the chart first
+  // fetches only today; the week follows in the background (for editing).
+  await page.reload();
+  await expect(status).toContainText("2026-09-21 – 2026-09-27");
+  await expect(total).toContainText("0.02 h");
+  await expect.poll(() => periods.some(week)).toBe(true);
+  expect(periods.findIndex(today)).toBeGreaterThanOrEqual(0);
+  expect(periods.findIndex(today)).toBeLessThan(periods.findIndex(week));
+
+  // A settings change recalculates from the events in memory (no request
+  // for the week) and caches the new numbers.
+  periods.length = 0;
+  await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
+  await page.locator("#project-rules-from").fill("2026-09-23");
+  await page.getByRole("button", { name: "Save project", exact: true }).click();
+  await confirm(page);
+  await expect
+    .poll(() => settings.project_tracker.projects[0].rulesFrom)
+    .toBe("2026-09-23");
+  await expect(total).toContainText("0 h");
+  expect(periods.filter(week)).toHaveLength(0);
+  periods.length = 0;
+  await page.reload();
+  await expect(status).toContainText("2026-09-21 – 2026-09-27");
+  await expect(total).toContainText("0 h");
+  await expect.poll(() => periods.some(week)).toBe(true);
+  expect(periods.findIndex(today)).toBeLessThan(periods.findIndex(week));
+
+  // "Refresh chart" ignores the cache and fetches the whole range at once.
+  periods.length = 0;
+  await page
+    .getByRole("button", { name: "Refresh chart", exact: true })
+    .click();
+  await expect(status).toContainText("selected range loaded");
+  expect(periods.some(week)).toBe(true);
 });

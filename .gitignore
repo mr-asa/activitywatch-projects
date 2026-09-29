@@ -51,5 +51,6 @@
 !/activity-ui.mjs
 !/ui-prefs.mjs
 !/dialogs.mjs
+!/day-cache.mjs
 !/scripts/
 !/scripts/**

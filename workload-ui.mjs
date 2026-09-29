@@ -1,13 +1,14 @@
-import { analyzeActivityTypes, activitySegments } from "./activity-core.mjs";
+import { analyzeActivityTypes } from "./activity-core.mjs";
+import { configFingerprint, readDays, writeDays } from "./day-cache.mjs";
 import { analyze, discoverBrowsers, loadRange } from "./projects-core.mjs";
 import { localDate, projectSpan, stable } from "./rule-engine.mjs";
 import { pref, setPref, persistControl, restoredOption } from "./ui-prefs.mjs";
 import {
-  projectWorkload,
-  workloadLayers,
-  stackedWorkload,
   chartBuckets,
+  daySummaries,
+  reportDates,
   sliceData,
+  workloadFromSummaries,
 } from "./workload-core.mjs";
 export function setupWorkload({ state, api, resizeFrame }) {
   const section = document.createElement("section");
@@ -17,15 +18,12 @@ export function setupWorkload({ state, api, resizeFrame }) {
     '<div class="section-heading"><div><p class="eyebrow">PROJECT HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day · selected range · current device</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-load" type="button">Refresh chart</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="project">Whole project</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days.</p></details>';
   document.getElementById("projects").previousElementSibling.before(section);
   const $ = (id) => document.getElementById(id);
-  let data = null,
-    result = null,
-    typeResult = null,
-    key = null,
+  let summaries = null, // day summaries of the shown days
+    shown = null, // { host, from, through } of the shown days
+    raw = null, // raw events in memory: { host, start, end, fetchedAt, data }
+    key = null, // configuration the summaries were computed with
     host = null,
     busy = false,
-    loadedAt = null,
-    loadedFrom = null,
-    loadedThrough = null,
     requestedHost = null,
     token = 0;
   const hours = (s) =>
@@ -143,11 +141,11 @@ export function setupWorkload({ state, api, resizeFrame }) {
   let drawnWidth = 0;
   new ResizeObserver(() => {
     const width = $("workload-chart").clientWidth;
-    if (result && width && Math.abs(width - drawnWidth) > 4) chart();
+    if (summaries && width && Math.abs(width - drawnWidth) > 4) chart();
   }).observe($("workload-chart"));
   function chart() {
     drawnWidth = $("workload-chart").clientWidth;
-    if (!result) return;
+    if (!summaries) return;
     const aggregate = $("workload-project").value === "";
     const project = aggregate
       ? { id: null, name: "All projects", color: "#65d6b4" }
@@ -162,66 +160,29 @@ export function setupWorkload({ state, api, resizeFrame }) {
       return;
     }
     const target = Number($("workload-target").value) || null;
-    let cached = chartCache.get(result);
+    let cached = chartCache.get(summaries);
     if (!cached) {
       cached = new Map();
-      chartCache.set(result, cached);
+      chartCache.set(summaries, cached);
     }
     const cacheKey = JSON.stringify([
       project.id,
-      state.settings.startOfDay,
       target,
       activityTypes.map((t) => t.id),
+      state.config.projects.map((p) => [p.id, p.name, p.color, p.kind]),
     ]);
     if (!cached.has(cacheKey)) {
-      const dayStart = state.settings.startOfDay || "04:00";
-      const summary = projectWorkload(result, project.id, dayStart);
-      const activities = activityTypes.map((type, index) => ({
-        ...type,
-        field: `activity-${index}`,
-        daily: projectWorkload(
-          {
-            segments: activitySegments(result, typeResult, type.id, project.id),
-          },
-          type.id,
-          dayStart,
-        ),
-      }));
-      const totals = new Map(summary.days.map((d) => [d.date, d.seconds]));
-      summary.days = [];
-      const date = new Date(loadedFrom);
-      date.setHours(12, 0, 0, 0);
-      while (localDate(date) <= loadedThrough) {
-        const day = localDate(date);
-        summary.days.push({ date: day, seconds: totals.get(day) || 0 });
-        date.setDate(date.getDate() + 1);
-      }
       if (cached.size >= 30) cached.clear();
-      cached.set(cacheKey, {
-        summary,
-        stack: aggregate
-          ? stackedWorkload(
-              result,
-              summary,
-              state.settings.startOfDay || "04:00",
-            )
-          : [],
-        activities,
-        layers: workloadLayers(
-          result,
-          summary,
-          state.settings.startOfDay || "04:00",
+      cached.set(
+        cacheKey,
+        workloadFromSummaries(summaries, state.config.projects, {
+          projectId: project.id,
           target,
-        ),
-      });
+          types: activityTypes,
+        }),
+      );
     }
     const { summary, layers, stack, activities } = cached.get(cacheKey);
-    for (const activity of activities) {
-      const totals = new Map(
-        activity.daily.days.map((d) => [d.date, d.seconds]),
-      );
-      for (const d of layers.days) d[activity.field] = totals.get(d.date) || 0;
-    }
     $("workload-stats").replaceChildren();
     $("workload-chart").replaceChildren();
     $("workload-detail").textContent = "";
@@ -594,29 +555,133 @@ export function setupWorkload({ state, api, resizeFrame }) {
     describe(days.at(-1), days.length - 1);
     resizeFrame();
   }
-  function calculate() {
-    if (!data) return;
-    const nextKey = stable({ config: state.config, host: state.host });
-    if (nextKey !== key) {
-      result = analyze(data, state.config.projects, loadedFrom, loadedAt, {
-        host: state.host,
-        manualAssignments: state.config.manualAssignments || [],
-      });
-      typeResult = analyzeActivityTypes(
-        data,
-        state.config.activityTypes || [],
-        loadedFrom,
-        loadedAt,
-      );
-      key = nextKey;
+  const startOfDay = () => state.settings.startOfDay || "04:00";
+  const dayStart = (day) => +new Date(day + "T" + startOfDay() + ":00");
+  const dayEnd = (day) => {
+    const next = new Date(day + "T12:00:00");
+    next.setDate(next.getDate() + 1);
+    return dayStart(localDate(next));
+  };
+  // Days still being recorded are never cached (watchers may flush late).
+  const complete = (date, fetchedAt) => dayEnd(date) <= fetchedAt - 300000;
+  const configKey = () => stable({ config: state.config, host: state.host });
+  // Day summaries of already loaded raw events, with the given configuration.
+  function summarize(config, data, dates, fetchedAt) {
+    const start = dayStart(dates[0]),
+      end = Math.min(dayEnd(dates.at(-1)), fetchedAt);
+    const result = analyze(data, config.projects, start, end, {
+      host: state.host,
+      manualAssignments: config.manualAssignments || [],
+    });
+    const types = analyzeActivityTypes(
+      data,
+      config.activityTypes || [],
+      start,
+      end,
+    );
+    return daySummaries(result, types, dates, startOfDay());
+  }
+  // Raw events for [start, end): the report's snapshot when it covers them.
+  async function fetchRaw(device, start, end, force) {
+    const report = state.dataRange;
+    if (
+      !force &&
+      state.data &&
+      report?.host === device &&
+      report.start <= start &&
+      report.requestedEnd >= end
+    ) {
+      // Let the report finish its own analysis/render first.
+      await Promise.resolve();
+      return { data: state.data, fetchedAt: report.end };
     }
+    const loaded = await loadRange(api, state.buckets, device, start, end);
+    return { data: loaded.data, fetchedAt: Math.min(end, Date.now()) };
+  }
+  // Summaries for the dates: cached days as they are, the span of missing
+  // days computed from ActivityWatch (and cached when complete).
+  async function summariesFor(device, dates, force, run) {
+    const config = state.config;
+    const fingerprint = await configFingerprint(config, device, startOfDay());
+    const found = force
+      ? new Map()
+      : await readDays(device, fingerprint, dates);
+    const missing = dates.filter((d) => !found.has(d));
+    let fetched = null;
+    if (missing.length) {
+      const span = reportDates(missing[0], missing.at(-1));
+      const start = dayStart(span[0]),
+        end = dayEnd(span.at(-1));
+      const { data, fetchedAt } = await fetchRaw(device, start, end, force);
+      if (run !== token) return null;
+      const computed = summarize(config, data, span, fetchedAt);
+      writeDays(
+        device,
+        fingerprint,
+        computed.filter((s) => complete(s.date, fetchedAt)),
+      );
+      for (const s of computed) found.set(s.date, s);
+      fetched = { host: device, start, end, fetchedAt, data };
+    }
+    return {
+      days: dates.map((d) => found.get(d)),
+      key: stable({ config, host: device }),
+      fetched,
+    };
+  }
+  // Raw events are kept for recalculating after settings changes, but only
+  // for short ranges: a long history would take hundreds of MB of memory.
+  const RAW_DAYS = 62;
+  function keepRaw(fetched, from, through) {
+    if (!fetched || reportDates(from, through).length > RAW_DAYS) return null;
+    const start = dayStart(from),
+      end = dayEnd(through);
+    if (fetched.start > start || fetched.end < end) return null;
+    return {
+      host: fetched.host,
+      start,
+      end,
+      fetchedAt: fetched.fetchedAt,
+      data: sliceData(fetched.data, start, end),
+    };
+  }
+  const rawCovers = () =>
+    raw &&
+    shown &&
+    raw.host === shown.host &&
+    raw.start <= dayStart(shown.from) &&
+    raw.end >= dayEnd(shown.through);
+  // After drawing from cache: fetch the shown range's raw events quietly.
+  async function prefetchRaw(run) {
+    if (!shown || rawCovers()) return;
+    if (reportDates(shown.from, shown.through).length > RAW_DAYS) return;
+    const { host: device, from, through } = shown;
+    try {
+      const start = dayStart(from),
+        end = dayEnd(through);
+      const { data, fetchedAt } = await fetchRaw(device, start, end, false);
+      if (run !== token) return;
+      raw = { host: device, start, end, fetchedAt, data };
+      if (configKey() !== key) scheduleCalculate();
+    } catch {}
+  }
+  // Recalculate after settings changes: from raw events in memory when
+  // possible, otherwise reload the shown range (cache first).
+  function calculate() {
+    if (!summaries || !shown) return;
+    const nextKey = configKey();
+    if (nextKey === key) return chart();
+    if (!rawCovers()) return load({ keepRange: true });
+    const config = state.config,
+      dates = reportDates(shown.from, shown.through);
+    summaries = summarize(config, raw.data, dates, raw.fetchedAt);
+    key = nextKey;
+    const done = summaries.filter((s) => complete(s.date, raw.fetchedAt));
+    configFingerprint(config, shown.host, startOfDay()).then((fp) =>
+      writeDays(shown.host, fp, done),
+    );
     chart();
   }
-  const dayStart = (day) =>
-    +new Date(day + "T" + (state.settings.startOfDay || "04:00") + ":00");
-  // "Whole project": narrow already loaded full history to the first and last
-  // report day with time in the selected project (or any category).
-  let fullHistory = false;
   // Report days to scan for "Whole project": recorded history, narrowed to
   // when the selected project can receive time (its common and per-rule
   // dates, manual assignments). All projects scan the whole history.
@@ -645,44 +710,14 @@ export function setupWorkload({ state, api, resizeFrame }) {
     }
     return [reportDay(start), reportDay(end)];
   }
-  function applyProjectSpan() {
-    const id = $("workload-project").value;
-    const full = analyze(
-      fullHistory.data,
-      state.config.projects,
-      fullHistory.start,
-      fullHistory.end,
-      {
-        host,
-        manualAssignments: state.config.manualAssignments || [],
-      },
-    );
-    const spans = full.segments.filter((s) =>
-      id ? s.project === id : !["unassigned", "conflict"].includes(s.project),
-    );
-    const from = reportDay(spans[0]?.start ?? fullHistory.start),
-      through = reportDay((spans.at(-1)?.end ?? fullHistory.end) - 1);
-    const next = new Date(through + "T12:00:00");
-    next.setDate(next.getDate() + 1);
-    $("workload-from").value = from;
-    $("workload-through").value = through;
-    loadedFrom = dayStart(from);
-    loadedAt = Math.min(dayStart(localDate(next)), fullHistory.end);
-    loadedThrough = through;
-    // Recalculations (e.g. after settings changes) only need the shown span.
-    data = sliceData(fullHistory.data, loadedFrom, loadedAt);
-    key = null;
-    calculate();
-    $("workload-status").textContent = spans.length
-      ? `${from} – ${through} · whole project, first to last recorded day.`
-      : `No recorded time for this selection · showing all history, ${from} – ${through}.`;
-    return true;
-  }
-  async function load({ force = false } = {}) {
+  async function load({ force = false, keepRange = false } = {}) {
     if (!state.config) return;
-    const projectMode = $("workload-range").value === "project";
-    let from = $("workload-from").value,
-      through = $("workload-through").value;
+    // keepRange: recalculate the shown days as they are ("Whole project" is
+    // not rescanned after a settings change).
+    const projectMode = !keepRange && $("workload-range").value === "project";
+    let from = keepRange && shown ? shown.from : $("workload-from").value,
+      through =
+        keepRange && shown ? shown.through : $("workload-through").value;
     if (projectMode) [from, through] = projectScan();
     if ($("workload-range").value === "custom" && from && through)
       setPref("workloadDates", [from, through]);
@@ -691,75 +726,66 @@ export function setupWorkload({ state, api, resizeFrame }) {
         "Choose a valid range: From must be on or before Through.";
       return;
     }
-    const start = new Date(
-      from + "T" + (state.settings.startOfDay || "04:00") + ":00",
-    );
-    const finish = new Date(
-      through + "T" + (state.settings.startOfDay || "04:00") + ":00",
-    );
-    finish.setDate(finish.getDate() + 1);
-
     busy = true;
     const run = ++token;
     const device = state.host;
     requestedHost = device;
     $("workload-load").disabled = true;
     $("workload-status").textContent = projectMode
-      ? "Scanning all recorded history for the project span… Other panels remain available."
+      ? "Scanning recorded history for the project span… Other panels remain available."
       : "Loading selected range… Other panels remain available.";
     try {
-      let warnings = discoverBrowsers(state.buckets, device).warnings;
-      const end = +finish;
-      const reportRange = state.dataRange;
-      const reuse =
-        !force &&
-        state.data &&
-        reportRange?.host === device &&
-        reportRange.start <= +start &&
-        reportRange.requestedEnd >= end;
-      let nextData;
-      let snapshotEnd;
-      if (reuse) {
-        nextData = state.data;
-        snapshotEnd = Math.min(end, reportRange.end);
-        // Let the report finish its own analysis/render before preparing a
-        // potentially different chart range (also preserves async load order).
-        await Promise.resolve();
-      } else {
-        const loaded = await loadRange(api, state.buckets, device, +start, end);
-        nextData = loaded.data;
-        warnings = loaded.warnings;
-        snapshotEnd = Math.min(end, Date.now());
-      }
-      if (run !== token || device !== state.host) return;
-      data = nextData;
-      host = device;
-      fullHistory = projectMode && {
-        start: +start,
-        end: snapshotEnd,
-        data: nextData,
-      };
+      const warnings = discoverBrowsers(state.buckets, device).warnings;
+      const loaded = await summariesFor(
+        device,
+        reportDates(from, through),
+        force,
+        run,
+      );
+      if (!loaded || run !== token || device !== state.host) return;
+      let days = loaded.days,
+        status = `${from} – ${through} · selected range loaded.`;
       if (projectMode) {
-        if (applyProjectSpan() && warnings.length)
-          $("workload-status").textContent += " " + warnings.join(" ");
-      } else {
-        loadedAt = snapshotEnd;
-        loadedFrom = +start;
-        loadedThrough = through;
-        key = null;
-        calculate();
-        $("workload-status").textContent =
-          `${from} – ${through} · selected range loaded. ${warnings.join(" ")}`;
+        // First to last day with time in the project (or any category).
+        const id = $("workload-project").value;
+        const used = (d) =>
+          id
+            ? (d.projects[id] || 0) > 0
+            : Object.entries(d.projects).some(
+                ([k, v]) => v > 0 && k !== "unassigned" && k !== "conflict",
+              );
+        const first = days.findIndex(used);
+        if (first >= 0) days = days.slice(first, days.findLastIndex(used) + 1);
+        from = days[0].date;
+        through = days.at(-1).date;
+        $("workload-from").value = from;
+        $("workload-through").value = through;
+        status =
+          first >= 0
+            ? `${from} – ${through} · whole project, first to last recorded day.`
+            : `No recorded time for this selection · showing all history, ${from} – ${through}.`;
       }
+      summaries = days;
+      shown = { host: device, from, through };
+      host = device;
+      key = loaded.key;
+      raw =
+        keepRaw(loaded.fetched, from, through) || (rawCovers() ? raw : null);
+      $("workload-status").textContent = [status, ...warnings].join(" ");
+      chart();
       $("workload-load").textContent = "Refresh chart";
+      if (key !== configKey()) scheduleCalculate();
+      // Quietly after the page settles, so it never delays the first view.
+      else if (!rawCovers()) setTimeout(() => prefetchRaw(run), 1500);
     } catch (e) {
       if (run === token)
         $("workload-status").textContent = "Could not load range: " + e.message;
     } finally {
-      if (run !== token) return;
-      busy = false;
-      $("workload-load").disabled = false;
-      resizeFrame();
+      if (run === token) {
+        busy = false;
+        $("workload-load").disabled = false;
+        resizeFrame();
+      }
     }
   }
   for (const id of [
@@ -777,22 +803,10 @@ export function setupWorkload({ state, api, resizeFrame }) {
   $("workload-load").onclick = () => load({ force: true });
   $("workload-project").onchange = () => {
     setPref("workloadProject", $("workload-project").value);
+    // Summaries hold every category, so another project only redraws; a
+    // project span is found again (from cache after the first scan).
     if ($("workload-range").value !== "project") return calculate();
-    // Reuse the loaded history when it covers this project's span.
-    const [from, through] = projectScan();
-    const next = new Date(through + "T12:00:00");
-    next.setDate(next.getDate() + 1);
-    if (
-      fullHistory &&
-      data &&
-      !busy &&
-      fullHistory.start <= dayStart(from) &&
-      // A few minutes of staleness at "today" are fine for a history view.
-      fullHistory.end >=
-        Math.min(dayStart(localDate(next)), Date.now() - 300000)
-    )
-      applyProjectSpan();
-    else load();
+    load();
   };
   function update() {
     const selected = $("workload-project").value;
@@ -839,8 +853,9 @@ export function setupWorkload({ state, api, resizeFrame }) {
       section.dataset.activityTypes = typeSignature;
     }
     if (host && host !== state.host) {
-      data = null;
-      result = null;
+      summaries = null;
+      shown = null;
+      raw = null;
       key = null;
       token++;
       $("workload-chart").replaceChildren();
@@ -851,8 +866,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
     $("workload-load").disabled =
       busy || (!projects.length && !(state.config.activityTypes || []).length);
     if (requestedHost !== state.host) load();
-    if (data && stable({ config: state.config, host: state.host }) !== key)
-      scheduleCalculate();
+    if (summaries && !busy && configKey() !== key) scheduleCalculate();
   }
   // Let the rest of the page update first; the chart follows a moment later.
   let pendingCalculation = false;

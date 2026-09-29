@@ -56,7 +56,7 @@ Each row shows which activity types it already belongs to, so it's clear at once
 Projects answer "who was this for?". Activity types answer "what was I doing?": messaging, video, design, coding, whatever you choose. They're counted independently, so the same hour can be both *Client A* and *Messaging* without making your day any longer.
 
 ### Daily workload
-Hours per day for a week, a month or any period: for one project or all of them at once, with a daily target, a 7-day trend and the share of non-project time.
+Hours per day for a week, a month or any period: for one project or all of them at once, with a daily target, a 7-day trend and the share of non-project time. Long periods fit the screen as weekly or monthly averages, and days you have already looked at open instantly: the browser remembers finished days until you change your rules.
 
 ![Daily workload chart](docs/images/workload.png)
 
