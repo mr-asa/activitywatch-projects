@@ -513,9 +513,13 @@ export function setupWorkload({ state, api, resizeFrame }) {
       });
       for (const event of ["pointerenter", "focus", "click"])
         hit.addEventListener(event, () => describe(d, i));
+      // Regular labels plus the last day; skip a regular label that would
+      // crowd the last one.
+      const step = Math.max(1, Math.ceil(days.length / 9)),
+        lastIndex = days.length - 1;
       if (
-        i % Math.max(1, Math.ceil(days.length / 9)) === 0 ||
-        i === days.length - 1
+        i === lastIndex ||
+        (i % step === 0 && (step === 1 || lastIndex - i >= step / 2))
       )
         shape(
           "text",

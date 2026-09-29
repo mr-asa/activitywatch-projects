@@ -149,7 +149,8 @@ export function activityTypeBreakdown(ranges, typeResult) {
       color: "",
       seconds: seconds("conflict"),
     },
-  ].filter((t) => t.seconds > 0);
+    // Adjacent events can overlap by fractions of a second; not a real match.
+  ].filter((t) => t.seconds >= 1);
 }
 export function suggestedRule(row) {
   let usable = false,

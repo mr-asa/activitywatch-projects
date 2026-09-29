@@ -5,7 +5,7 @@
 **See where your working hours actually go.**
 ActivityWatch Projects turns your ActivityWatch history into a clear picture of time per project, without timers to start or entries to type.
 
-<!-- 📸 Hero screenshot: full dashboard with project cards, timeline and workload chart -->
+![ActivityWatch Projects dashboard](docs/images/dashboard.png)
 
 ---
 
@@ -25,7 +25,7 @@ This dashboard lets you describe your projects once, with a few simple rules, an
 ### Projects at a glance
 Each project gets a card with its own color, total time, and a split between apps and browser. A timeline shows your day in color: what you worked on and when.
 
-<!-- 📸 Project cards + colored timeline -->
+![Totals, timeline, project cards and activity types](docs/images/overview.png)
 
 ### Simple rules that do the sorting
 Tell the dashboard how to recognize a project:
@@ -36,7 +36,7 @@ Tell the dashboard how to recognize a project:
 
 You can limit a rule to one application ("only in Telegram") or to a date range ("this chat belonged to the project until March"). Regular expressions are supported for advanced cases.
 
-<!-- 📸 Rule editor -->
+![Project rule editor](docs/images/rules.png)
 
 ### Nothing slips through
 Click **Not assigned** to see everything that isn't classified yet, largest first. From any row you can:
@@ -48,7 +48,7 @@ Click **Not assigned** to see everything that isn't classified yet, largest firs
 
 Each row also shows which activity types it already belongs to, so you can see what's still unsorted.
 
-<!-- 📸 "Not assigned" list with activity type tags -->
+![Not assigned activities with activity type tags](docs/images/not-assigned.png)
 
 ### Activity types: *what* you did, not just *for whom*
 Projects answer "who was this for?". Activity types answer "what was I doing?": messaging, video, design, coding, whatever you define. They're counted independently, so the same hour can be *Client A* **and** *Messaging* without inflating your day.
@@ -56,7 +56,7 @@ Projects answer "who was this for?". Activity types answer "what was I doing?": 
 ### Daily workload
 A chart of hours per day for a week, a month or any range: per project or all projects stacked, with an optional daily target, a 7-day trend, and the share of non-project time.
 
-<!-- 📸 Workload chart -->
+![Daily workload chart](docs/images/workload.png)
 
 ### Reports and exports
 Pick a day, a week or a month and export totals to **CSV** (for spreadsheets) or **Markdown** (for notes, e.g. Obsidian). Exports contain category totals only, never window titles or URLs.

@@ -171,7 +171,11 @@ export function setupUnassigned({
           if (t.color) chip.style.background = t.color;
           else tag.classList.add("review");
           const share = Math.round((t.seconds / row.seconds) * 100);
-          tag.append(chip, t.name + (share < 100 ? ` · ${share}%` : ""));
+          tag.append(
+            chip,
+            t.name +
+              (share >= 100 ? "" : share < 1 ? " · <1%" : ` · ${share}%`),
+          );
           types.append(tag);
         }
         if (row.seconds - typed > 1)

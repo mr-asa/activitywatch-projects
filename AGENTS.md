@@ -67,6 +67,7 @@ npm test                               # Node unit suites
 npx playwright install chromium        # once
 npm run test:ui                        # browser tests; all API calls are mocked
 npm run format                         # Prettier
+npm run screenshots                    # regenerate docs/images/ for the READMEs
 npm run deploy                         # tests + copy runtime files (Windows)
 ./deploy.ps1 -ValidateOnly             # tests + print resolved destination
 ./deploy.ps1 -Destination 'C:/path'    # explicit destination
@@ -93,3 +94,4 @@ After deploying, the dashboard needs **Ctrl+F5** (modules are cached).
 - Every configuration save goes through `persist()`, which shows a before/after preview and requires confirmation.
 - Tests use invented names and `example.com` URLs. Never commit real project names, links, exported settings, activity data, screenshots or local backups.
 - Keep the README human-oriented (see top of this file). Document mechanics here instead.
+- README images come only from `scripts/readme-screenshots.mjs`: the real UI over invented demo data, with the seed chosen by checking the demo day with `analyze()`. Rerun it after visible UI changes; never commit screenshots of real data.
