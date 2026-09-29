@@ -321,3 +321,58 @@ assert.throws(() => addActivityMatcher(appType, "url", "  "), /Enter a value/);
   });
   assert.equal(urlCoverage(rows, urlLevels(link)[0].value).count, 3);
 }
+// Matcher preview: own time, time added to the type, matching titles.
+{
+  const { matcherPreview } = await import("./activity-core.mjs");
+  const t0 = Date.parse("2026-09-22T10:00:00Z");
+  const w = (offset, seconds, app, title) => ({
+    timestamp: new Date(t0 + offset * 1000).toISOString(),
+    duration: seconds,
+    data: { app, title },
+  });
+  const data = {
+    windows: [
+      w(0, 60, "chrome.exe", "Qwen Studio - Browser"),
+      w(60, 120, "chrome.exe", "Qwen Chat - Browser"),
+      w(180, 60, "Telegram.exe", "Qwen group"),
+    ],
+    afk: [w(0, 240, "", "")].map((e) => ({
+      ...e,
+      data: { status: "not-afk" },
+    })),
+    browsers: [],
+  };
+  const type = {
+    id: "llm",
+    name: "LLM",
+    color: "#8ca8ff",
+    applications: [],
+    titles: ["Qwen Chat"],
+    urls: [],
+    combinations: [],
+    mode: "text",
+  };
+  const end = t0 + 240000;
+  const inChrome = matcherPreview(
+    data,
+    type,
+    "app-title",
+    "Qwen",
+    "chrome.exe",
+    t0,
+    end,
+  );
+  assert.equal(inChrome.total, 180);
+  assert.equal(inChrome.added, 60);
+  assert.deepEqual(
+    inChrome.matches.map((m) => [m.label, m.app, m.seconds]),
+    [
+      ["Qwen Chat - Browser", "chrome.exe", 120],
+      ["Qwen Studio - Browser", "chrome.exe", 60],
+    ],
+  );
+  const anywhere = matcherPreview(data, null, "title", "qwen", "", t0, end);
+  assert.equal(anywhere.total, 240);
+  assert.equal(anywhere.added, null);
+  assert.throws(() => matcherPreview(data, type, "title", "  ", "", t0, end));
+}

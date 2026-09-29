@@ -160,6 +160,47 @@ export function analyzeActivityTypes(data, types, start, end) {
     end,
   );
 }
+// What a matcher would catch in [start, end): its own active time, the time
+// it adds to `type` (null for a new type), and the matching titles or links.
+export function matcherPreview(data, type, kind, value, app, start, end) {
+  const empty = {
+    id: "preview",
+    name: "Preview",
+    color: "#000000",
+    applications: [],
+    titles: [],
+    urls: [],
+    combinations: [],
+    mode: type?.mode || "text",
+  };
+  const alone = analyzeActivityTypes(
+    data,
+    [addActivityMatcher(empty, kind, value, app)],
+    start,
+    end,
+  );
+  const byLabel = new Map();
+  for (const e of alone.evidence) {
+    const key = JSON.stringify([e.label, e.app || ""]);
+    if (!byLabel.has(key)) byLabel.set(key, []);
+    byLabel.get(key).push([e.s, e.e]);
+  }
+  const matches = [...byLabel]
+    .map(([key, ranges]) => {
+      const [label, matchApp] = JSON.parse(key);
+      return { label, app: matchApp, seconds: duration(ranges) };
+    })
+    .sort((a, b) => b.seconds - a.seconds);
+  const total = (types) =>
+    analyzeActivityTypes(data, types, start, end).projects[0].total;
+  return {
+    total: alone.projects[0].total,
+    added: type
+      ? total([addActivityMatcher(type, kind, value, app)]) - total([type])
+      : null,
+    matches,
+  };
+}
 export function scopedActivityTypes(projectResult, typeResult, scope = null) {
   const ranges = merge(
     projectResult.segments

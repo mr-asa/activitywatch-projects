@@ -851,7 +851,20 @@ test("unassigned activity can be added to an existing or new activity type", asy
   await expect(page.locator("#type-assign-hint")).toContainText(
     "separate combination",
   );
+  // Live preview of what the matcher catches while typing.
+  const preview = page.locator("#type-assign-preview");
+  await expect(preview).toContainText(
+    "Matches 0h 1m 0s in the loaded period · adds 0h 1m 0s to Messaging",
+  );
+  await expect(preview).toContainText("Personal browsing · chrome.exe");
+  await page.locator("#type-assign-value").fill("Nothing like this");
+  await expect(preview).toContainText("Matches nothing in the loaded period");
+  await page.locator("#type-assign-kind").selectOption("application");
+  await page.locator("#type-assign-value").fill("Telegram");
+  await expect(preview).toContainText("already counted in Messaging");
+  await page.locator("#type-assign-kind").selectOption("app-title");
   await page.locator("#type-assign-value").fill("Personal");
+  await expect(preview).toContainText("adds 0h 1m 0s to Messaging");
   await page.getByRole("button", { name: "Add to type", exact: true }).click();
   await confirm(page);
   await expect(page.locator("#type-assign-dialog")).not.toBeVisible();
@@ -1395,4 +1408,28 @@ test("the chart caches complete days and fetches only what is missing", async ({
     .click();
   await expect(status).toContainText("selected range loaded");
   expect(periods.some(week)).toBe(true);
+});
+test("dialogs open below a fixed ActivityWatch header", async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await setup(page);
+  // The window scrolls; a fixed header is drawn over the frame.
+  await page.route("**/aw-fixed.html", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: '<body style="margin:0"><header style="position:fixed;top:0;left:0;right:0;height:80px;background:#222;z-index:10">ActivityWatch</header><div style="height:300px"></div><div class="col-md-6"><iframe src="/?start=2026-09-22T00:00:00Z&end=2026-09-23T00:00:00Z" style="border:0;width:100%"></iframe></div></body>',
+    }),
+  );
+  await page.goto("/aw-fixed.html");
+  const frame = page.frameLocator("iframe");
+  await expect(
+    frame.getByRole("button", { name: "Edit Demo", exact: true }),
+  ).toBeEnabled();
+  await page.evaluate(() => window.scrollTo(0, 500));
+  await frame
+    .getByRole("button", { name: "Edit Demo", exact: true })
+    .evaluate((b) => b.click());
+  const box = await frame.locator("#editor").boundingBox();
+  expect(box.y).toBeGreaterThanOrEqual(80);
+  expect(box.y + box.height).toBeLessThanOrEqual(700);
+  expect(await page.evaluate(() => window.scrollY)).toBe(500);
 });

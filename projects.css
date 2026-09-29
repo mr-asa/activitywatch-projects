@@ -1534,3 +1534,24 @@ dialog input[type="number"] {
   border-color: var(--accent);
   color: var(--accent);
 }
+
+.match-preview {
+  margin: 6px 0 4px;
+  font-size: 13px;
+}
+.match-preview-summary {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.match-preview-list {
+  max-height: 170px;
+  overflow: auto;
+  margin: 0;
+  padding: 6px 10px 6px 26px;
+  border: 1px solid #37414c;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.match-preview-list li {
+  margin: 2px 0;
+}

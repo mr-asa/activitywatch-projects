@@ -10,7 +10,11 @@ import {
 } from "./unassigned-core.mjs";
 import { merge, normalizeProject } from "./projects-core.mjs";
 import { persistControl } from "./ui-prefs.mjs";
-import { normalizeActivityType, addActivityMatcher } from "./activity-core.mjs";
+import {
+  normalizeActivityType,
+  addActivityMatcher,
+  matcherPreview,
+} from "./activity-core.mjs";
 export function setupUnassigned({
   state,
   persist,
@@ -49,7 +53,7 @@ export function setupUnassigned({
   const typeDialog = document.createElement("dialog");
   typeDialog.id = "type-assign-dialog";
   typeDialog.innerHTML =
-    '<form id="type-assign-form"><div class="dialog-heading"><h2>Add activity to an activity type</h2><button type="button" id="close-type-assign" aria-label="Close activity type assignment">×</button></div><p id="type-assign-source" class="assignment-source"></p><label for="type-assign-type">Activity type</label><select id="type-assign-type"></select><label for="type-assign-kind">Match using</label><select id="type-assign-kind"><option value="url">Website URL</option><option value="application">Whole application</option><option value="app-title">Window title · in this application</option><option value="title">Window title · in any application</option></select><label for="type-assign-value">Value to add</label><input id="type-assign-value" required><p id="type-assign-hint" class="field-help"></p><p class="field-help">Activity types never change project attribution. The matcher applies to previously recorded days too.</p><p id="type-assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-type-assign" type="button">Cancel</button><button id="save-type-assign" class="primary" type="submit">Add to type</button></div></form>';
+    '<form id="type-assign-form"><div class="dialog-heading"><h2>Add activity to an activity type</h2><button type="button" id="close-type-assign" aria-label="Close activity type assignment">×</button></div><p id="type-assign-source" class="assignment-source"></p><label for="type-assign-type">Activity type</label><select id="type-assign-type"></select><label for="type-assign-kind">Match using</label><select id="type-assign-kind"><option value="url">Website URL</option><option value="application">Whole application</option><option value="app-title">Window title · in this application</option><option value="title">Window title · in any application</option></select><label for="type-assign-value">Value to add</label><input id="type-assign-value" required><p id="type-assign-hint" class="field-help"></p><div id="type-assign-preview" class="match-preview" role="status" aria-label="Matches preview"></div><p class="field-help">Activity types never change project attribution. The matcher applies to previously recorded days too.</p><p id="type-assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-type-assign" type="button">Cancel</button><button id="save-type-assign" class="primary" type="submit">Add to type</button></div></form>';
   document.body.append(typeDialog);
   function node(tag, cls, text) {
     const n = document.createElement(tag);
@@ -399,6 +403,62 @@ export function setupUnassigned({
         : "");
     $("save-type-assign").textContent =
       id === "__new__" ? "Continue to new type" : "Add to type";
+    typePreview();
+  }
+  // Live preview: what the matcher catches in the loaded report period.
+  let previewTimer = null;
+  function typePreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(drawTypePreview, 150);
+  }
+  function drawTypePreview() {
+    const box = $("type-assign-preview");
+    box.replaceChildren();
+    if (!state.data || !selected) return;
+    const id = $("type-assign-type").value,
+      type = (state.config.activityTypes || []).find((t) => t.id === id);
+    let preview;
+    try {
+      preview = matcherPreview(
+        state.data,
+        type || null,
+        $("type-assign-kind").value,
+        $("type-assign-value").value,
+        selected.app,
+        state.start,
+        state.resultEnd,
+      );
+    } catch {
+      return;
+    }
+    const summary = node(
+      "p",
+      "match-preview-summary",
+      preview.total
+        ? `Matches ${time(preview.total)} in the loaded period` +
+            (!type
+              ? ""
+              : preview.added > 0
+                ? ` · adds ${time(preview.added)} to ${type.name}`
+                : ` · already counted in ${type.name}`)
+        : "Matches nothing in the loaded period. Check the text.",
+    );
+    box.append(summary);
+    if (!preview.matches.length) return;
+    const list = node("ul", "match-preview-list");
+    for (const m of preview.matches.slice(0, 8)) {
+      const item = node("li", "");
+      item.append(
+        node("span", "", readableUrl(m.label)),
+        node("span", "muted", ` · ${m.app} · ${time(m.seconds)}`),
+      );
+      list.append(item);
+    }
+    box.append(list);
+    if (preview.matches.length > 8)
+      box.append(
+        node("p", "muted", `… and ${preview.matches.length - 8} more`),
+      );
   }
   function assignType(row) {
     selected = row;
@@ -426,6 +486,7 @@ export function setupUnassigned({
     $("type-assign-type").focus();
   }
   $("type-assign-type").onchange = chooseTypeKind;
+  $("type-assign-value").oninput = typePreview;
   $("type-assign-kind").onchange = chooseTypeKind;
   $("type-assign-form").onsubmit = async (e) => {
     e.preventDefault();

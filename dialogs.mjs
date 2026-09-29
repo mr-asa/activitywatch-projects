@@ -5,17 +5,16 @@ export function placeDialog(d) {
   const frame = window.frameElement;
   if (!frame) return;
   const rect = frame.getBoundingClientRect(),
-    area = visibleArea(frame);
-  const from = Math.max(area.top, rect.top),
-    to = Math.min(area.bottom, rect.bottom);
+    { top: from, bottom: to } = visibleArea(frame);
   d.style.top = from - rect.top + 16 + "px";
   d.style.bottom = "auto";
   d.style.margin = "0 auto";
   d.style.maxHeight = Math.max(240, to - from - 32) + "px";
 }
 // The part of the parent window where the frame can be seen. ActivityWatch
-// scrolls its page inside a container between its header and footer, so every
-// clipping ancestor narrows the window's own height.
+// may scroll its page inside a container between its header and footer
+// (every clipping ancestor narrows the window's height), or scroll the window
+// under a fixed header drawn on top of the frame.
 function visibleArea(frame) {
   const parent = window.parent;
   let top = 0,
@@ -31,6 +30,19 @@ function visibleArea(frame) {
     top = Math.max(top, r.top + el.clientTop);
     bottom = Math.min(bottom, r.top + el.clientTop + el.clientHeight);
   }
+  // Skip what covers the frame at its top and bottom edges (a fixed header
+  // or footer): the frame must be the element actually shown there.
+  const rect = frame.getBoundingClientRect();
+  const x = Math.min(
+    parent.innerWidth - 1,
+    Math.max(0, rect.left + rect.width / 2),
+  );
+  const shown = (y) => parent.document.elementFromPoint(x, y) === frame;
+  top = Math.max(top, rect.top);
+  bottom = Math.min(bottom, rect.bottom);
+  for (let n = 0; n < 100 && top < bottom && !shown(top); n++) top += 4;
+  for (let n = 0; n < 100 && bottom > top && !shown(bottom - 1); n++)
+    bottom -= 4;
   return { top, bottom };
 }
 export function openModal(d) {
