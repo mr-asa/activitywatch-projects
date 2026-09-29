@@ -82,6 +82,51 @@ async function confirm(page) {
   await page.getByRole("button", { name: "Confirm save", exact: true }).click();
   await expect(page.locator("#change-preview")).not.toBeVisible();
 }
+
+test("workload reuses a covered report but explicit refresh fetches fresh data", async ({
+  page,
+}) => {
+  let queries = 0;
+  page.on("request", (r) => {
+    if (r.url().endsWith("/query/")) queries++;
+  });
+  const { errors } = await setup(page);
+  await expect(page.locator("#workload-status")).toContainText(
+    "selected range loaded",
+  );
+  await page.goto("/?start=2026-09-01T00:00:00Z&end=2026-10-01T00:00:00Z");
+  await expect(page.locator("#workload-status")).toContainText(
+    "selected range loaded",
+  );
+  const before = queries;
+  expect(before).toBe(3); // Initial day + chart, then the covering report only.
+  await page
+    .getByLabel("Workload range", { exact: true })
+    .selectOption("custom");
+  await page.getByLabel("Chart from").fill("2026-09-22");
+  await page.getByLabel("Chart through").fill("2026-09-22");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await expect(page.locator("#workload-status")).toContainText(
+    "2026-09-22 – 2026-09-22",
+  );
+  await expect(page.locator("#workload-stats")).toContainText("0.02 h");
+  expect(queries).toBe(before);
+  await page
+    .getByRole("button", { name: "Refresh chart", exact: true })
+    .click();
+  await expect(page.locator("#workload-status")).toContainText(
+    "selected range loaded",
+  );
+  expect(queries).toBe(before + 1);
+  await page.getByLabel("Chart from").fill("2026-08-22");
+  await page.getByLabel("Chart through").fill("2026-08-22");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await expect(page.locator("#workload-status")).toContainText(
+    "2026-08-22 – 2026-08-22",
+  );
+  expect(queries).toBe(before + 2);
+  expect(errors).toEqual([]);
+});
 test("explanations, previews and categories survive reload", async ({
   page,
 }) => {

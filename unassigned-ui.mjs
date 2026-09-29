@@ -17,6 +17,11 @@ export function setupUnassigned({
   resizeFrame,
 }) {
   const $ = (id) => document.getElementById(id);
+  const intervalTime = new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+  });
   let scope = null,
     rows = [],
     selected = null,
@@ -99,8 +104,7 @@ export function setupUnassigned({
         block.tabIndex = 0;
         block.setAttribute(
           "aria-label",
-          "Inspect unassigned interval " +
-            new Date(segment.start).toLocaleTimeString(),
+          "Inspect unassigned interval " + intervalTime.format(segment.start),
         );
         block.onclick = () => show([segment.start, segment.end]);
         block.onkeydown = (e) => {

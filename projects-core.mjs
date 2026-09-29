@@ -188,11 +188,17 @@ export function clipSorted(ranges, start, end) {
   }
   return out;
 }
-export function analyze(data, projects, start, end, options = {}) {
-  const range = (e) => [
-    Math.max(start, Date.parse(e.timestamp)),
-    Math.min(end, Date.parse(e.timestamp) + e.duration * 1000),
-  ];
+const preparedCache = new WeakMap();
+function prepare(data, start, end) {
+  const cached = preparedCache.get(data);
+  if (cached?.start === start && cached.end === end) return cached;
+  const range = (e) => {
+    const timestamp = Date.parse(e.timestamp);
+    return [
+      Math.max(start, timestamp),
+      Math.min(end, timestamp + e.duration * 1000),
+    ];
+  };
   const active = merge(
     data.afk.filter((e) => e.data.status === "not-afk").map(range),
   );
@@ -240,6 +246,30 @@ export function analyze(data, projects, start, end, options = {}) {
       ),
     ]),
   );
+  const prepared = {
+    start,
+    end,
+    range,
+    windows,
+    tracked,
+    titleGroups,
+    urlGroups,
+    focusByFamily,
+    editorFocus,
+  };
+  preparedCache.set(data, prepared);
+  return prepared;
+}
+export function analyze(data, projects, start, end, options = {}) {
+  const {
+    range,
+    windows,
+    tracked,
+    titleGroups,
+    urlGroups,
+    focusByFamily,
+    editorFocus,
+  } = prepare(data, start, end);
   const evidence = [];
   const add = (project, ranges, kind, label, manual = false, details = {}) => {
     for (const [s, e] of ranges)

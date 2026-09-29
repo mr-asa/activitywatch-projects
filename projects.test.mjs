@@ -10,6 +10,49 @@ const event = (s, d, data) => ({
   duration: d,
   data,
 });
+
+// Prepared intervals must be independent of rules and invalidated by range
+// changes or replacement data, including browser/editor foreground clipping.
+{
+  const input = {
+    windows: [event(0, 120, { app: "Code.exe", title: "Demo" })],
+    afk: [event(0, 120, { status: "not-afk" })],
+    browsers: [],
+    editors: [
+      { app: "Code.exe", events: [event(0, 120, { file: "/demo/file.mjs" })] },
+    ],
+  };
+  const choices = [
+    [],
+    [{ id: "demo", keywords: ["Demo"] }],
+    [
+      {
+        id: "file",
+        rules: [
+          {
+            type: "editor-file",
+            mode: "text",
+            pattern: "file.mjs",
+            ignoreCase: true,
+          },
+        ],
+      },
+    ],
+  ];
+  for (const [start, end] of [
+    [0, 120000],
+    [20000, 50000],
+    [0, 120000],
+  ]) {
+    for (const projects of choices) {
+      const expected = analyze(structuredClone(input), projects, start, end);
+      assert.deepEqual(analyze(input, projects, start, end), expected);
+      assert.deepEqual(analyze(input, projects, start, end), expected);
+    }
+  }
+  const replacement = { ...input, afk: [] };
+  assert.equal(analyze(replacement, choices[1], 0, 120000).tracked, 0);
+}
 const p = {
   id: "demo",
   name: "DEMO",

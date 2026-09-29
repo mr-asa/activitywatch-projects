@@ -37,6 +37,11 @@ const fmt = (s) => {
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
 };
 const precise = (s) => `${fmt(s)} ${Math.round(s) % 60}s`;
+const timelineTime = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
+  second: "2-digit",
+});
 function notice(message, type = "") {
   $("notice").textContent = message;
   $("notice").className = "notice " + type;
@@ -49,6 +54,7 @@ function node(tag, className, text) {
   return n;
 }
 async function api(path, body) {
+  const started = performance.now();
   const response = await fetch("/api/0/" + path, {
     cache: "no-store",
     ...(body === undefined
@@ -63,7 +69,15 @@ async function api(path, body) {
     throw Error(
       `ActivityWatch request failed (${response.status}). Please try again.`,
     );
-  return response.json();
+  const result = await response.json();
+  timing(`api:${path}`, started);
+  return result;
+}
+// Keep only the latest measurement for each stage; never include event data.
+function timing(stage, start) {
+  const name = `projects:${stage}`;
+  performance.clearMeasures(name);
+  performance.measure(name, { start, end: performance.now() });
 }
 function resizeFrame() {
   if (window.frameElement) {
@@ -215,6 +229,12 @@ async function load({ auto = false } = {}) {
       };
     }
     state.data.editors = await editors;
+    state.dataRange = {
+      start: Date.parse(start),
+      end: Date.parse(end),
+      requestedEnd: state.end,
+      host,
+    };
     loaded = { signature, at: fetchedAt };
     $("sources").textContent +=
       ` · ${state.data.editors.filter((s) => !s.unavailable).length} editor sources`;
@@ -241,6 +261,7 @@ async function load({ auto = false } = {}) {
 let analysisCache = null;
 function render() {
   if (!state.data || !state.config) return;
+  const renderStarted = performance.now();
   if (
     !analysisCache ||
     analysisCache.data !== state.data ||
@@ -249,7 +270,8 @@ function render() {
     analysisCache.end !== state.end ||
     analysisCache.host !== state.host
   ) {
-    state.resultEnd = Math.min(state.end, Date.now());
+    state.resultEnd = Math.min(state.end, state.dataRange?.end ?? Date.now());
+    const analysisStarted = performance.now();
     const result = analyze(
       state.data,
       state.config.projects,
@@ -268,6 +290,7 @@ function render() {
       host: state.host,
       result,
     };
+    timing("analysis", analysisStarted);
   }
   const result = analysisCache.result;
   state.result = result;
@@ -383,6 +406,7 @@ function render() {
       last.end = s.end;
     else blocks.push({ start: s.start, end: s.end, project: s.project });
   }
+  const timeline = document.createDocumentFragment();
   for (const s of blocks) {
     const block = node("span", "segment");
     block.dataset.start = s.start;
@@ -393,9 +417,10 @@ function render() {
     block.style.width =
       ((s.end - s.start) / (state.end - state.start)) * 100 + "%";
     block.style.backgroundColor = colors.get(s.project);
-    block.title = `${names.get(s.project)} · ${new Date(s.start).toLocaleTimeString()} – ${new Date(s.end).toLocaleTimeString()}`;
-    $("timeline").append(block);
+    block.title = `${names.get(s.project)} · ${timelineTime.format(s.start)} – ${timelineTime.format(s.end)}`;
+    timeline.append(block);
   }
+  $("timeline").append(timeline);
   $("timeline").setAttribute(
     "aria-label",
     `Project timeline. Assigned ${fmt(result.assigned)}. Not assigned ${fmt(result.unassigned)}. Needs review ${fmt(result.conflict)}.`,
@@ -430,6 +455,7 @@ function render() {
   workload.update();
   activities.update();
   resizeFrame();
+  timing("render", renderStarted);
 }
 function setColor(color) {
   $("project-color").value = color;

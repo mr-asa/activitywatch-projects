@@ -55,6 +55,46 @@ function overlappingEvents(source, start, end) {
   return found.sort((a, b) => a.order - b.order);
 }
 const rowCache = new WeakMap();
+// Claim each elementary window interval once, in original source order.
+// Successor links skip previously claimed spans, including duplicate/overlapping
+// windows, without repeatedly scanning the entire unassigned interval list.
+function ownedWindows(windows) {
+  const entries = windows
+    .map((event) => {
+      const start = Date.parse(event.timestamp);
+      return { event, start, end: start + event.duration * 1000 };
+    })
+    .filter(
+      ({ start, end }) =>
+        Number.isFinite(start) && Number.isFinite(end) && end > start,
+    );
+  const points = [
+    ...new Set(entries.flatMap(({ start, end }) => [start, end])),
+  ].sort((a, b) => a - b);
+  const indices = new Map(points.map((point, i) => [point, i]));
+  const next = Uint32Array.from({ length: points.length }, (_, i) => i);
+  const find = (i) => {
+    let root = i;
+    while (next[root] !== root) root = next[root];
+    while (next[i] !== i) {
+      const parent = next[i];
+      next[i] = root;
+      i = parent;
+    }
+    return root;
+  };
+  return entries.map(({ event, start, end }) => {
+    const ranges = [];
+    const stop = indices.get(end);
+    for (let i = find(indices.get(start)); i < stop; i = find(i)) {
+      const last = ranges.at(-1);
+      if (last?.[1] === points[i]) last[1] = points[i + 1];
+      else ranges.push([points[i], points[i + 1]]);
+      next[i] = find(i + 1);
+    }
+    return { event, ranges, start, end };
+  });
+}
 export function unassignedActivities(data, result, scope = null) {
   const key = scope ? scope.join(":") : "all";
   let cache = rowCache.get(result);
@@ -69,10 +109,6 @@ export function unassignedActivities(data, result, scope = null) {
   free = merge(free);
   if (scope) free = clipSorted(free, ...scope);
   const groups = new Map();
-  const range = (e) => [
-    Date.parse(e.timestamp),
-    Date.parse(e.timestamp) + e.duration * 1000,
-  ];
   function add(w, url, ranges) {
     if (!ranges.length) return;
     const title = w.data.title || "(No window title)",
@@ -81,11 +117,9 @@ export function unassignedActivities(data, result, scope = null) {
     if (!groups.has(key)) groups.set(key, { app, title, url, ranges: [] });
     groups.get(key).ranges.push(...ranges);
   }
-  for (const w of data.windows) {
-    const [start, end] = range(w);
-    let remaining = clipSorted(free, start, end);
+  for (const { event: w, ranges, start, end } of ownedWindows(data.windows)) {
+    let remaining = ranges.flatMap(([s, e]) => clipSorted(free, s, e));
     if (!remaining.length) continue;
-    const used = remaining;
     const family = browserFamily(w.data.app);
     if (family)
       for (const source of data.browsers || []) {
@@ -100,7 +134,6 @@ export function unassignedActivities(data, result, scope = null) {
         }
       }
     add(w, "", remaining);
-    free = subtractSorted(free, used);
   }
   const rows = [...groups.values()]
     .map((r) => ({

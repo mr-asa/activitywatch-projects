@@ -55,6 +55,11 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 
 - `analyze()` groups windows by unique `(app, title)` and browser events by URL, so each rule is matched once per unique value; regexes are cached (`rule-engine.mjs`). Keep this shape when adding rule types.
 - Results are cached by object identity (`state.data`, `state.config`, `state.result`); replace objects instead of mutating them.
+- Active window intervals and source groups are shared between analyses through a `WeakMap` keyed by data identity and exact bounds (one prepared range per data object). Changing rules still recalculates attribution.
+- Unassigned window ownership uses compressed event boundaries and successor links to consume each span once in original source order; preserve this priority for overlapping/duplicate windows.
+- Workload loading reuses a report snapshot only when the same host and its requested range cover the chart range. Explicit "Refresh chart" bypasses reuse. Independent workload window/editor requests run concurrently.
+- `state.dataRange` records the fetched bounds and requested end; analysis must not extend a snapshot beyond its fetched end.
+- Browser Performance measures prefixed `projects:` record the latest API (including JSON parsing), analysis, and synchronous render durations without event contents. Render includes analysis and panel updates, not subsequent browser paint.
 - Auto-refresh (30 s) skips refetching periods that ended before the last fetch. A load requested while another is running is queued, not dropped.
 - Timeline blocks merge adjacent same-category segments; handlers read `data-start` / `data-end` / `data-project` on each block — never map blocks to `result.segments` by index.
 - Long lists render 50 rows with "Show more"; explanations are computed on expand.
@@ -66,6 +71,7 @@ npm ci                                 # dev deps: Playwright, Prettier (pinned)
 npm test                               # Node unit suites
 npx playwright install chromium        # once
 npm run test:ui                        # browser tests; all API calls are mocked
+node scripts/performance.mjs           # synthetic 7/30/90-day processing timings
 npm run format                         # Prettier
 npm run screenshots                    # regenerate docs/images/ for the READMEs
 npm run deploy                         # tests + copy runtime files (Windows)

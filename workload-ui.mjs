@@ -626,7 +626,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
       : `No recorded time for this selection · showing all history, ${from} – ${through}.`;
     return true;
   }
-  async function load() {
+  async function load({ force = false } = {}) {
     if (!state.config) return;
     const projectMode = $("workload-range").value === "project";
     let from = $("workload-from").value,
@@ -680,38 +680,60 @@ export function setupWorkload({ state, api, resizeFrame }) {
           "};",
       );
       const end = +finish;
-      const raw = (
-        await api("query/", {
-          timeperiods: [
-            start.toISOString() + "/" + new Date(end).toISOString(),
-          ],
-          query,
-        })
-      )[0];
-      const editors = await loadEditors(
-        api,
-        state.buckets,
-        device,
-        start.toISOString(),
-        new Date(end).toISOString(),
-      );
+      const reportRange = state.dataRange;
+      const reuse =
+        !force &&
+        state.data &&
+        reportRange?.host === device &&
+        reportRange.start <= +start &&
+        reportRange.requestedEnd >= end;
+      let nextData;
+      let snapshotEnd;
+      if (reuse) {
+        nextData = state.data;
+        snapshotEnd = Math.min(end, reportRange.end);
+        // Let the report finish its own analysis/render before preparing a
+        // potentially different chart range (also preserves async load order).
+        await Promise.resolve();
+      } else {
+        const [raw, editors] = await Promise.all([
+          api("query/", {
+            timeperiods: [
+              start.toISOString() + "/" + new Date(end).toISOString(),
+            ],
+            query,
+          }),
+          loadEditors(
+            api,
+            state.buckets,
+            device,
+            start.toISOString(),
+            new Date(end).toISOString(),
+          ),
+        ]);
+        nextData = {
+          editors,
+          windows: raw[0].windows,
+          afk: raw[0].afk,
+          browsers: sources.map((s, i) => ({
+            ...s,
+            events: raw[0]["web" + i],
+          })),
+        };
+        snapshotEnd = Math.min(end, Date.now());
+      }
       if (run !== token || device !== state.host) return;
-      data = {
-        editors,
-        windows: raw.windows,
-        afk: raw.afk,
-        browsers: sources.map((s, i) => ({ ...s, events: raw["web" + i] })),
-      };
+      data = nextData;
       host = device;
       fullHistory = projectMode && {
         start: +start,
-        end: Math.min(end, Date.now()),
+        end: snapshotEnd,
       };
       if (projectMode) {
         if (applyProjectSpan() && warnings.length)
           $("workload-status").textContent += " " + warnings.join(" ");
       } else {
-        loadedAt = Math.min(end, Date.now());
+        loadedAt = snapshotEnd;
         loadedFrom = +start;
         loadedThrough = through;
         key = null;
@@ -741,7 +763,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
       if ($("workload-target").validity.valid) chart();
     };
   }
-  $("workload-load").onclick = load;
+  $("workload-load").onclick = () => load({ force: true });
   $("workload-project").onchange = () => {
     setPref("workloadProject", $("workload-project").value);
     if ($("workload-range").value !== "project") return calculate();

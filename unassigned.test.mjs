@@ -18,6 +18,67 @@ const e = (s, d, data) => ({
   duration: d,
   data,
 });
+
+// Independent per-second oracle: original window and browser order wins an
+// overlap. Inputs include duplicates, nested intervals, AFK gaps and scopes.
+let seed = 381;
+const random = (n) => {
+  seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+  return seed % n;
+};
+for (let trial = 0; trial < 60; trial++) {
+  const windows = Array.from({ length: 45 }, (_, i) =>
+    e(random(120), random(30) + 1, {
+      app: i % 2 ? "chrome.exe" : "Code.exe",
+      title: `Activity ${i % 7}`,
+    }),
+  );
+  windows.push(windows[0]);
+  const web = Array.from({ length: 20 }, (_, i) =>
+    e(random(120), random(35) + 1, { url: `https://example.com/${i % 4}` }),
+  );
+  const fixture = {
+    windows,
+    browsers: [{ family: "chrome", events: web }],
+    afk: [e(0, 50, { status: "not-afk" }), e(60, 60, { status: "not-afk" })],
+  };
+  const result = analyze(
+    fixture,
+    [{ id: "assigned", keywords: ["Activity 0"] }],
+    0,
+    120000,
+  );
+  const scope = trial % 2 ? [20000, 100000] : null;
+  const expected = new Map();
+  const contains = (event, second) =>
+    Date.parse(event.timestamp) / 1000 <= second &&
+    Date.parse(event.timestamp) / 1000 + event.duration > second;
+  for (let second = scope ? 20 : 0; second < (scope ? 100 : 120); second++) {
+    if (
+      !result.segments.some(
+        (s) =>
+          s.project === "unassigned" &&
+          s.start <= second * 1000 &&
+          s.end > second * 1000,
+      )
+    )
+      continue;
+    const w = windows.find((event) => contains(event, second));
+    const url =
+      w.data.app === "chrome.exe"
+        ? web.find((event) => contains(event, second))?.data.url || ""
+        : "";
+    const key = JSON.stringify([w.data.app, w.data.title, url]);
+    expected.set(key, (expected.get(key) || 0) + 1);
+  }
+  const actual = new Map(
+    unassignedActivities(fixture, result, scope).map((row) => [
+      JSON.stringify([row.app, row.title, row.url]),
+      row.seconds,
+    ]),
+  );
+  assert.deepEqual(actual, expected, `overlap ownership trial ${trial}`);
+}
 const data = {
   windows: [
     e(0, 100, { app: "chrome.exe", title: "Shared title" }),
