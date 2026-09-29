@@ -61,7 +61,7 @@ Hours per day for a week, a month or any period: for one project or all of them 
 ![Daily workload chart](docs/images/workload.png)
 
 ### Reports and export
-Pick a day, a week or a month and export the totals to **CSV** (for spreadsheets) or **Markdown** (for notes, e.g. in Obsidian). Exports contain only category totals, no window titles or addresses.
+Choose any date range and the categories you need, and get exactly the table you want: for example, just "date – hours" for one project, a table with one column per project, or totals per week or month. Time can be decimal hours, minutes or h:mm, optionally rounded (to 6 or 15 minutes, for instance). Download it as **CSV**, **TSV**, **Markdown** or **JSON**, or copy it straight into a spreadsheet. The dialog remembers your choices. Exports contain only time per category, no window titles or addresses.
 
 ### Safe to experiment
 Before saving, every change shows the numbers **"before → after"**. The last 20 versions of your settings are kept, and any of them can be restored in one click.

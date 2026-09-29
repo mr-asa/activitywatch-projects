@@ -19,7 +19,8 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `rule-groups.mjs`, `compact-rule-editor.mjs` | Grouped multiline rule editor (one alternative per line; group settings shared). |
 | `unassigned-core.mjs` / `unassigned-ui.mjs` | "Not assigned · activities" list: grouping of unassigned time by app/title/URL, activity-type breakdown per row, add-to-project / add-to-activity-type dialogs. |
 | `manual-ui.mjs` | Manual interval assignments (single, all occurrences, whole application). |
-| `workflow-core.mjs` / `workflow-ui.mjs` | Config validation, report bounds, before/after previews, CSV/Markdown export, revision history, explanations, import/export. |
+| `workflow-core.mjs` / `workflow-ui.mjs` | Config validation, report bounds, before/after previews, revision history, explanations, settings import/export. |
+| `export-core.mjs` / `export-ui.mjs` | "Reports & export" dialog: own date range, category selection (projects or activity types, optionally within one project), grouping (day/week/month/whole range), long or pivot layout, units/rounding/separators, CSV/TSV/Markdown/JSON, download or clipboard. Options live in `ui-prefs` (`exportOptions`, `exportRange`). |
 | `workload-core.mjs` / `workload-ui.mjs` | Daily workload chart (own data range, independent of the report period). |
 | `activity-core.mjs` / `activity-ui.mjs` | Activity types (independent second classification of the same time). |
 | `time-charts.mjs` | Proportion charts. |
@@ -57,6 +58,8 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 - Results are cached by object identity (`state.data`, `state.config`, `state.result`); replace objects instead of mutating them.
 - Active window intervals and source groups are shared between analyses through a `WeakMap` keyed by data identity and exact bounds (one prepared range per data object). Changing rules still recalculates attribution.
 - Unassigned window ownership uses compressed event boundaries and successor links to consume each span once in original source order; preserve this priority for overlapping/duplicate windows.
+- `loadRange()` (`projects-core.mjs`) is the shared fetch for an arbitrary range (workload chart, export).
+- Export rounds each cell first (rounding step), and totals sum the rounded cells, so a timesheet adds up.
 - Workload loading reuses a report snapshot only when the same host and its requested range cover the chart range. Explicit "Refresh chart" bypasses reuse. Independent workload window/editor requests run concurrently.
 - `state.dataRange` records the fetched bounds and requested end; analysis must not extend a snapshot beyond its fetched end.
 - Browser Performance measures prefixed `projects:` record the latest API (including JSON parsing), analysis, and synchronous render durations without event contents. Render includes analysis and panel updates, not subsequent browser paint.

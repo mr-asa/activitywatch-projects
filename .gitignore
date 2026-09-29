@@ -33,6 +33,9 @@
 !/workflow-core.mjs
 !/workflow-ui.mjs
 !/workflow.test.mjs
+!/export-core.mjs
+!/export-ui.mjs
+!/export.test.mjs
 !/package-lock.json
 !/playwright.config.mjs
 !/tests/

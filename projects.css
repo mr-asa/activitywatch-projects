@@ -1330,3 +1330,73 @@ dialog input[type="number"] {
   margin: 0;
   white-space: nowrap;
 }
+
+.export-controls {
+  display: grid;
+  gap: 10px;
+}
+.export-group {
+  border: 1px solid #37414c;
+  border-radius: 8px;
+  padding: 8px 12px 10px;
+  margin: 0;
+  min-width: 0;
+}
+.export-group legend {
+  padding: 0 6px;
+  color: #a7b5c4;
+}
+.export-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 14px;
+  margin: 4px 0;
+}
+.export-row label:not(.check-label) {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.export-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  max-height: 160px;
+  overflow: auto;
+  margin: 8px 0;
+}
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+}
+.export-preview {
+  max-height: 320px;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid #37414c;
+  border-radius: 8px;
+  background: #11151a;
+  font-size: 13px;
+  white-space: pre;
+}
+.export-dialog {
+  width: min(1320px, calc(100vw - 32px));
+}
+.export-layout {
+  display: grid;
+  gap: 16px;
+}
+@media (min-width: 1000px) {
+  .export-layout {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .export-output {
+    position: sticky;
+    top: 0;
+  }
+  .export-preview {
+    max-height: 70vh;
+  }
+}

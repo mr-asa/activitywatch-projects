@@ -3,7 +3,7 @@ import {
   analyzeActivityTypes,
 } from "./activity-core.mjs";
 import { normalizeProject, analyze } from "./projects-core.mjs";
-import { normalizeAssignment, localDate } from "./rule-engine.mjs";
+import { normalizeAssignment } from "./rule-engine.mjs";
 
 export function validateConfig(input) {
   if (
@@ -130,76 +130,6 @@ export function compareConfigs(
     });
   }
   return { previous, next, changes, activityChanges };
-}
-export function dailyReport(result, start, end, startOfDay = "04:00") {
-  const [hours, minutes] = startOfDay.split(":").map(Number);
-  const day = new Date(start);
-  day.setHours(hours, minutes, 0, 0);
-  if (+day > start) day.setDate(day.getDate() - 1);
-  const rows = [];
-  for (let n = 0; +day < end && n < 3660; n++) {
-    const next = new Date(day);
-    next.setDate(next.getDate() + 1);
-    const totals = new Map();
-    for (const s of result.segments) {
-      const seconds =
-        Math.max(
-          0,
-          Math.min(s.end, +next, end) - Math.max(s.start, +day, start),
-        ) / 1000;
-      if (seconds)
-        totals.set(s.project, (totals.get(s.project) || 0) + seconds);
-    }
-    for (const [id, seconds] of totals) {
-      const project = result.projects.find((p) => p.id === id);
-      rows.push({
-        date: localDate(day),
-        id,
-        name:
-          project?.name ||
-          (id === "conflict" ? "Needs review" : "Not assigned"),
-        kind: project?.kind || (project ? "project" : id),
-        seconds,
-      });
-    }
-    day.setTime(+next);
-  }
-  return rows;
-}
-const cell = (value) => {
-  let s = String(value);
-  if (/^[\s]*[=+@-]/.test(s)) s = "'" + s;
-  return '"' + s.replaceAll('"', '""') + '"';
-};
-export function exportCSV(rows) {
-  return (
-    "\uFEFF" +
-    [
-      ["Date", "Category", "Type", "Seconds", "Hours"],
-      ...rows.map((r) => [
-        r.date,
-        r.name,
-        r.kind,
-        r.seconds.toFixed(3),
-        (r.seconds / 3600).toFixed(4),
-      ]),
-    ]
-      .map((r) => r.map(cell).join(","))
-      .join("\r\n")
-  );
-}
-export function exportMarkdown(rows) {
-  const clean = (s) => String(s).replace(/\r?\n/g, " ").replaceAll("|", "\\|");
-  return (
-    "# Activity report\n\n| Date | Category | Type | Hours |\n| --- | --- | --- | ---: |\n" +
-    rows
-      .map(
-        (r) =>
-          `| ${r.date} | ${clean(r.name)} | ${r.kind} | ${(r.seconds / 3600).toFixed(2)} |`,
-      )
-      .join("\n") +
-    "\n"
-  );
 }
 export function revisionHistory(
   history,

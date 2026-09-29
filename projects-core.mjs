@@ -502,3 +502,37 @@ export function editorValue(event, type) {
   if (!value || /^unknown(?: |$)/i.test(value)) return "";
   return String(value).replaceAll("\\", "/");
 }
+// Fetches window, AFK, browser and editor events for one device and range.
+export async function loadRange(api, buckets, host, start, end) {
+  const { sources, warnings } = discoverBrowsers(buckets, host);
+  const ids = {
+    windows: "aw-watcher-window_" + host,
+    afk: "aw-watcher-afk_" + host,
+  };
+  const query = Object.entries(ids).map(
+    ([k, id]) => `${k} = flood(query_bucket(${JSON.stringify(id)}));`,
+  );
+  sources.forEach((s, i) =>
+    query.push(`web${i} = flood(query_bucket(${JSON.stringify(s.id)}));`),
+  );
+  query.push(
+    'RETURN = {"windows": windows, "afk": afk' +
+      sources.map((s, i) => `, "web${i}": web${i}`).join("") +
+      "};",
+  );
+  const from = new Date(start).toISOString(),
+    to = new Date(end).toISOString();
+  const [raw, editors] = await Promise.all([
+    api("query/", { timeperiods: [from + "/" + to], query }),
+    loadEditors(api, buckets, host, from, to),
+  ]);
+  return {
+    warnings,
+    data: {
+      editors,
+      windows: raw[0].windows,
+      afk: raw[0].afk,
+      browsers: sources.map((s, i) => ({ ...s, events: raw[0]["web" + i] })),
+    },
+  };
+}

@@ -1,10 +1,5 @@
-import {
-  compareConfigs,
-  dailyReport,
-  exportCSV,
-  exportMarkdown,
-  validateConfig,
-} from "./workflow-core.mjs";
+import { compareConfigs, validateConfig } from "./workflow-core.mjs";
+import { setupExport } from "./export-ui.mjs";
 import { unassignedActivities } from "./unassigned-core.mjs";
 import { clipSorted } from "./projects-core.mjs";
 import { persistControl } from "./ui-prefs.mjs";
@@ -76,7 +71,7 @@ export function setupWorkflow({
     '<label>Report period<select id="report-period"><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label><label class="check-label"><input type="checkbox" id="show-archived"> Show archived</label>';
   toolbar.append(
     button("Explain activities", () => explain()),
-    button("Reports & export", () => report()),
+    button("Reports & export", () => exporter.open()),
     button("Settings & recovery", () => recovery()),
   );
   document.querySelector(".toolbar").after(toolbar);
@@ -282,56 +277,14 @@ export function setupWorkflow({
         })
       : Promise.resolve(false);
   }
-  const reports = dialog("report-dialog", "Daily report");
-  function report() {
-    reports.body.replaceChildren();
-    const rows = dailyReport(
-      state.result,
-      state.start,
-      Math.min(state.end, Date.now()),
-      state.settings.startOfDay || "04:00",
-    );
-    reports.body.append(
-      node(
-        "p",
-        "Recorded active time, grouped by report day. Archived categories are included. Non-project time, conflicts, and unassigned time are listed separately.",
-      ),
-    );
-    reports.body.append(
-      button("Download CSV", () =>
-        download(
-          exportCSV(rows),
-          "activity-report.csv",
-          "text/csv;charset=utf-8",
-        ),
-      ),
-      button("Download Markdown", () =>
-        download(
-          exportMarkdown(rows),
-          "activity-report.md",
-          "text/markdown;charset=utf-8",
-        ),
-      ),
-    );
-    const wrap = node("div");
-    wrap.className = "table-scroll";
-    const table = node("table");
-    const head = node("tr");
-    for (const label of ["Date", "Category", "Type", "Time"])
-      head.append(node("th", label));
-    table.append(head);
-    for (const r of rows) {
-      const tr = node("tr");
-      for (const text of [r.date, r.name, r.kind, time(r.seconds)])
-        tr.append(node("td", text));
-      table.append(tr);
-    }
-    wrap.append(table);
-    reports.body.append(wrap);
-    if (!rows.length)
-      reports.body.append(node("p", "No recorded active time in this period."));
-    show(reports.dialog);
-  }
+  const exporter = setupExport({
+    state,
+    api,
+    dialog,
+    show,
+    download,
+    notice,
+  });
   const settings = dialog("recovery-dialog", "Settings & recovery");
   async function restore(config) {
     if (state.saving) return;

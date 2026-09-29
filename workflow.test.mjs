@@ -4,11 +4,9 @@ import {
   validateConfig,
   reportBounds,
   compareConfigs,
-  dailyReport,
-  exportCSV,
-  exportMarkdown,
   revisionHistory,
 } from "./workflow-core.mjs";
+import { buildExport, serializeExport } from "./export-core.mjs";
 const t = +new Date("2026-09-22T03:59:30"),
   e = (app, title) => ({
     timestamp: new Date(t).toISOString(),
@@ -68,12 +66,30 @@ assert.equal(
     .changes[0].delta,
   60,
 );
-const rows = dailyReport(result, t, t + 60000);
-assert.equal(rows.length, 2);
-assert.equal(rows[0].seconds, 30);
-assert.equal(rows[1].seconds, 30);
-assert(exportCSV([{ ...rows[0], name: "=SUM(1,2)" }]).includes("'=SUM"));
-assert(exportMarkdown([{ ...rows[0], name: "a|b" }]).includes("a\\|b"));
+// The event crosses the 04:00 day boundary: 30 s on each report day.
+const table = buildExport(
+  {
+    segments: result.segments,
+    categories: [{ id: "demo", name: "=SUM(1,2)", kind: "project" }],
+    start: t,
+    end: t + 60000,
+  },
+  { unit: "seconds" },
+);
+assert.deepEqual(
+  table.rows.map((r) => [r.date, r.time]),
+  [
+    ["2026-09-21", 30],
+    ["2026-09-22", 30],
+  ],
+);
+assert(serializeExport(table, "csv").includes("'=SUM"));
+assert(
+  serializeExport(
+    { ...table, rows: [{ ...table.rows[0], category: "a|b" }] },
+    "md",
+  ).includes("a\\|b"),
+);
 assert.equal(new Date(reportBounds("2026-09-23", "week")[0]).getDate(), 21);
 assert.equal(new Date(reportBounds("2026-09-23", "month")[1]).getMonth(), 9);
 assert.equal(validateConfig(cfg).projects[0].kind, "project");

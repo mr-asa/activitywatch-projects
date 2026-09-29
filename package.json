@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "test": "node --test projects.test.mjs display-fixes.test.mjs unassigned.test.mjs advanced-rules.test.mjs compact-rules.test.mjs workflow.test.mjs",
+    "test": "node --test projects.test.mjs display-fixes.test.mjs unassigned.test.mjs advanced-rules.test.mjs compact-rules.test.mjs workflow.test.mjs export.test.mjs",
     "deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File ./deploy.ps1",
     "test:ui": "playwright test",
     "format": "prettier --write \"*.mjs\" \"*.css\" \"*.html\" \"tests/*.mjs\"",

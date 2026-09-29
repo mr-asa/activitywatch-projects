@@ -1,5 +1,5 @@
 import { analyzeActivityTypes, activitySegments } from "./activity-core.mjs";
-import { analyze, discoverBrowsers, loadEditors } from "./projects-core.mjs";
+import { analyze, discoverBrowsers, loadRange } from "./projects-core.mjs";
 import { localDate, stable } from "./rule-engine.mjs";
 import { pref, setPref, persistControl, restoredOption } from "./ui-prefs.mjs";
 import {
@@ -663,22 +663,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
       ? "Scanning all recorded history for the project span… Other panels remain available."
       : "Loading selected range… Other panels remain available.";
     try {
-      const { sources, warnings } = discoverBrowsers(state.buckets, device);
-      const ids = {
-        windows: "aw-watcher-window_" + device,
-        afk: "aw-watcher-afk_" + device,
-      };
-      const query = Object.entries(ids).map(
-        ([k, id]) => `${k} = flood(query_bucket(${JSON.stringify(id)}));`,
-      );
-      sources.forEach((s, i) =>
-        query.push(`web${i} = flood(query_bucket(${JSON.stringify(s.id)}));`),
-      );
-      query.push(
-        'RETURN = {"windows": windows, "afk": afk' +
-          sources.map((s, i) => `, "web${i}": web${i}`).join("") +
-          "};",
-      );
+      let warnings = discoverBrowsers(state.buckets, device).warnings;
       const end = +finish;
       const reportRange = state.dataRange;
       const reuse =
@@ -696,30 +681,9 @@ export function setupWorkload({ state, api, resizeFrame }) {
         // potentially different chart range (also preserves async load order).
         await Promise.resolve();
       } else {
-        const [raw, editors] = await Promise.all([
-          api("query/", {
-            timeperiods: [
-              start.toISOString() + "/" + new Date(end).toISOString(),
-            ],
-            query,
-          }),
-          loadEditors(
-            api,
-            state.buckets,
-            device,
-            start.toISOString(),
-            new Date(end).toISOString(),
-          ),
-        ]);
-        nextData = {
-          editors,
-          windows: raw[0].windows,
-          afk: raw[0].afk,
-          browsers: sources.map((s, i) => ({
-            ...s,
-            events: raw[0]["web" + i],
-          })),
-        };
+        const loaded = await loadRange(api, state.buckets, device, +start, end);
+        nextData = loaded.data;
+        warnings = loaded.warnings;
         snapshotEnd = Math.min(end, Date.now());
       }
       if (run !== token || device !== state.host) return;
