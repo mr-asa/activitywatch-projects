@@ -4,13 +4,34 @@
 export function placeDialog(d) {
   const frame = window.frameElement;
   if (!frame) return;
-  const rect = frame.getBoundingClientRect();
-  const hidden = Math.max(0, -rect.top),
-    visible = window.parent.innerHeight - Math.max(0, rect.top);
-  d.style.top = hidden + 16 + "px";
+  const rect = frame.getBoundingClientRect(),
+    area = visibleArea(frame);
+  const from = Math.max(area.top, rect.top),
+    to = Math.min(area.bottom, rect.bottom);
+  d.style.top = from - rect.top + 16 + "px";
   d.style.bottom = "auto";
   d.style.margin = "0 auto";
-  d.style.maxHeight = Math.max(240, visible - 32) + "px";
+  d.style.maxHeight = Math.max(240, to - from - 32) + "px";
+}
+// The part of the parent window where the frame can be seen. ActivityWatch
+// scrolls its page inside a container between its header and footer, so every
+// clipping ancestor narrows the window's own height.
+function visibleArea(frame) {
+  const parent = window.parent;
+  let top = 0,
+    bottom = parent.innerHeight;
+  for (
+    let el = frame.parentElement;
+    el && el !== parent.document.documentElement;
+    el = el.parentElement
+  ) {
+    if (!/auto|scroll|hidden|clip/.test(parent.getComputedStyle(el).overflowY))
+      continue;
+    const r = el.getBoundingClientRect();
+    top = Math.max(top, r.top + el.clientTop);
+    bottom = Math.min(bottom, r.top + el.clientTop + el.clientHeight);
+  }
+  return { top, bottom };
 }
 export function openModal(d) {
   placeDialog(d);

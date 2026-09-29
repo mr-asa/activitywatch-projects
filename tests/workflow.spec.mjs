@@ -1238,3 +1238,33 @@ test("URL rules can be cut to a folder with readable links and live coverage", a
     "https://disk.example.com/client/disk/Twin проект/2609_DEMO",
   );
 });
+test("dialogs fit inside ActivityWatch's scrolling content area", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1200, height: 700 });
+  await setup(page);
+  // Header and footer outside a scrolling container that holds the frame.
+  await page.route("**/aw-layout.html", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: '<body style="margin:0;overflow:hidden"><header style="height:64px">ActivityWatch</header><main id="content" style="position:absolute;top:64px;bottom:100px;left:0;right:0;overflow:auto"><div style="height:300px"></div><div class="col-md-6"><iframe src="/?start=2026-09-22T00:00:00Z&end=2026-09-23T00:00:00Z" style="border:0;width:100%"></iframe></div></main><footer style="position:absolute;bottom:0;height:100px">Edit view</footer></body>',
+    }),
+  );
+  await page.goto("/aw-layout.html");
+  const frame = page.frameLocator("iframe");
+  await expect(
+    frame.getByRole("button", { name: "Edit Demo", exact: true }),
+  ).toBeEnabled();
+  await page.evaluate(
+    () => (document.getElementById("content").scrollTop = 500),
+  );
+  await frame
+    .getByRole("button", { name: "Edit Demo", exact: true })
+    .evaluate((b) => b.click());
+  const box = await frame.locator("#editor").boundingBox();
+  expect(box.y).toBeGreaterThanOrEqual(64);
+  expect(box.y + box.height).toBeLessThanOrEqual(600);
+  expect(
+    await page.evaluate(() => document.getElementById("content").scrollTop),
+  ).toBe(500);
+});
