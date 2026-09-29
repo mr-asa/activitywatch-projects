@@ -2,7 +2,13 @@ import {
   normalizeActivityType,
   analyzeActivityTypes,
 } from "./activity-core.mjs";
-import { normalizeProject, analyze } from "./projects-core.mjs";
+import {
+  normalizeProject,
+  analyze,
+  merge,
+  clipSorted,
+  duration,
+} from "./projects-core.mjs";
 import { normalizeAssignment } from "./rule-engine.mjs";
 
 export function validateConfig(input) {
@@ -172,3 +178,45 @@ export function revisionHistory(
   return kept;
 }
 const HISTORY_BYTES = 3_000_000;
+
+// "Needs review" time claimed by exactly these categories: each activity
+// (title or link, application) with its time and, per category, the rules or
+// manual assignments that claimed it.
+export function conflictActivities(result, ids) {
+  const key = [...ids].sort().join("|");
+  const conflict = merge(
+    result.segments
+      .filter((s) => s.project === "conflict" && s.ids.join("|") === key)
+      .map((s) => [s.start, s.end]),
+  );
+  const activities = new Map();
+  for (const e of result.evidence) {
+    if (!ids.includes(e.project)) continue;
+    const pieces = clipSorted(conflict, e.s, e.e);
+    if (!pieces.length) continue;
+    const k = JSON.stringify([e.label, e.app || ""]);
+    if (!activities.has(k))
+      activities.set(k, {
+        label: e.label,
+        app: e.app || "",
+        ranges: [],
+        matches: new Map(),
+      });
+    const activity = activities.get(k);
+    activity.ranges.push(...pieces);
+    const reasons = activity.matches.get(e.project) || [];
+    const id = e.manual ? "manual:" + e.assignment.id : "rule:" + e.rule.id;
+    if (!reasons.some((r) => r.id === id))
+      reasons.push(
+        e.manual ? { id, assignment: e.assignment } : { id, rule: e.rule },
+      );
+    activity.matches.set(e.project, reasons);
+  }
+  return [...activities.values()]
+    .map((a) => ({
+      ...a,
+      ranges: merge(a.ranges),
+      seconds: duration(a.ranges),
+    }))
+    .sort((a, b) => b.seconds - a.seconds);
+}

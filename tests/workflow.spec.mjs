@@ -1505,3 +1505,48 @@ test("adding a rule explains and widens project dates that exclude the activity"
     "Demo's automatic rules now cover 2026-09-22.",
   );
 });
+test("needs review lists the conflicting activities with each project's rule", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.projects.push({
+    id: "other",
+    name: "Other",
+    color: "#8ca8ff",
+    rules: [
+      {
+        id: "o1",
+        type: "title",
+        mode: "text",
+        pattern: "scene",
+        ignoreCase: true,
+        from: "",
+        through: "",
+        appFilter: "maya",
+      },
+    ],
+  });
+  await setup(page, cfg);
+  const review = page.locator("#review");
+  await expect(review).toContainText("Demo + Other: 0h 1m 0s.");
+  await review.getByRole("button", { name: "Show activities" }).click();
+  const dialog = page.locator("#conflict-dialog");
+  await expect(dialog).toContainText("Demo + Other · 0h 1m 0s in this period");
+  await expect(dialog).toContainText("Demo scene · maya.exe · 0h 1m 0s");
+  await expect(dialog).toContainText('Demo ← window title contains "Demo"');
+  await expect(dialog).toContainText(
+    'Other ← window title contains "scene" in maya',
+  );
+  // Straight to the rule…
+  await dialog.getByRole("button", { name: "Edit Other" }).click();
+  await expect(page.locator("#editor")).toBeVisible();
+  await expect(page.locator("#project-name")).toHaveValue("Other");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  // …or assign exactly these minutes by hand.
+  await review.getByRole("button", { name: "Show activities" }).click();
+  await dialog
+    .getByRole("button", { name: "Assign these minutes manually…" })
+    .click();
+  await expect(page.locator("#manual-dialog")).toBeVisible();
+  await expect(page.locator("#manual-dialog")).toContainText("needs review");
+});

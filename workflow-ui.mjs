@@ -1,5 +1,9 @@
 import { openModal } from "./dialogs.mjs";
-import { compareConfigs, validateConfig } from "./workflow-core.mjs";
+import {
+  compareConfigs,
+  conflictActivities,
+  validateConfig,
+} from "./workflow-core.mjs";
 import { setupExport } from "./export-ui.mjs";
 import { unassignedActivities } from "./unassigned-core.mjs";
 import { clipSorted } from "./projects-core.mjs";
@@ -14,6 +18,7 @@ export function setupWorkflow({
   load,
   notice,
   resizeFrame,
+  openEditor,
 }) {
   const $ = (id) => document.getElementById(id);
   const node = (tag, text) => {
@@ -199,6 +204,86 @@ export function setupWorkflow({
     };
     draw();
     show(activity.dialog);
+  }
+  // "Needs review": which activities several categories claim, and why.
+  const conflictView = dialog(
+    "conflict-dialog",
+    "Matched by more than one project",
+  );
+  const ruleText = (rule) => {
+    const field =
+      rule.type === "url"
+        ? "page URL"
+        : rule.type.startsWith("editor-")
+          ? "editor path"
+          : "window title";
+    const how =
+      rule.mode === "regex"
+        ? "matches regex"
+        : rule.type === "url"
+          ? "is under"
+          : "contains";
+    const pattern =
+      rule.type === "url" ? readableUrl(rule.pattern) : rule.pattern;
+    const dates =
+      rule.from || rule.through
+        ? ` · ${rule.from || "…"} – ${rule.through || "…"}`
+        : "";
+    return `${field} ${how} "${pattern}"${rule.appFilter ? ` in ${rule.appFilter}` : ""}${dates}`;
+  };
+  function explainConflict(ids) {
+    const name = (id) =>
+      state.config.projects.find((p) => p.id === id)?.name || id;
+    const rows = conflictActivities(state.result, ids);
+    const total = rows.reduce((n, r) => n + r.seconds, 0);
+    conflictView.body.replaceChildren(
+      node(
+        "p",
+        `${ids.map(name).join(" + ")} · ${time(total)} in this period. Each activity below is claimed by all of these projects; make one rule more specific (another pattern, an application or dates), or assign the minutes manually.`,
+      ),
+    );
+    for (const row of rows) {
+      const card = node("div");
+      card.className = "explanation-row conflict-row";
+      card.append(
+        node(
+          "strong",
+          `${/^https?:/.test(row.label) ? readableUrl(row.label) : row.label} · ${row.app} · ${time(row.seconds)}`,
+        ),
+      );
+      const list = node("ul");
+      for (const id of ids) {
+        const item = node("li");
+        const reasons = (row.matches.get(id) || []).map((r) =>
+          r.rule
+            ? ruleText(r.rule)
+            : `manual assignment${r.assignment.note ? ` "${r.assignment.note}"` : ""}`,
+        );
+        item.append(
+          node("span", `${name(id)} ← ${reasons.join("; ") || "—"} `),
+          button(`Edit ${name(id)}`, () => {
+            conflictView.dialog.close();
+            openEditor(id);
+          }),
+        );
+        list.append(item);
+      }
+      card.append(
+        list,
+        button("Assign these minutes manually…", () => {
+          conflictView.dialog.close();
+          state.manualUI.open(
+            row.ranges,
+            "",
+            `${row.label} · ${row.app} · needs review`,
+          );
+        }),
+      );
+      conflictView.body.append(card);
+    }
+    if (!rows.length)
+      conflictView.body.append(node("p", "Nothing needs review here now."));
+    show(conflictView.dialog);
   }
   const preview = dialog("change-preview", "Preview changes");
   let resolvePreview = null;
@@ -401,6 +486,7 @@ export function setupWorkflow({
   return {
     update,
     explain,
+    explainConflict,
     previewChanges,
     loadMetadata(p) {
       $("project-kind").value = p?.kind || "project";

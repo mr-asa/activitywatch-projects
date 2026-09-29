@@ -50,7 +50,7 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 
 - Only **active** time counts: window events clipped to `not-afk` AFK intervals.
 - URL evidence is clipped to foreground time of the matching browser family. Editor (VS Code / Obsidian watcher) evidence is clipped to foreground time of that editor.
-- A moment matched by exactly one category → that category. Two or more → `conflict` ("Needs review"), excluded from totals. None → `unassigned`.
+- A moment matched by exactly one category → that category. Two or more → `conflict` ("Needs review"), excluded from totals. None → `unassigned`. The review panel's "Show activities" lists the conflicting activities per category pair with the rule or manual assignment each category claimed them by (`conflictActivities`), with links to the editor and to manual assignment.
 - Text title matching ignores invisible formatting characters (U+200E and similar, which Telegram puts in titles) on both sides (`titleForm`). Regex rules see titles as recorded.
 - When a project's own dates keep a matching rule from the activity being added, "+ Project" says so and offers to widen them (`projectDatesBlock`) instead of only reporting a duplicate.
 - Manual assignments override automatic rules for the same moment (only on their `host`).

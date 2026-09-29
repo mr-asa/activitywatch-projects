@@ -455,17 +455,23 @@ function render() {
   $("review-list").replaceChildren();
   const groups = new Map();
   for (const s of result.segments.filter((s) => s.project === "conflict")) {
-    const key = s.ids.map((id) => names.get(id)).join(" + ");
-    groups.set(key, (groups.get(key) || 0) + (s.end - s.start) / 1000);
+    const key = s.ids.join("|");
+    const group = groups.get(key) || { ids: s.ids, seconds: 0 };
+    group.seconds += (s.end - s.start) / 1000;
+    groups.set(key, group);
   }
-  for (const [key, sec] of groups)
-    $("review-list").append(
-      node(
-        "li",
-        "",
-        `${key}: ${precise(sec)}. Edit these projects to narrow their rules.`,
-      ),
+  for (const { ids, seconds } of groups.values()) {
+    const item = node(
+      "li",
+      "",
+      `${ids.map((id) => names.get(id)).join(" + ")}: ${precise(seconds)}. `,
     );
+    const show = node("button", "", "Show activities");
+    show.type = "button";
+    show.onclick = () => workflow.explainConflict(ids);
+    item.append(show);
+    $("review-list").append(item);
+  }
   renderTimeCharts(result);
   inspector.update();
   manual.update();
@@ -668,6 +674,7 @@ const workflow = setupWorkflow({
   load,
   notice,
   resizeFrame,
+  openEditor,
 });
 const previewButton = node("button", "", "Preview changes");
 previewButton.type = "button";

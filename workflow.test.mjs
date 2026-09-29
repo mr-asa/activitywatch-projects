@@ -628,3 +628,44 @@ assert.equal(failedEditors[0].unavailable, true);
   );
   assert.equal(cut.afk.length, 1);
 }
+// Needs review: which activities two categories both claim, and by what.
+{
+  const { conflictActivities } = await import("./workflow-core.mjs");
+  const at0 = Date.parse("2026-09-22T10:00:00Z");
+  const ev = (offset, seconds, title) => ({
+    timestamp: new Date(at0 + offset * 1000).toISOString(),
+    duration: seconds,
+    data: { app: "mobaxterm.exe", title },
+  });
+  const conflictData = {
+    windows: [ev(0, 120, "apcmp079 (animaccord / user)"), ev(120, 60, "other")],
+    afk: [{ ...ev(0, 180, ""), data: { status: "not-afk" } }],
+    browsers: [],
+  };
+  const a = normalizeProject({
+    id: "a",
+    name: "A",
+    color: "#65d6b4",
+    keywords: ["animaccord"],
+  });
+  const b = normalizeProject({
+    id: "b",
+    name: "B",
+    color: "#8ca8ff",
+    keywords: ["apcmp079"],
+  });
+  const both = analyze(conflictData, [a, b], at0, at0 + 180000);
+  assert.equal(both.conflict, 120);
+  const rows = conflictActivities(both, ["a", "b"]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].label, "apcmp079 (animaccord / user)");
+  assert.equal(rows[0].seconds, 120);
+  assert.deepEqual(
+    [...rows[0].matches].map(([id, reasons]) => [id, reasons[0].rule.pattern]),
+    [
+      ["a", "animaccord"],
+      ["b", "apcmp079"],
+    ],
+  );
+  assert.equal(conflictActivities(both, ["a", "x"]).length, 0);
+}
