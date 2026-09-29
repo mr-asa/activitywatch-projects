@@ -154,3 +154,95 @@ export function stackedWorkload(result, summary, startOfDay = "04:00") {
     ),
   ].filter((p) => p.days.some((d) => d.seconds > 0));
 }
+
+// Points for a chart of the given plot width: daily while a day gets at least
+// 6 px, otherwise weekly (Monday-based) or monthly buckets. A bucket holds the
+// average per recorded day of every numeric field, so the axis stays in hours
+// per day; days without recordings are left out of averages (and a bucket
+// with none stays a gap). Stack layers are averaged the same way.
+export function chartBuckets(days, stack = [], plotWidth = 900) {
+  const weekKey = (date) => {
+    const d = new Date(date + "T12:00:00");
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+    return localDate(d);
+  };
+  const weeks = new Set(days.map((d) => weekKey(d.date))).size;
+  const unit =
+    days.length * 6 <= plotWidth
+      ? "day"
+      : weeks * 6 <= plotWidth
+        ? "week"
+        : "month";
+  if (unit === "day")
+    return {
+      unit,
+      days: days.map((d) => ({
+        ...d,
+        from: d.date,
+        to: d.date,
+        recorded: d.tracked ? 1 : 0,
+        count: 1,
+      })),
+      stack,
+    };
+  const key = unit === "week" ? weekKey : (date) => date.slice(0, 7) + "-01";
+  const groups = [];
+  days.forEach((d, i) => {
+    const k = key(d.date);
+    if (groups.at(-1)?.key !== k) groups.push({ key: k, indexes: [] });
+    groups.at(-1).indexes.push(i);
+  });
+  // Trend and overtime may be null on every day; they stay null then.
+  const numeric = [
+    ...new Set(
+      ["trend", "overtime"].concat(
+        ...days.map((d) =>
+          Object.keys(d).filter(
+            (k) => typeof d[k] === "number" && k !== "nonProjectPercent",
+          ),
+        ),
+      ),
+    ),
+  ];
+  const buckets = groups.map(({ key, indexes }) => {
+    const recorded = indexes.filter((i) => days[i].tracked > 0);
+    const out = {
+      date: key,
+      from: days[indexes[0]].date,
+      to: days[indexes.at(-1)].date,
+      count: indexes.length,
+      recorded: recorded.length,
+    };
+    for (const field of numeric) {
+      const values = recorded
+        .map((i) => days[i][field])
+        .filter((v) => typeof v === "number");
+      out[field] = values.length
+        ? values.reduce((a, b) => a + b, 0) / values.length
+        : field === "trend" || field === "overtime"
+          ? null
+          : 0;
+    }
+    out.nonProjectPercent = out.tracked
+      ? (out.nonProject / out.tracked) * 100
+      : null;
+    return { ...out, indexes, recordedIndexes: recorded };
+  });
+  const layers = stack.map((layer) => ({ ...layer, days: [] }));
+  buckets.forEach((b, i) => {
+    let bottom = 0;
+    layers.forEach((layer, l) => {
+      const seconds = b.recordedIndexes.length
+        ? b.recordedIndexes.reduce((n, k) => n + stack[l].days[k].seconds, 0) /
+          b.recordedIndexes.length
+        : 0;
+      layer.days[i] = { date: b.date, seconds, bottom, top: bottom + seconds };
+      bottom += seconds;
+    });
+  });
+  for (const b of buckets) {
+    delete b.indexes;
+    delete b.recordedIndexes;
+  }
+  return { unit, days: buckets, stack: layers };
+}

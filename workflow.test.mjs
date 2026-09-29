@@ -471,3 +471,53 @@ const failedEditors = await loadEditors(
 );
 assert.equal(failedEditors.length, 1);
 assert.equal(failedEditors[0].unavailable, true);
+// Chart buckets: days while they fit, then weekly/monthly averages per
+// recorded day; unrecorded days are gaps, not zeros.
+{
+  const { chartBuckets } = await import("./workload-core.mjs");
+  const days = [];
+  const d = new Date("2026-01-05T12:00:00"); // Monday
+  for (let i = 0; i < 70; i++) {
+    const weekday = i % 7 < 5;
+    days.push({
+      date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+      seconds: weekday ? 3600 * (i % 7) : 0,
+      tracked: weekday ? 3600 * 8 : 0,
+      work: weekday ? 3600 * 6 : 0,
+      nonProject: weekday ? 3600 : 0,
+      unclassified: weekday ? 3600 : 0,
+      trend: null,
+      overtime: null,
+    });
+    d.setDate(d.getDate() + 1);
+  }
+  const stack = [
+    { id: "p", days: days.map((x) => ({ seconds: x.work })) },
+    { id: "rest", days: days.map((x) => ({ seconds: x.tracked - x.work })) },
+  ];
+  assert.equal(chartBuckets(days, stack, 900).unit, "day");
+  const weekly = chartBuckets(days, stack, 150);
+  assert.equal(weekly.unit, "week");
+  assert.equal(weekly.days.length, 10);
+  const first = weekly.days[0];
+  assert.deepEqual(
+    [first.date, first.from, first.to, first.count, first.recorded],
+    ["2026-01-05", "2026-01-05", "2026-01-11", 7, 5],
+  );
+  // Average over the five recorded days: (0+1+2+3+4)/5 h.
+  assert.equal(first.seconds, 7200);
+  assert.equal(first.tracked, 3600 * 8);
+  assert.equal(first.nonProjectPercent, 12.5);
+  assert.equal(first.trend, null);
+  assert.equal(weekly.stack[1].days[0].bottom, 3600 * 6);
+  assert.equal(weekly.stack[1].days[0].top, 3600 * 8);
+  const monthly = chartBuckets(days, stack, 40);
+  assert.equal(monthly.unit, "month");
+  assert.deepEqual(
+    monthly.days.map((b) => b.date),
+    ["2026-01-01", "2026-02-01", "2026-03-01"],
+  );
+  // A bucket without recorded days stays a gap.
+  const empty = days.map((x) => ({ ...x, tracked: 0 }));
+  assert.equal(chartBuckets(empty, [], 150).days[0].tracked, 0);
+}

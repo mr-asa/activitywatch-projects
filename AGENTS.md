@@ -68,6 +68,7 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 - `state.dataRange` records the fetched bounds and requested end; analysis must not extend a snapshot beyond its fetched end.
 - Browser Performance measures prefixed `projects:` record the latest API (including JSON parsing), analysis, and synchronous render durations without event contents. Render includes analysis and panel updates, not subsequent browser paint.
 - Auto-refresh (30 s) skips refetching periods that ended before the last fetch. A load requested while another is running is queued, not dropped.
+- The workload chart always fits the panel width: `chartBuckets` keeps daily points while a day gets ≥ 6 px, else Monday-based weeks, else months; each bucket is the average per recorded day (axis stays hours/day, unrecorded days are gaps). Hover/click work per bucket; a click opens that week/month in the report.
 - Timeline blocks merge adjacent same-category segments; handlers read `data-start` / `data-end` / `data-project` on each block — never map blocks to `result.segments` by index.
 - Long lists render 50 rows with "Show more"; explanations are computed on expand.
 

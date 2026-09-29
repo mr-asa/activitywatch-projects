@@ -1300,3 +1300,27 @@ test("a project's common start date limits its rules and the whole-project scan"
   await confirm(page);
   await expect(page.locator("#assigned")).toHaveText("0h 0m");
 });
+test("long chart ranges fit the width as weekly averages", async ({ page }) => {
+  await page.setViewportSize({ width: 800, height: 900 });
+  await setup(page);
+  await page.getByLabel("Chart from").fill("2026-01-01");
+  await page.getByLabel("Chart through").fill("2026-09-24");
+  await page.getByRole("button", { name: "Apply range", exact: true }).click();
+  await expect(page.locator("#workload-status")).toContainText(
+    "selected range loaded",
+  );
+  const chart = page.locator("#workload-chart");
+  await expect(chart).toContainText("Weekly averages per recorded day");
+  // No horizontal scrolling.
+  expect(await chart.evaluate((c) => c.scrollWidth <= c.clientWidth + 1)).toBe(
+    true,
+  );
+  const last = chart.locator("rect[role=button]").last();
+  await last.focus();
+  await expect(page.locator("#workload-detail")).toContainText(
+    "2026-09-21 – 2026-09-24 · average per recorded day (1 of 4 days)",
+  );
+  await last.press("Enter");
+  await expect(page.locator("#report-period")).toHaveValue("week");
+  await expect(page.locator("#date")).toHaveValue("2026-09-21");
+});
