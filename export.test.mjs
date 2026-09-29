@@ -6,6 +6,7 @@ import {
   columnLabel,
   exportCategories,
   exportPeriods,
+  formatDate,
   formatDuration,
   normalizeSpec,
   serializeExport,
@@ -298,4 +299,28 @@ assert.equal(
   )[1],
   `"'=HYPERLINK(""x""), a",1.75`,
 );
+// Date patterns: tokens, literals, ISO weeks, localized and declined names.
+const date = (p, locale = "en-GB") => formatDate("2026-09-28", p, locale);
+assert.equal(date("DD.MM.YY"), "28.09.26");
+assert.equal(date("D/M/YYYY [at] Q"), "28/9/2026 at 3");
+assert.equal(date("YYYY-[W]WW d"), "2026-W40 1");
+assert.equal(formatDate("2021-01-03", "GGGG-[W]WW DDDD"), "2020-W53 003");
+assert.equal(date("dddd, D MMMM"), "Monday, 28 September");
+assert.equal(date("D MMMM", "ru"), "28 сентября");
+assert.equal(date("MMMM YYYY", "ru"), "сентябрь 2026");
+assert.equal(formatDate("Total", "DD.MM"), "Total");
+assert.deepEqual(
+  csv({
+    group: "month",
+    monthFormat: "MMM YY",
+    dateLocale: "en-US",
+    header: false,
+    columns: [{ metric: "time", target: "all" }],
+  }),
+  ["Sep 26,2.92"],
+);
+// Legacy named formats map to patterns; bad locales are dropped.
+assert.equal(normalizeSpec({ dateFormat: "mdy" }).dateFormat, "MM/DD/YYYY");
+assert.equal(normalizeSpec({ dateFormat: "mdy" }).monthFormat, "MM/YYYY");
+assert.equal(normalizeSpec({ dateLocale: "not a locale!" }).dateLocale, "");
 console.log("export tests passed");

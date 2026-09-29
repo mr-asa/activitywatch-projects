@@ -216,6 +216,9 @@ test("export builds custom columns and manages saved presets", async ({
   await expect(preview).toHaveText(
     "Date,Hours,Demo share\n2026-09-22,0.017,33.333\n",
   );
+  await dialog.getByLabel("Date format").fill("D.M.YY [г.]");
+  await expect(preview).toContainText("22.9.26 г.,0.017,33.333");
+  await dialog.getByLabel("Date format").fill("YYYY-MM-DD");
   // Save as a named preset in ActivityWatch settings, then delete it.
   await dialog.getByRole("button", { name: "Save as…" }).click();
   await dialog.getByLabel("Preset name").fill("Demo timesheet");

@@ -5,6 +5,8 @@ import { pref, setPref } from "./ui-prefs.mjs";
 import {
   BOM,
   BUILTIN_PRESETS,
+  DATE_SUGGESTIONS,
+  MONTH_SUGGESTIONS,
   EXPORT_FILE,
   METRICS,
   RANGE_PRESETS,
@@ -12,6 +14,7 @@ import {
   buildExport,
   columnLabel,
   exportCategories,
+  formatDate,
   newColumn,
   normalizeSpec,
   serializeExport,
@@ -440,6 +443,54 @@ export function setupExport({ state, api, dialog, show, download, notice }) {
     wrap.append(add);
     return wrap;
   }
+  // Free date pattern with suggestions; names follow the chosen language.
+  function dateFields() {
+    const month = spec.group === "month";
+    const key = month ? "monthFormat" : "dateFormat";
+    const input = node("input");
+    input.value = spec[key];
+    input.setAttribute("aria-label", "Date format");
+    input.setAttribute("list", "export-date-suggestions");
+    input.title =
+      "YYYY year · YY short year · MM/M month · MMM/MMMM month name · " +
+      "DD/D day · ddd/dddd weekday · d weekday number (1 = Monday) · " +
+      "WW/W ISO week · GGGG ISO week year · Q quarter · DDDD day of year · " +
+      "[text] literal text";
+    const list = node("datalist");
+    list.id = "export-date-suggestions";
+    for (const p of month ? MONTH_SUGGESTIONS : DATE_SUGGESTIONS)
+      list.append(option(p, formatDate("2026-09-28", p, spec.dateLocale)));
+    input.oninput = () => {
+      if (!input.value.trim()) return;
+      spec = normalizeSpec({ ...spec, [key]: input.value });
+      remember();
+      rebuild();
+    };
+    input.onchange = () => draw();
+    const fields = [field(month ? "Month format" : "Date format", input), list];
+    if (/MMM|ddd?/.test(spec[key].replace(/\[[^\]]*\]/g, "")))
+      fields.push(
+        field(
+          "Names in",
+          select(
+            "Date language",
+            [
+              ["", "Browser language"],
+              ["en-US", "English (US)"],
+              ["en-GB", "English (UK)"],
+              ["ru", "Русский"],
+              ["uk", "Українська"],
+              ["de", "Deutsch"],
+              ["fr", "Français"],
+              ["es", "Español"],
+            ],
+            spec.dateLocale,
+            (v) => update({ dateLocale: v }),
+          ),
+        ),
+      );
+    return fields;
+  }
   function draw() {
     const [from, through] = dates();
     const fromInput = node("input"),
@@ -559,19 +610,7 @@ export function setupExport({ state, api, dialog, show, download, notice }) {
           (v) => update({ rounding: Number(v) }),
         ),
       ),
-      field(
-        "Dates",
-        select(
-          "Date format",
-          [
-            ["iso", "2026-09-28"],
-            ["dmy", "28.09.2026"],
-            ["mdy", "09/28/2026"],
-          ],
-          spec.dateFormat,
-          (v) => update({ dateFormat: v }),
-        ),
-      ),
+      ...dateFields(),
     ];
     if (
       spec.columns.some((c) =>

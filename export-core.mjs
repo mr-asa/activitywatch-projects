@@ -58,7 +58,9 @@ export const SPEC_DEFAULTS = {
   decimals: 2,
   rounding: 0, // minutes; duration cells are rounded to the nearest step
   decimalSeparator: ".",
-  dateFormat: "iso", // iso | dmy | mdy
+  dateFormat: "YYYY-MM-DD", // pattern for day and week rows, see formatDate
+  monthFormat: "YYYY-MM", // pattern for month rows
+  dateLocale: "", // month/weekday names; "" = browser language
   format: "csv", // csv | tsv | md | json
   delimiter: ",",
   header: true,
@@ -71,7 +73,6 @@ const CHOICES = {
   rounding: [0, 1, 5, 6, 10, 15, 30, 60],
   sessionGap: [0, 1, 2, 5, 10, 15, 30],
   decimalSeparator: [".", ","],
-  dateFormat: ["iso", "dmy", "mdy"],
   format: ["csv", "tsv", "md", "json"],
   delimiter: [",", ";"],
 };
@@ -101,6 +102,13 @@ export function normalizeSpec(raw) {
     out.splitExcluded = raw.splitExcluded.filter((v) => typeof v === "string");
   if (Array.isArray(raw.columns) && raw.columns.length)
     out.columns = raw.columns.slice(0, 30).map(normalizeColumn);
+  for (const key of ["dateFormat", "monthFormat"])
+    if (typeof raw[key] === "string" && raw[key].trim())
+      out[key] = (LEGACY_DATES[raw[key]] || raw[key]).slice(0, 60);
+  if (raw.dateFormat in LEGACY_DATES && !raw.monthFormat)
+    out.monthFormat = LEGACY_MONTHS[raw.dateFormat];
+  if (typeof raw.dateLocale === "string" && isLocale(raw.dateLocale))
+    out.dateLocale = raw.dateLocale;
   const r = raw.range || {};
   if (RANGE_PRESETS.some(([id]) => id === r.preset))
     out.range.preset = r.preset;
@@ -412,24 +420,96 @@ export function formatDuration(seconds, options) {
   const value = seconds / (o.unit === "minutes" ? 60 : 3600);
   return value.toFixed(o.decimals).replace(".", o.decimalSeparator);
 }
-export function formatPeriod(key, group, dateFormat = "iso") {
+// Earlier versions stored named formats.
+const LEGACY_DATES = {
+  iso: "YYYY-MM-DD",
+  dmy: "DD.MM.YYYY",
+  mdy: "MM/DD/YYYY",
+};
+const LEGACY_MONTHS = { iso: "YYYY-MM", dmy: "MM.YYYY", mdy: "MM/YYYY" };
+function isLocale(tag) {
+  if (!tag) return true;
+  try {
+    return Intl.DateTimeFormat.supportedLocalesOf([tag]).length > 0;
+  } catch {
+    return false;
+  }
+}
+export const DATE_SUGGESTIONS = [
+  "YYYY-MM-DD",
+  "DD.MM.YYYY",
+  "MM/DD/YYYY",
+  "D MMM YYYY",
+  "ddd, DD.MM",
+  "dddd, D MMMM YYYY",
+  "YYYY-[W]WW",
+];
+export const MONTH_SUGGESTIONS = ["YYYY-MM", "MM.YYYY", "MMMM YYYY", "MMM YY"];
+// Common date tokens (as in Moment/Day.js/Excel). Text in [brackets] is
+// literal. ISO week: W/WW with GGGG for its year.
+const TOKENS =
+  /\[([^\]]*)\]|YYYY|GGGG|YY|MMMM|MMM|MM|M|DDDD|DD|D|dddd|ddd|dd|d|WW|W|Q|./g;
+export function formatDate(key, pattern, locale = "") {
   if (!DATE.test(key)) return key;
-  const [y, m, d] = key.split("-");
-  if (group === "month")
-    return dateFormat === "iso"
-      ? `${y}-${m}`
-      : `${m}${dateFormat === "dmy" ? "." : "/"}${y}`;
-  if (dateFormat === "dmy") return `${d}.${m}.${y}`;
-  if (dateFormat === "mdy") return `${m}/${d}/${y}`;
-  return key;
+  const [y, m, d] = key.split("-").map(Number);
+  const date = new Date(y, m - 1, d, 12);
+  const pad = (n, w = 2) => String(n).padStart(w, "0");
+  const name = (options) =>
+    new Intl.DateTimeFormat(locale || undefined, options).format(date);
+  // Next to a day number some languages decline the month ("28 сентября").
+  const withDay = /D(?!D)/.test(pattern.replace(/\[[^\]]*\]|DDDD/g, ""));
+  const month = (width) =>
+    withDay
+      ? new Intl.DateTimeFormat(locale || undefined, {
+          day: "numeric",
+          month: width,
+        })
+          .formatToParts(date)
+          .find((p) => p.type === "month").value
+      : name({ month: width });
+  // ISO week: the Thursday of this week decides the week and its year.
+  const thursday = new Date(date);
+  thursday.setDate(d + 3 - ((date.getDay() + 6) % 7));
+  const yearStart = new Date(thursday.getFullYear(), 0, 1, 12);
+  const days = (a, b) => Math.round((a - b) / 86400000);
+  const week = 1 + Math.floor(days(thursday, yearStart) / 7);
+  const dayOfYear = 1 + days(date, new Date(y, 0, 1, 12));
+  const values = {
+    YYYY: () => pad(y, 4),
+    GGGG: () => pad(thursday.getFullYear(), 4),
+    YY: () => pad(y % 100),
+    MMMM: () => month("long"),
+    MMM: () => month("short"),
+    MM: () => pad(m),
+    M: () => String(m),
+    DDDD: () => pad(dayOfYear, 3),
+    DD: () => pad(d),
+    D: () => String(d),
+    dddd: () => name({ weekday: "long" }),
+    ddd: () => name({ weekday: "short" }),
+    dd: () => name({ weekday: "narrow" }),
+    d: () => String(date.getDay() || 7),
+    WW: () => pad(week),
+    W: () => String(week),
+    Q: () => String(Math.ceil(m / 3)),
+  };
+  return pattern.replace(TOKENS, (token, literal) =>
+    literal !== undefined ? literal : values[token] ? values[token]() : token,
+  );
+}
+export function formatPeriod(key, spec) {
+  return formatDate(
+    key,
+    spec.group === "month" ? spec.monthFormat : spec.dateFormat,
+    spec.dateLocale,
+  );
 }
 const clock = (ms) => {
   const d = new Date(ms);
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 };
 export function formatCell(value, column, spec) {
-  if (column.type === "date")
-    return formatPeriod(value, spec.group, spec.dateFormat);
+  if (column.type === "date") return formatPeriod(value, spec);
   if (column.type === "text") return String(value ?? "");
   if (value === null || value === undefined) return "";
   if (column.type === "duration") return formatDuration(value, spec);
