@@ -134,3 +134,52 @@ assert.equal(stable({ b: 2, a: 1 }), stable({ a: 1, b: 2 }));
 console.log(
   "PASS: legacy conversion, explicit regex, invalid regex/dates, midnight boundary, historical preservation, manual precedence, idle/device filtering, overlap rejection/removal",
 );
+// Invisible marks (U+200E from Telegram) never decide a text match.
+{
+  const { matchTitle } = await import("./projects-core.mjs");
+  const lrm = String.fromCharCode(0x200e);
+  assert.equal(matchTitle(lrm + "TWIN3D_q-render", "TWIN3D"), true);
+  assert.equal(matchTitle("TWIN3D_q-render", lrm + "TWIN3D"), true);
+  assert.equal(matchTitle("Other", lrm + "TWIN3D"), false);
+}
+// Project dates that keep a matching rule from an activity, and how to widen them.
+{
+  const { projectDatesBlock, normalizeRule: rule } =
+    await import("./rule-engine.mjs");
+  const day = (d, h = 12) =>
+    +new Date(`${d}T${String(h).padStart(2, "0")}:00:00`);
+  const ranges = [
+    [day("2026-09-08"), day("2026-09-08", 13)],
+    [day("2026-09-10"), day("2026-09-10", 13)],
+  ];
+  const okko = rule({ pattern: "okko" });
+  assert.deepEqual(
+    projectDatesBlock(okko, { rulesFrom: "2026-09-14" }, ranges),
+    {
+      first: "2026-09-08",
+      last: "2026-09-10",
+      rulesFrom: "2026-09-08",
+      rulesThrough: "",
+    },
+  );
+  assert.deepEqual(
+    projectDatesBlock(okko, { rulesThrough: "2026-09-05" }, ranges)
+      .rulesThrough,
+    "2026-09-10",
+  );
+  // Not blocked when the project dates allow part of it, or the rule's own
+  // dates already exclude it.
+  assert.equal(
+    projectDatesBlock(okko, { rulesFrom: "2026-09-09" }, ranges),
+    null,
+  );
+  assert.equal(projectDatesBlock(okko, {}, ranges), null);
+  assert.equal(
+    projectDatesBlock(
+      rule({ pattern: "okko", from: "2026-09-20" }),
+      { rulesFrom: "2026-09-14" },
+      ranges,
+    ),
+    null,
+  );
+}

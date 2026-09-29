@@ -51,6 +51,8 @@ If `project_tracker` is missing, the app starts with an empty config and creates
 - Only **active** time counts: window events clipped to `not-afk` AFK intervals.
 - URL evidence is clipped to foreground time of the matching browser family. Editor (VS Code / Obsidian watcher) evidence is clipped to foreground time of that editor.
 - A moment matched by exactly one category → that category. Two or more → `conflict` ("Needs review"), excluded from totals. None → `unassigned`.
+- Text title matching ignores invisible formatting characters (U+200E and similar, which Telegram puts in titles) on both sides (`titleForm`). Regex rules see titles as recorded.
+- When a project's own dates keep a matching rule from the activity being added, "+ Project" says so and offers to widen them (`projectDatesBlock`) instead of only reporting a duplicate.
 - Manual assignments override automatic rules for the same moment (only on their `host`).
 - Rule `from`/`through` are inclusive local calendar dates with **midnight** boundaries (not the start-of-day offset). `rulesFrom` / `rulesThrough` on a project narrow all its rules (`boundedRule`); a rule's own narrower dates still win. `projectSpan` (rules + manual assignments) bounds the workload "Whole project" scan.
 - Report days start at ActivityWatch's `startOfDay` setting (default `04:00`). The report period is a day, week, month or custom range (`reportBounds(date, "range", startOfDay, through)`, `#date-through`); dragging or Shift+clicking points on the workload chart opens a custom range.

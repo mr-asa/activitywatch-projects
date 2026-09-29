@@ -1473,3 +1473,35 @@ test("selecting days on the chart opens them as a report range", async ({
   await page.locator("#report-period").selectOption("week");
   await expect(page.locator("#date-through")).toBeHidden();
 });
+test("adding a rule explains and widens project dates that exclude the activity", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.projects[0].rulesFrom = "2026-09-25";
+  cfg.projects[0].keywords.push("Personal browsing");
+  const { settings } = await setup(page, cfg);
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  await page
+    .locator(".unassigned-row")
+    .filter({ hasText: "Personal browsing" })
+    .getByRole("button", { name: "Add to project", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Add rule", exact: true }).click();
+  const error = page.locator("#assign-error");
+  await expect(error).toContainText(
+    "Demo's automatic rules start on 2026-09-25, but this activity is from 2026-09-22, so its existing pattern does not apply.",
+  );
+  await error
+    .getByRole("button", { name: "Widen Demo's dates to include it" })
+    .click();
+  await confirm(page);
+  await expect(page.locator("#assign-dialog")).not.toBeVisible();
+  await expect
+    .poll(() => settings.project_tracker.projects[0].rulesFrom)
+    .toBe("2026-09-22");
+  await expect(page.locator("#notice")).toContainText(
+    "Demo's automatic rules now cover 2026-09-22.",
+  );
+});

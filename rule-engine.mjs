@@ -113,6 +113,28 @@ export function projectSpan(project, manualAssignments = []) {
     }
   return { start, end };
 }
+// When a rule's own dates allow the given time but the project's common dates
+// (rulesFrom / rulesThrough) exclude all of it: the days involved and the
+// widened project dates that would include them. Otherwise null.
+export function projectDatesBlock(rule, project, ranges) {
+  const own = clipRule(ranges, rule);
+  if (!own.length || clipRule(own, boundedRule(rule, project)).length)
+    return null;
+  const first = localDate(new Date(own[0][0])),
+    last = localDate(new Date(own.at(-1)[1] - 1));
+  return {
+    first,
+    last,
+    rulesFrom:
+      project.rulesFrom && project.rulesFrom > first
+        ? first
+        : project.rulesFrom || "",
+    rulesThrough:
+      project.rulesThrough && project.rulesThrough < last
+        ? last
+        : project.rulesThrough || "",
+  };
+}
 export function clipRule(ranges, rule) {
   const [start, end] = ruleBounds(rule);
   return ranges

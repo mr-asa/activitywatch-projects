@@ -175,12 +175,29 @@ export function discoverBrowsers(buckets, host) {
 // Lower-cased and normalised forms of titles and patterns, computed once per
 // distinct string: every rule is matched against every unique title.
 const titleForms = new Map();
+// Soft hyphen, zero-width and direction marks, word joiners, BOM.
+const INVISIBLE = new RegExp(
+  "[" +
+    [
+      [0xad, 0xad],
+      [0x200b, 0x200f],
+      [0x202a, 0x202e],
+      [0x2060, 0x2064],
+      [0xfeff, 0xfeff],
+    ]
+      .map(([a, b]) => String.fromCharCode(a) + "-" + String.fromCharCode(b))
+      .join("") +
+    "]",
+  "g",
+);
 function titleForm(value) {
   const text = String(value || "");
   let form = titleForms.get(text);
   if (!form) {
     if (titleForms.size > 300000) titleForms.clear();
-    const lower = text.toLocaleLowerCase();
+    // Invisible formatting marks (e.g. U+200E that Telegram puts in titles
+    // and copying carries into patterns) never decide a text match.
+    const lower = text.replace(INVISIBLE, "").toLocaleLowerCase();
     form = {
       lower,
       clean: lower

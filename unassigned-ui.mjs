@@ -1,5 +1,10 @@
 import { placeDialog } from "./dialogs.mjs";
-import { projectRules, normalizeRule, readableUrl } from "./rule-engine.mjs";
+import {
+  projectRules,
+  normalizeRule,
+  readableUrl,
+  projectDatesBlock,
+} from "./rule-engine.mjs";
 import { addRule } from "./rule-groups.mjs";
 import {
   unassignedActivities,
@@ -591,13 +596,66 @@ export function setupUnassigned({
       );
       if (!p) throw Error("Select an existing project or create a new one.");
       const added = addRule(projectRules(p), rule);
+      // The project's own dates can keep even a matching rule away from
+      // this activity: say so, and offer to widen them.
+      const blocked = projectDatesBlock(rule, p, selected.ranges || []);
+      if (blocked) {
+        const limits = [
+          p.rulesFrom && `start on ${p.rulesFrom}`,
+          p.rulesThrough && `end on ${p.rulesThrough}`,
+        ]
+          .filter(Boolean)
+          .join(" and ");
+        const days =
+          blocked.first === blocked.last
+            ? blocked.first
+            : `${blocked.first} – ${blocked.last}`;
+        const widen = node(
+          "button",
+          "",
+          `Widen ${p.name}'s dates to include it`,
+        );
+        widen.type = "button";
+        widen.onclick = () =>
+          saveRule(
+            {
+              ...p,
+              rulesFrom: blocked.rulesFrom,
+              rulesThrough: blocked.rulesThrough,
+            },
+            added,
+            `${p.name}'s automatic rules now cover ${days}.`,
+          );
+        $("assign-error").replaceChildren(
+          `${p.name}'s automatic rules ${limits}, but this activity is from ${days}` +
+            (added.duplicate
+              ? `, so its existing pattern does not apply. `
+              : `. `),
+          widen,
+        );
+        return;
+      }
       if (added.duplicate) {
         $("assign-error").textContent =
           `${p.name} already has this pattern in a rule group with the same settings.`;
         return;
       }
+      await saveRule(
+        p,
+        added,
+        `${added.merged ? "Pattern added to an existing rule group" : "Rule added"} in ${p.name}.`,
+      );
+    } catch (error) {
+      $("assign-error").textContent = error.message;
+    }
+  };
+  // Saves a project with the rule list from addRule (unchanged when the
+  // pattern was already there) after the usual preview.
+  async function saveRule(project, added, message) {
+    if (state.saving) return;
+    try {
       const next = normalizeProject(
-        { ...p, rules: added.rules },
+        { ...project, rules: added.rules },
         state.config.projects,
       );
       state.saving = true;
@@ -608,10 +666,7 @@ export function setupUnassigned({
       );
       dialog.close();
       render();
-      notice(
-        `${added.merged ? "Pattern added to an existing rule group" : "Rule added"} in ${next.name}. Project totals have been recalculated.`,
-        "success",
-      );
+      notice(`${message} Project totals have been recalculated.`, "success");
     } catch (error) {
       $("assign-error").textContent = error.message;
     } finally {
@@ -619,7 +674,7 @@ export function setupUnassigned({
       for (const id of ["save-assign", "cancel-assign", "close-assign"])
         $(id).disabled = false;
     }
-  };
+  }
   $("assign-kind").onchange = chooseKind;
   $("assign-rule").oninput = () => {
     if ($("assign-kind").value !== "url") return;
