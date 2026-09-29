@@ -445,7 +445,10 @@ function render() {
     `Project timeline. Assigned ${fmt(result.assigned)}. Not assigned ${fmt(result.unassigned)}. Needs review ${fmt(result.conflict)}.`,
   );
   $("legend").replaceChildren();
+  // Only what this period's timeline actually shows.
+  const shown = new Set(blocks.map((b) => b.project));
   for (const [id, color] of colors) {
+    if (!shown.has(id)) continue;
     const item = node("span", "legend-item");
     const chip = node("span", "chip");
     chip.style.backgroundColor = color;

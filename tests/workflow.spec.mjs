@@ -1580,3 +1580,21 @@ test("the period bar resets to today and the history chart follows the report", 
     "2026-09-27|2026-09-27",
   );
 });
+test("the timeline legend lists only categories present in the period", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.projects.push({
+    id: "idle",
+    name: "Idle project",
+    color: "#8ca8ff",
+    archived: true,
+    keywords: ["Nothing recorded"],
+  });
+  await setup(page, cfg);
+  const legend = page.locator("#legend");
+  await expect(legend).toContainText("Demo");
+  await expect(legend).toContainText("Not assigned");
+  await expect(legend).not.toContainText("Idle project");
+  await expect(legend).not.toContainText("Needs review");
+});
