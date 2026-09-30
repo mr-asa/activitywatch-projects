@@ -1,6 +1,6 @@
 import { analyze, loadRange } from "./projects-core.mjs";
 import { analyzeActivityTypes } from "./activity-core.mjs";
-import { localDate } from "./rule-engine.mjs";
+import { historyStart, localDate, projectPeriod } from "./rule-engine.mjs";
 import { pref, setPref } from "./ui-prefs.mjs";
 import {
   BOM,
@@ -100,6 +100,23 @@ export function setupExport({ state, api, dialog, show, download, notice }) {
   function dates() {
     const r = spec.range;
     if (r.preset === "custom") return [r.from, r.through];
+    if (r.preset === "project") {
+      // The project of the first column that names one.
+      const id = spec.columns
+        .map((c) => c.target)
+        .find((t) => t.startsWith("p:"))
+        ?.slice(2);
+      const now = Date.now();
+      const [start, end] = projectPeriod(
+        state.config.projects.find((p) => p.id === id),
+        state.config.manualAssignments,
+        historyStart(state.buckets, state.settings, state.host) ?? now,
+        now,
+      );
+      // Start on the calendar date the project names (its dates are
+      // midnight-based; midnight still belongs to the previous report day).
+      return [localDate(new Date(start)), reportDay(end)];
+    }
     if (r.preset === "report")
       return [
         reportDay(state.start),
@@ -815,9 +832,11 @@ export function setupExport({ state, api, dialog, show, download, notice }) {
   // One project's hours per day of the report period, zero days included;
   // the formatting choices (units, separators, file format) stay as they are.
   function openFor(projectId) {
+    // A single report day is too little for this: show the month instead.
+    const oneDay = document.getElementById("report-period")?.value === "day";
     spec = normalizeSpec({
       ...spec,
-      range: { preset: "report" },
+      range: { preset: oneDay ? "this-month" : "report" },
       group: "day",
       split: "none",
       dateColumn: true,

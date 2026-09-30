@@ -1,7 +1,12 @@
 import { analyzeActivityTypes } from "./activity-core.mjs";
 import { configFingerprint, readDays, writeDays } from "./day-cache.mjs";
 import { analyze, discoverBrowsers, loadRange } from "./projects-core.mjs";
-import { localDate, projectSpan, stable } from "./rule-engine.mjs";
+import {
+  historyStart,
+  localDate,
+  projectPeriod,
+  stable,
+} from "./rule-engine.mjs";
 import { pref, setPref, persistControl, restoredOption } from "./ui-prefs.mjs";
 import {
   chartBuckets,
@@ -809,28 +814,13 @@ export function setupWorkload({ state, api, resizeFrame }) {
   // when the selected project can receive time (its common and per-rule
   // dates, manual assignments). All projects scan the whole history.
   function projectScan() {
-    // Window bucket creation marks the start of recorded history.
-    // Imported history (scripts/import-manictime.mjs) predates the bucket.
-    const created = Math.min(
-      ...[
-        state.buckets?.["aw-watcher-window_" + state.host]?.created,
-        state.settings?.project_tracker_history_start?.[state.host],
-      ]
-        .map((t) => Date.parse(t))
-        .filter(Number.isFinite),
+    const now = Date.now();
+    const [start, end] = projectPeriod(
+      state.config.projects.find((p) => p.id === $("workload-project").value),
+      state.config.manualAssignments,
+      historyStart(state.buckets, state.settings, state.host) ?? now,
+      now,
     );
-    let start = Number.isFinite(created) ? created : Date.now(),
-      end = Date.now();
-    const project = state.config.projects.find(
-      (p) => p.id === $("workload-project").value,
-    );
-    if (project) {
-      const span = projectSpan(project, state.config.manualAssignments || []);
-      if (span.start < span.end) {
-        start = Math.min(end, Math.max(start, span.start));
-        end = Math.max(start, Math.min(end, span.end - 1));
-      }
-    }
     return [reportDay(start), reportDay(end)];
   }
   async function load({ force = false, keepRange = false } = {}) {

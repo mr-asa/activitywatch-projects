@@ -35,6 +35,7 @@ export const RANGE_PRESETS = [
   ["last7", "Last 7 days"],
   ["last30", "Last 30 days"],
   ["this-year", "This year"],
+  ["project", "Whole project"],
   ["custom", "Custom dates"],
 ];
 const COLUMN_DEFAULTS = {

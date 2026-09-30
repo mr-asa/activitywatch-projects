@@ -1638,3 +1638,28 @@ test("export hours of one project lists every day, zeros included", async ({
     page.locator("#report-dialog").getByLabel("Include days without time"),
   ).toBeChecked();
 });
+test("export hours from a one-day report opens the month and offers the whole project", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.projects[0].rulesFrom = "2026-09-20";
+  await setup(page, cfg);
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Demo" })
+    .getByRole("button", { name: "Export hours" })
+    .click();
+  const dialog = page.locator("#report-dialog");
+  const preview = dialog.getByLabel("Export preview");
+  await expect(dialog.getByLabel("Range", { exact: true })).toHaveValue(
+    "this-month",
+  );
+  await expect(preview).toContainText("2026-09-01,0.00");
+  await expect(preview).toContainText("2026-09-22,0.02");
+  // The project's own period: from its rules' start date to today.
+  await dialog.getByLabel("Range", { exact: true }).selectOption("project");
+  await expect(dialog.getByLabel("Export from")).toHaveValue("2026-09-20");
+  await expect(dialog.getByLabel("Export through")).toHaveValue("2026-09-27");
+  await expect(preview).not.toContainText("2026-09-19");
+  await expect(preview).toContainText("2026-09-20,0.00");
+});

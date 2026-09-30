@@ -135,6 +135,28 @@ export function projectDatesBlock(rule, project, ranges) {
         : project.rulesThrough || "",
   };
 }
+// Start of recorded history on a device: the window bucket's creation, or
+// earlier when history was imported (scripts/import-manictime.mjs).
+export function historyStart(buckets, settings, host) {
+  const start = Math.min(
+    ...[
+      buckets?.["aw-watcher-window_" + host]?.created,
+      settings?.project_tracker_history_start?.[host],
+    ]
+      .map((t) => Date.parse(t))
+      .filter(Number.isFinite),
+  );
+  return Number.isFinite(start) ? start : null;
+}
+// Recorded history narrowed to when the project can receive time (its common
+// and per-rule dates, manual assignments): [start, end] timestamps.
+export function projectPeriod(project, manualAssignments, start, end) {
+  if (!project) return [start, end];
+  const span = projectSpan(project, manualAssignments || []);
+  if (!(span.start < span.end)) return [start, end];
+  const from = Math.min(end, Math.max(start, span.start));
+  return [from, Math.max(from, Math.min(end, span.end - 1))];
+}
 export function clipRule(ranges, rule) {
   const [start, end] = ruleBounds(rule);
   return ranges
