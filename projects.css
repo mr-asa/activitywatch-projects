@@ -1597,3 +1597,15 @@ header .tools {
   flex-wrap: wrap;
   gap: 6px;
 }
+.unassigned-sort {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+.unassigned-sort select {
+  width: auto;
+}
+.last-seen {
+  font-size: 12px;
+}

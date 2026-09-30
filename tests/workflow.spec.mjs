@@ -1663,3 +1663,22 @@ test("export hours from a one-day report opens the month and offers the whole pr
   await expect(preview).not.toContainText("2026-09-19");
   await expect(preview).toContainText("2026-09-20,0.00");
 });
+test("not assigned can be sorted by most recent activity", async ({ page }) => {
+  await setup(page);
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  const rows = page.locator(".unassigned-row");
+  await expect(rows.first()).toContainText("Personal browsing");
+  await page.locator("#unassigned-sort").selectOption("recent");
+  await expect(rows.first()).toContainText("Shared task");
+  await expect(rows.first().locator(".last-seen")).toContainText("last");
+  await expect(rows.nth(1)).toContainText("Personal browsing");
+  // Remembered.
+  await page.reload();
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  await expect(page.locator("#unassigned-sort")).toHaveValue("recent");
+  await expect(rows.first()).toContainText("Shared task");
+});

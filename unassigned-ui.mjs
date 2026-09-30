@@ -48,7 +48,7 @@ export function setupUnassigned({
   panel.className = "unassigned-panel";
   panel.hidden = true;
   panel.innerHTML =
-    '<div class="section-heading"><div><h2>Not assigned · activities</h2><p id="unassigned-scope" class="muted"></p></div><button id="close-unassigned" aria-label="Close unassigned activities">×</button></div><div class="unassigned-tools"><input id="unassigned-search" type="search" aria-label="Search unassigned activities" placeholder="Search titles, applications, or URLs"><label id="hide-typed-label" class="check-label" title="Hide rows that match any activity type, leaving only completely unmarked activity"><input type="checkbox" id="hide-typed-unassigned"> Hide activities</label><button id="all-unassigned">Show whole day</button></div><p id="unassigned-count" class="muted"></p><div id="unassigned-rows"></div>';
+    '<div class="section-heading"><div><h2>Not assigned · activities</h2><p id="unassigned-scope" class="muted"></p></div><button id="close-unassigned" aria-label="Close unassigned activities">×</button></div><div class="unassigned-tools"><input id="unassigned-search" type="search" aria-label="Search unassigned activities" placeholder="Search titles, applications, or URLs"><label class="unassigned-sort">Sort<select id="unassigned-sort" aria-label="Sort unassigned activities"><option value="largest">Largest first</option><option value="recent">Most recent first</option></select></label><label id="hide-typed-label" class="check-label" title="Hide rows that match any activity type, leaving only completely unmarked activity"><input type="checkbox" id="hide-typed-unassigned"> Hide activities</label><button id="all-unassigned">Show whole day</button></div><p id="unassigned-count" class="muted"></p><div id="unassigned-rows"></div>';
   document.querySelector(".timeline-panel").after(panel);
   const dialog = document.createElement("dialog");
   dialog.id = "assign-dialog";
@@ -134,7 +134,7 @@ export function setupUnassigned({
     rows = unassignedActivities(state.data, state.result, scope);
     $("unassigned-scope").textContent = scope
       ? `${new Date(scope[0]).toLocaleTimeString()} – ${new Date(scope[1]).toLocaleTimeString()} · selected gray interval`
-      : "Entire selected period · largest time first";
+      : "Entire selected period";
     $("all-unassigned").hidden = !scope;
     drawRows();
   }
@@ -168,6 +168,11 @@ export function setupUnassigned({
       ? matching.filter((r) => !rowTypes(r, typeResult).length)
       : matching;
     const hidden = matching.length - filtered.length;
+    // Most recent: by the end of each activity's last interval, so what you
+    // just worked on is at the top.
+    const recent = $("unassigned-sort").value === "recent";
+    const lastSeen = (r) => r.ranges.at(-1)?.[1] ?? 0;
+    if (recent) filtered.sort((a, b) => lastSeen(b) - lastSeen(a));
     $("unassigned-count").textContent =
       `${filtered.length} activities · ${time(filtered.reduce((n, r) => n + r.seconds, 0))}` +
       (hidden ? ` · ${hidden} with activity types hidden` : "");
@@ -214,6 +219,10 @@ export function setupUnassigned({
       }
       const action = node("div", "activity-action");
       action.append(node("strong", "", time(row.seconds)));
+      if (recent)
+        action.append(
+          node("span", "last-seen muted", `last ${seenAt(lastSeen(row))}`),
+        );
       const button = actionButton(
         "+ Project",
         "Add to project",
@@ -695,10 +704,22 @@ export function setupUnassigned({
     resizeFrame();
   };
   persistControl($("hide-typed-unassigned"), "hideTypedUnassigned");
-  $("unassigned-search").oninput = $("hide-typed-unassigned").onchange = () => {
-    visibleLimit = 50;
-    drawRows();
-  };
+  persistControl($("unassigned-sort"), "unassignedSort");
+  // Time only for one-day reports; date and time otherwise.
+  const seenAt = (ms) =>
+    new Date(ms).toLocaleString(
+      [],
+      state.end - state.start > 90000000
+        ? { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }
+        : { hour: "2-digit", minute: "2-digit" },
+    );
+  $("unassigned-search").oninput =
+    $("hide-typed-unassigned").onchange =
+    $("unassigned-sort").onchange =
+      () => {
+        visibleLimit = 50;
+        drawRows();
+      };
   $("all-unassigned").onclick = () => show();
   return { update };
 }
