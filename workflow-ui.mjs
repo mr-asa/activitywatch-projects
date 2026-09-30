@@ -485,6 +485,7 @@ export function setupWorkflow({
     update,
     explain,
     explainConflict,
+    exportProject: (id) => exporter.openFor(id),
     previewChanges,
     loadMetadata(p) {
       $("project-kind").value = p?.kind || "project";

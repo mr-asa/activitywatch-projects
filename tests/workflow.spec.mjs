@@ -211,6 +211,8 @@ test("export builds custom columns and manages saved presets", async ({
   await dialog.getByLabel("Column 1 of").selectOption("p:demo");
   await expect(dialog.locator(".export-badge")).toHaveText("modified");
   await dialog.getByLabel("Decimals").selectOption("3");
+  // The timesheet lists days without time too; keep only the day with time.
+  await dialog.getByLabel("Include days without time").uncheck();
   await expect(preview).toHaveText("Date,Hours\n2026-09-22,0.017\n");
   // A second column: share of all active time.
   await dialog.getByRole("button", { name: "+ Add column" }).click();
@@ -1597,4 +1599,42 @@ test("the timeline legend lists only categories present in the period", async ({
   await expect(legend).toContainText("Not assigned");
   await expect(legend).not.toContainText("Idle project");
   await expect(legend).not.toContainText("Needs review");
+});
+test("export hours of one project lists every day, zeros included", async ({
+  page,
+}) => {
+  const cfg = sample();
+  cfg.projects.push({
+    id: "other",
+    name: "Other",
+    color: "#8ca8ff",
+    keywords: ["Shared task"],
+  });
+  await setup(page, cfg);
+  await page.locator("#report-period").selectOption("week");
+  await expect(page.locator("#range-label")).toContainText("Sep 21");
+  await page
+    .locator(".project-card")
+    .filter({ hasText: "Demo" })
+    .getByRole("button", { name: "Export hours" })
+    .click();
+  const preview = page.locator("#report-dialog").getByLabel("Export preview");
+  await expect(preview).toContainText("Date,Hours");
+  const text = await preview.textContent();
+  const rows = text.trim().split("\n").slice(1);
+  // Monday to today (Sunday the 27th), one row each, only Demo's hours.
+  expect(rows.map((r) => r.split(",")[0])).toEqual([
+    "2026-09-21",
+    "2026-09-22",
+    "2026-09-23",
+    "2026-09-24",
+    "2026-09-25",
+    "2026-09-26",
+    "2026-09-27",
+  ]);
+  expect(rows[1]).toBe("2026-09-22,0.02");
+  expect(rows[0]).toBe("2026-09-21,0.00");
+  await expect(
+    page.locator("#report-dialog").getByLabel("Include days without time"),
+  ).toBeChecked();
 });

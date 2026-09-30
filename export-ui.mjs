@@ -550,8 +550,10 @@ export function setupExport({ state, api, dialog, show, download, notice }) {
         check("Date column", spec.dateColumn, (v) => update({ dateColumn: v })),
       );
     rowChecks.append(
-      check("Empty rows", spec.emptyPeriods, (v) =>
-        update({ emptyPeriods: v }),
+      check(
+        `Include ${{ week: "weeks", month: "months" }[spec.group] || "days"} without time`,
+        spec.emptyPeriods,
+        (v) => update({ emptyPeriods: v }),
       ),
       check("Total row", spec.totalRow, (v) => update({ totalRow: v })),
     );
@@ -810,5 +812,22 @@ export function setupExport({ state, api, dialog, show, download, notice }) {
     snapshot = null; // the report or recordings may have changed since
     refresh();
   }
-  return { open };
+  // One project's hours per day of the report period, zero days included;
+  // the formatting choices (units, separators, file format) stay as they are.
+  function openFor(projectId) {
+    spec = normalizeSpec({
+      ...spec,
+      range: { preset: "report" },
+      group: "day",
+      split: "none",
+      dateColumn: true,
+      emptyPeriods: true,
+      totalRow: false,
+      columns: [{ label: "Hours", metric: "time", target: "p:" + projectId }],
+    });
+    presetId = "";
+    remember();
+    open();
+  }
+  return { open, openFor };
 }

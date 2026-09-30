@@ -1592,3 +1592,8 @@ header .tools {
     justify-content: flex-start;
   }
 }
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}

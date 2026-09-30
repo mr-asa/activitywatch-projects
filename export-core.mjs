@@ -610,7 +610,10 @@ export const BUILTIN_PRESETS = [
   {
     id: "builtin:timesheet",
     name: "Timesheet: date + hours",
-    spec: { columns: [{ label: "Hours", metric: "time", target: "work" }] },
+    spec: {
+      emptyPeriods: true,
+      columns: [{ label: "Hours", metric: "time", target: "work" }],
+    },
   },
   {
     id: "builtin:per-project",

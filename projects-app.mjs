@@ -354,11 +354,18 @@ function render() {
             .join(" · "),
         ),
       );
-    card.append(
+    const actions = node("div", "card-actions");
+    actions.append(
       Object.assign(node("button", "", "Explain time"), {
         onclick: () => workflow.explain(p.id),
       }),
+      Object.assign(node("button", "", "Export hours"), {
+        title:
+          "Hours per day of the report period for this project, including days without time",
+        onclick: () => workflow.exportProject(p.id),
+      }),
     );
+    card.append(actions);
     const total = node("div", "project-total", fmt(p.total));
     total.title = precise(p.total);
     card.append(total);

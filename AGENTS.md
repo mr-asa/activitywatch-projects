@@ -20,7 +20,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `unassigned-core.mjs` / `unassigned-ui.mjs` | "Not assigned · activities" list: grouping of unassigned time by app/title/URL, activity-type breakdown per row, add-to-project / add-to-activity-type dialogs. |
 | `manual-ui.mjs` | Manual interval assignments (single, all occurrences, whole application). |
 | `workflow-core.mjs` / `workflow-ui.mjs` | Config validation, report bounds, before/after previews, revision history, explanations, settings import/export. |
-| `export-core.mjs` / `export-ui.mjs` | "Reports & export": a spec (range, row grouping/split, user-built columns, formatting) → table → CSV/TSV/Markdown/JSON. Columns = metric × target set (`all`, `work`, `nonproject`, `p:<id>`, `t:<id>`, `row`) × optional `within` × share base. Presets: built-in + saved. |
+| `export-core.mjs` / `export-ui.mjs` | "Reports & export": a spec (range, row grouping/split, user-built columns, formatting) → table → CSV/TSV/Markdown/JSON. Columns = metric × target set (`all`, `work`, `nonproject`, `p:<id>`, `t:<id>`, `row`) × optional `within` × share base. Presets: built-in + saved. A project card's "Export hours" opens it as that project's hours per day of the report period, empty days included (`openFor`). |
 | `workload-core.mjs` / `workload-ui.mjs` | Daily workload chart (own data range, independent of the report period), drawn from per-day summaries. |
 | `activity-core.mjs` / `activity-ui.mjs` | Activity types (independent second classification of the same time). |
 | `time-charts.mjs` | Proportion charts. |
