@@ -669,4 +669,52 @@ assert.equal(failedEditors[0].unavailable, true);
     ],
   );
   assert.equal(conflictActivities(both, ["a", "x"]).length, 0);
+  // One project claims the window by title, the other the same moment by the
+  // browser's page URL: each row lists both claims, the other marked "via".
+  const mixed = analyze(
+    {
+      windows: [
+        {
+          timestamp: new Date(at0).toISOString(),
+          duration: 60,
+          data: { app: "chrome.exe", title: "Dashboard - Chrome" },
+        },
+      ],
+      afk: [{ ...ev(0, 60, ""), data: { status: "not-afk" } }],
+      browsers: [
+        {
+          family: "chrome",
+          events: [
+            {
+              timestamp: new Date(at0).toISOString(),
+              duration: 60,
+              data: { url: "https://example.com/work/task", title: "x" },
+            },
+          ],
+        },
+      ],
+    },
+    [
+      normalizeProject({
+        id: "t",
+        name: "T",
+        color: "#65d6b4",
+        keywords: ["dashboard"],
+      }),
+      normalizeProject({
+        id: "u",
+        name: "U",
+        color: "#8ca8ff",
+        urls: ["https://example.com/work"],
+      }),
+    ],
+    at0,
+    at0 + 60000,
+  );
+  assert.equal(mixed.conflict, 60);
+  for (const row of conflictActivities(mixed, ["t", "u"])) {
+    assert.equal(row.matches.get("t")?.length, 1);
+    assert.equal(row.matches.get("u")?.length, 1);
+    assert.equal([...row.matches.values()].filter((r) => r[0].via).length, 1);
+  }
 }

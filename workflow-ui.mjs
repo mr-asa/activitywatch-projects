@@ -242,16 +242,20 @@ export function setupWorkflow({
       card.append(
         node(
           "strong",
-          `${/^https?:/.test(row.label) ? readableUrl(row.label) : row.label} · ${row.app} · ${time(row.seconds)}`,
+          `${/^https?:/.test(row.label) ? readableUrl(row.label) : row.label} · ${row.app} · ${row.seconds < 1 ? "<1s" : time(row.seconds)}`,
         ),
       );
       const list = node("ul");
       for (const id of ids) {
         const item = node("li");
-        const reasons = (row.matches.get(id) || []).map((r) =>
-          r.rule
-            ? ruleText(r.rule)
-            : `manual assignment${r.assignment.note ? ` "${r.assignment.note}"` : ""}`,
+        const reasons = (row.matches.get(id) || []).map(
+          (r) =>
+            (r.rule
+              ? ruleText(r.rule)
+              : `manual assignment${r.assignment.note ? ` "${r.assignment.note}"` : ""}`) +
+            (r.via
+              ? ` (at the same time as ${/^https?:/.test(r.via.label) ? readableUrl(r.via.label) : r.via.label} · ${r.via.app})`
+              : ""),
         );
         item.append(
           node("span", `${name(id)} ← ${reasons.join("; ") || "—"} `),

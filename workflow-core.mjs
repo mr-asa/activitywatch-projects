@@ -119,27 +119,40 @@ export function conflictActivities(result, ids) {
       .map((s) => [s.start, s.end]),
   );
   const activities = new Map();
+  const entryKey = (e) => JSON.stringify([e.label, e.app || ""]);
   for (const e of result.evidence) {
     if (!ids.includes(e.project)) continue;
     const pieces = clipSorted(conflict, e.s, e.e);
     if (!pieces.length) continue;
-    const k = JSON.stringify([e.label, e.app || ""]);
-    if (!activities.has(k))
-      activities.set(k, {
+    if (!activities.has(entryKey(e)))
+      activities.set(entryKey(e), {
         label: e.label,
         app: e.app || "",
         ranges: [],
         matches: new Map(),
       });
-    const activity = activities.get(k);
-    activity.ranges.push(...pieces);
-    const reasons = activity.matches.get(e.project) || [];
-    const id = e.manual ? "manual:" + e.assignment.id : "rule:" + e.rule.id;
-    if (!reasons.some((r) => r.id === id))
-      reasons.push(
-        e.manual ? { id, assignment: e.assignment } : { id, rule: e.rule },
-      );
-    activity.matches.set(e.project, reasons);
+    activities.get(entryKey(e)).ranges.push(...pieces);
+  }
+  // A project can claim the same moment through other evidence (a page URL
+  // while another project's title rule matches the window): list every claim
+  // overlapping the activity, marking those seen as something else.
+  for (const [k, activity] of activities) {
+    activity.ranges = merge(activity.ranges);
+    for (const e of result.evidence) {
+      if (!ids.includes(e.project)) continue;
+      if (!clipSorted(activity.ranges, e.s, e.e).length) continue;
+      const reasons = activity.matches.get(e.project) || [];
+      const id = e.manual ? "manual:" + e.assignment.id : "rule:" + e.rule.id;
+      if (!reasons.some((r) => r.id === id))
+        reasons.push({
+          id,
+          ...(e.manual ? { assignment: e.assignment } : { rule: e.rule }),
+          ...(entryKey(e) === k
+            ? {}
+            : { via: { label: e.label, app: e.app || "" } }),
+        });
+      activity.matches.set(e.project, reasons);
+    }
   }
   return [...activities.values()]
     .map((a) => ({
