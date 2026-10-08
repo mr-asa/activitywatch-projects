@@ -355,7 +355,7 @@ export function analyze(data, projects, start, end, options = {}) {
   for (const project of projects) {
     for (const original of projectRules(project)) {
       const rule = boundedRule(original, project);
-      if (rule.type === "title")
+      if (rule.type === "title" || rule.type === "application")
         for (const group of titleGroups.values()) {
           if (!ruleMatches(rule, group.title, matchTitle, matchUrl, group.app))
             continue;

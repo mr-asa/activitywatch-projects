@@ -660,7 +660,7 @@ button.share-segment:hover {
   flex-wrap: wrap;
 }
 
-#rule-editor {
+.rule-editor {
   margin-top: 12px;
 }
 .rule-row {
@@ -742,17 +742,21 @@ button.share-segment:hover {
 #editor .project-meta label {
   margin-top: 0;
 }
-#editor #rule-editor {
+#editor .rule-editor,
+#activity-type-editor .rule-editor {
   margin-top: 18px;
 }
-#editor h3 {
+#editor h3,
+#activity-type-editor h3 {
   font-size: 16px;
   margin: 0;
 }
-#editor .section-heading {
+#editor .section-heading,
+#activity-type-editor .rule-editor .section-heading {
   margin-bottom: 10px;
 }
-#editor .section-heading .field-help {
+#editor .section-heading .field-help,
+#activity-type-editor .section-heading .field-help {
   margin: 4px 0 0;
 }
 .compact-rule {
@@ -1621,4 +1625,16 @@ header .tools {
   background: rgba(255, 255, 255, 0.08);
   border-radius: 4px;
   padding: 0 4px;
+}
+.assign-app-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.assign-app-row input {
+  flex: 1;
+  min-width: 0;
+}
+.assign-app-row button {
+  white-space: nowrap;
 }

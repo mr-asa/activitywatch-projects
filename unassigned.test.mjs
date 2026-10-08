@@ -2,11 +2,10 @@ import assert from "node:assert/strict";
 import { analyze } from "./projects-core.mjs";
 import { normalizeRule } from "./rule-engine.mjs";
 import {
-  addActivityMatcher,
-  activityRules,
+  legacyRules,
   normalizeActivityType,
-  parseCombinations,
-  formatCombinations,
+  addTypeRule,
+  upgradeConfigTypes,
 } from "./activity-core.mjs";
 import {
   subtract,
@@ -217,74 +216,123 @@ assert.deepEqual(
 );
 assert.equal(untypedSeconds([[10000, 50000]], typeResult), 10);
 assert.deepEqual(activityTypeBreakdown([[0, 1000]], null), []);
-const appType = {
+// Activity types hold the same rules as projects. Types saved with the old
+// application / title / URL / combination lists convert to rules.
+const legacy = {
   id: "chat",
   name: "Chat",
   color: "#112233",
-  applications: ["Telegram"],
-  titles: [],
-  urls: [],
-  mode: "text",
-};
-assert.deepEqual(
-  addActivityMatcher(appType, "application", "Discord.exe").applications,
-  ["Telegram", "Discord.exe"],
-);
-assert.deepEqual(addActivityMatcher(appType, "url", "https://t.me/").urls, [
-  "https://t.me/",
-]);
-// Additions that would change the app × title meaning become combinations.
-const withTitle = addActivityMatcher(appType, "title", "Chat");
-assert.deepEqual(withTitle.applications, ["Telegram"]);
-assert.deepEqual(withTitle.titles, []);
-assert.deepEqual(withTitle.combinations, [{ app: "", title: "Chat" }]);
-assert.deepEqual(
-  addActivityMatcher(
-    { ...appType, applications: [], titles: ["x"] },
-    "application",
-    "Code",
-  ).combinations,
-  [{ app: "Code", title: "" }],
-);
-const inApp = normalizeActivityType(
-  addActivityMatcher(appType, "app-title", "OpenCode", "Obsidian.exe"),
-);
-assert.deepEqual(inApp.combinations, [
-  { app: "Obsidian.exe", title: "OpenCode" },
-]);
-assert.deepEqual(
-  activityRules(inApp).map((r) => [r.appFilter, r.mode, r.pattern]),
-  [
-    ["Telegram", "regex", ".*"],
-    ["Obsidian.exe", "text", "OpenCode"],
-  ],
-);
-assert.throws(
-  () => addActivityMatcher(appType, "app-title", "OpenCode", ""),
-  /no application/,
-);
-assert.deepEqual(
-  parseCombinations("Obsidian | OpenCode\r\n | Jupyter\nFigma |"),
-  [
-    { app: "Obsidian", title: "OpenCode" },
+  applications: ["Telegram", "Discord.exe"],
+  titles: ["team"],
+  urls: ["https://t.me/"],
+  combinations: [
+    { app: "Obsidian.exe", title: "OpenCode" },
     { app: "", title: "Jupyter" },
     { app: "Figma", title: "" },
   ],
-);
-assert.equal(
-  formatCombinations(parseCombinations("Obsidian | OpenCode")),
-  "Obsidian | OpenCode",
-);
-assert.throws(() => parseCombinations("Obsidian OpenCode"), /App \| title/);
+  mode: "regex",
+};
+const flat = (rules) =>
+  rules.map((r) => [r.type, r.mode, r.appFilter, r.pattern]);
+assert.deepEqual(flat(legacyRules(legacy)), [
+  ["title", "regex", "Telegram", "team"],
+  ["title", "regex", "Discord.exe", "team"],
+  ["url", "text", "", "https://t.me/"],
+  ["title", "regex", "Obsidian.exe", "OpenCode"],
+  ["title", "regex", "", "Jupyter"],
+  ["application", "text", "", "Figma"],
+]);
+// Applications alone are application rules, not "any title" regexes.
 assert.deepEqual(
-  addActivityMatcher(
-    { ...appType, applications: [], titles: ["a"], mode: "regex" },
-    "title",
-    "Doc (1).txt",
-  ).titles,
-  ["a", String.raw`Doc \(1\)\.txt`],
+  flat(legacyRules({ applications: ["Telegram"], mode: "text" })),
+  [["application", "text", "", "Telegram"]],
 );
-assert.throws(() => addActivityMatcher(appType, "url", "  "), /Enter a value/);
+// Converting twice gives the same rule ids (cached results stay valid).
+assert.deepEqual(
+  legacyRules(legacy).map((r) => r.id),
+  legacyRules(legacy).map((r) => r.id),
+);
+const chat = normalizeActivityType(legacy);
+assert.deepEqual(Object.keys(chat), ["id", "name", "color", "rules"]);
+assert.deepEqual(normalizeActivityType(chat), chat);
+const config = { activityTypes: [legacy, chat] };
+assert.equal(upgradeConfigTypes(config).activityTypes[0].rules.length, 6);
+assert.equal(
+  upgradeConfigTypes({ activityTypes: [chat] }).activityTypes[0],
+  chat,
+);
+const modern = { activityTypes: [chat] };
+assert.equal(upgradeConfigTypes(modern), modern);
+assert.throws(
+  () => normalizeActivityType({ ...chat, rules: [] }),
+  /at least one rule/,
+);
+assert.throws(
+  () =>
+    normalizeActivityType({
+      ...chat,
+      rules: [{ type: "title", pattern: "[", mode: "regex" }],
+    }),
+  /Invalid regex/,
+);
+// Adding a rule joins the group with the same settings; known patterns are skipped.
+{
+  const base = normalizeActivityType({
+    id: "t",
+    name: "T",
+    color: "#112233",
+    rules: [{ id: "a", type: "application", pattern: "Telegram" }],
+  });
+  const more = addTypeRule(
+    base,
+    normalizeRule({ type: "application", pattern: "Discord.exe" }),
+  );
+  assert.deepEqual(
+    more.type.rules.map((r) => r.pattern),
+    ["Telegram", "Discord.exe"],
+  );
+  assert.equal(
+    addTypeRule(
+      more.type,
+      normalizeRule({ type: "application", pattern: "discord" }),
+    ).duplicate,
+    true,
+  );
+  assert.equal(
+    addTypeRule(
+      base,
+      normalizeRule({ type: "application", pattern: "Telegram" }),
+    ).duplicate,
+    true,
+  );
+}
+// An application rule matches every window of that application, by name.
+{
+  const data = {
+    windows: [
+      e(0, 10, { app: "Telegram.exe", title: "Chat A" }),
+      e(10, 10, { app: "telegram", title: "Chat B" }),
+      e(20, 10, { app: "Code.exe", title: "Telegram notes" }),
+    ],
+    afk: [e(0, 30, { status: "not-afk" })],
+    browsers: [],
+  };
+  const byApp = analyze(
+    data,
+    [
+      {
+        id: "p",
+        name: "P",
+        color: "#112233",
+        rules: [normalizeRule({ type: "application", pattern: "Telegram" })],
+      },
+    ],
+    0,
+    30000,
+  );
+  assert.equal(byApp.projects[0].total, 20);
+  assert.equal(byApp.unassigned, 10);
+}
 // URL levels: site, each folder, and the exact link with its query.
 {
   const { urlLevels, urlCoverage } = await import("./unassigned-core.mjs");
@@ -343,23 +391,17 @@ assert.throws(() => addActivityMatcher(appType, "url", "  "), /Enter a value/);
     })),
     browsers: [],
   };
-  const type = {
+  const type = normalizeActivityType({
     id: "llm",
     name: "LLM",
     color: "#8ca8ff",
-    applications: [],
-    titles: ["Qwen Chat"],
-    urls: [],
-    combinations: [],
-    mode: "text",
-  };
+    rules: [{ id: "q", type: "title", pattern: "Qwen Chat" }],
+  });
   const end = t0 + 240000;
   const inChrome = matcherPreview(
     data,
     type,
-    "app-title",
-    "Qwen",
-    "chrome.exe",
+    normalizeRule({ type: "title", pattern: "Qwen", appFilter: "chrome.exe" }),
     t0,
     end,
   );
@@ -372,10 +414,24 @@ assert.throws(() => addActivityMatcher(appType, "url", "  "), /Enter a value/);
       ["Qwen Studio - Browser", "chrome.exe", 60],
     ],
   );
-  const anywhere = matcherPreview(data, null, "title", "qwen", "", t0, end);
+  const anywhere = matcherPreview(
+    data,
+    null,
+    normalizeRule({ type: "title", pattern: "qwen" }),
+    t0,
+    end,
+  );
   assert.equal(anywhere.total, 240);
   assert.equal(anywhere.added, null);
-  assert.throws(() => matcherPreview(data, type, "title", "  ", "", t0, end));
+  const wholeApp = matcherPreview(
+    data,
+    type,
+    normalizeRule({ type: "application", pattern: "Telegram" }),
+    t0,
+    end,
+  );
+  assert.equal(wholeApp.total, 60);
+  assert.equal(wholeApp.added, 60);
 }
 
 // Rule preview: entries caught by a new rule, and how categories change.

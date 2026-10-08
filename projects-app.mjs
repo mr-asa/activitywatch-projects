@@ -6,6 +6,7 @@ import { setupWorkflow } from "./workflow-ui.mjs";
 import { reportBounds, revisionHistory } from "./workflow-core.mjs";
 import { projectRules, stable, localDate } from "./rule-engine.mjs";
 import { setupRuleEditor } from "./compact-rule-editor.mjs";
+import { upgradeConfigTypes } from "./activity-core.mjs";
 import { setupManual } from "./manual-ui.mjs";
 import { renderTimeCharts } from "./time-charts.mjs";
 import { setupUnassigned } from "./unassigned-ui.mjs";
@@ -173,12 +174,12 @@ async function load({ auto = false } = {}) {
     state.settings = settings;
     state.info = info;
     state.buckets = buckets;
-    if (!state.config) state.config = settings[KEY];
+    if (!state.config) state.config = upgradeConfigTypes(settings[KEY]);
     else if (
       settings[KEY]?.revision !== state.config.revision &&
       !document.querySelector("dialog[open]")
     ) {
-      state.config = settings[KEY];
+      state.config = upgradeConfigTypes(settings[KEY]);
     }
     if (!state.config)
       state.config = { version: 1, projects: [], manualAssignments: [] };
@@ -547,7 +548,7 @@ async function persist(
   const saved = await api("settings/" + KEY);
   if (stable(saved) !== stable(next))
     throw Error("Save could not be verified. Refresh before trying again.");
-  state.config = saved;
+  state.config = upgradeConfigTypes(saved);
 }
 async function saveProject(e) {
   e.preventDefault();

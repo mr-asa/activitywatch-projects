@@ -765,12 +765,19 @@ test("activity types remain independent and all projects stack without double co
     .getByRole("button", { name: "+ Add activity type", exact: true })
     .click();
   await page.locator("#activity-name").fill("Messaging");
-  await page.locator("#activity-apps").fill("Telegram");
+  // The type editor is the project rule editor: choose the Application field.
+  const typeRule = page.locator("#type-rule-rows .compact-rule");
+  await typeRule.locator('[data-key="type"]').selectOption("application");
+  await expect(typeRule.locator(".mode-label")).toBeHidden();
+  await typeRule.locator('[data-key="patterns"]').fill("Telegram");
   await page
     .getByRole("button", { name: "Save activity type", exact: true })
     .click();
   await expect(page.locator("#activity-type-editor")).not.toBeVisible();
   expect(settings.project_tracker.activityTypes).toHaveLength(1);
+  expect(settings.project_tracker.activityTypes[0].rules).toMatchObject([
+    { type: "application", pattern: "Telegram" },
+  ]);
   expect(settings.project_tracker.projects).toEqual(cfg.projects);
   await expect(page.locator("#activity-type-totals")).toContainText(
     "Messaging",
@@ -806,6 +813,7 @@ test("unassigned activity can be added to an existing or new activity type", asy
   page,
 }) => {
   const cfg = sample();
+  // Saved before types used rules: converted when the page loads.
   cfg.activityTypes = [
     {
       id: "chat",
@@ -830,35 +838,36 @@ test("unassigned activity can be added to an existing or new activity type", asy
   await row
     .getByRole("button", { name: "Add to activity type…", exact: true })
     .click();
-  // A title added to an application-wide type becomes a separate combination.
-  await expect(page.locator("#type-assign-kind")).toHaveValue("app-title");
-  await expect(page.locator("#type-assign-value")).toHaveValue(
-    "Personal browsing",
+  // The same dialog as for projects, opened on Activity type; it names the
+  // application as well as the title.
+  await expect(page.locator("#assign-source")).toContainText(
+    "Personal browsing · chrome.exe",
   );
-  await expect(page.locator("#type-assign-hint")).toContainText(
-    "separate combination",
-  );
-  // Live preview of what the matcher catches while typing.
-  const preview = page.locator("#type-assign-preview");
+  await expect(page.locator("#assign-target-kind")).toHaveValue("type");
+  await expect(page.locator("#assign-kind")).toHaveValue("keyword");
+  await expect(page.locator("#assign-app")).toHaveValue("chrome.exe");
+  await expect(page.locator("#assign-rule")).toHaveValue("Personal browsing");
+  // Live preview of what the rule catches while typing.
+  const preview = page.locator("#assign-preview");
   await expect(preview).toContainText(
-    "Matches 0h 1m 0s in the loaded period · adds 0h 1m 0s to Messaging",
+    "Matches 0h 1m 0s in the loaded period · Messaging: 0h 1m 0s → 0h 2m 0s",
   );
   await expect(preview).toContainText("Personal browsing · chrome.exe");
-  await page.locator("#type-assign-value").fill("Nothing like this");
+  await page.locator("#assign-rule").fill("Nothing like this");
   await expect(preview).toContainText("Matches nothing in the loaded period");
-  await page.locator("#type-assign-kind").selectOption("application");
-  await page.locator("#type-assign-value").fill("Telegram");
-  await expect(preview).toContainText("already counted in Messaging");
-  await page.locator("#type-assign-kind").selectOption("app-title");
-  await page.locator("#type-assign-value").fill("Personal");
-  await expect(preview).toContainText("adds 0h 1m 0s to Messaging");
-  await page.getByRole("button", { name: "Add to type", exact: true }).click();
-  await expect(page.locator("#type-assign-dialog")).not.toBeVisible();
+  await page.locator("#assign-kind").selectOption("application");
+  await page.locator("#assign-rule").fill("Telegram");
+  await expect(preview).toContainText("Messaging already has this pattern");
+  await page.locator("#assign-kind").selectOption("keyword");
+  await page.locator("#assign-rule").fill("Personal");
+  await expect(preview).toContainText("Messaging: 0h 1m 0s → 0h 2m 0s");
+  await page.getByRole("button", { name: "Add rule", exact: true }).click();
+  await expect(page.locator("#assign-dialog")).not.toBeVisible();
   const saved = settings.project_tracker.activityTypes[0];
-  expect(saved.applications).toEqual(["Telegram"]);
-  expect(saved.titles).toEqual([]);
-  expect(saved.combinations).toEqual([
-    { app: "chrome.exe", title: "Personal" },
+  expect(saved.applications).toBeUndefined();
+  expect(saved.rules).toMatchObject([
+    { type: "application", pattern: "Telegram" },
+    { type: "title", pattern: "Personal", appFilter: "chrome.exe" },
   ]);
   expect(settings.project_tracker.projects).toEqual(cfg.projects);
   await expect(row.locator(".activity-type-tag")).toHaveText("Messaging");
@@ -883,29 +892,89 @@ test("unassigned activity can be added to an existing or new activity type", asy
   await telegram
     .getByRole("button", { name: "Add to activity type…", exact: true })
     .click();
-  await page.locator("#type-assign-type").selectOption("__new__");
+  await page.locator("#assign-project").selectOption("__new__");
   await page
     .getByRole("button", { name: "Continue to new type", exact: true })
     .click();
   await expect(page.locator("#activity-type-editor")).toBeVisible();
-  await expect(page.locator("#activity-combinations")).toHaveValue(
-    "Telegram.exe | Shared task",
+  const group = page.locator("#type-rule-rows .compact-rule");
+  await expect(group.locator('[data-key="patterns"]')).toHaveValue(
+    "Shared task",
   );
-  await expect(page.locator("#activity-apps")).toHaveValue("");
+  await expect(group.locator('[data-key="appFilter"]')).toHaveValue(
+    "Telegram.exe",
+  );
   await page.locator("#activity-name").fill("Tasks");
   await page
     .getByRole("button", { name: "Save activity type", exact: true })
     .click();
   await expect
-    .poll(() => settings.project_tracker.activityTypes[1]?.combinations)
-    .toEqual([{ app: "Telegram.exe", title: "Shared task" }]);
-  // Editing a type keeps its combinations.
+    .poll(() => settings.project_tracker.activityTypes[1]?.rules)
+    .toMatchObject([
+      { type: "title", pattern: "Shared task", appFilter: "Telegram.exe" },
+    ]);
+  // Editing a type shows the same rule groups.
   await page
     .getByRole("button", { name: "Edit activity type Tasks", exact: true })
     .click();
-  await expect(page.locator("#activity-combinations")).toHaveValue(
-    "Telegram.exe | Shared task",
+  await expect(
+    page.locator('#type-rule-rows [data-key="patterns"]'),
+  ).toHaveValue("Shared task");
+  expect(errors).toEqual([]);
+});
+
+test("a whole application can be a project rule, from the list and from the editor", async ({
+  page,
+}) => {
+  const { settings, errors } = await setup(page);
+  await page
+    .getByRole("button", { name: "Show unassigned activities", exact: true })
+    .click();
+  const row = page
+    .locator(".unassigned-row")
+    .filter({ hasText: "Personal browsing" });
+  // Assigning only these minutes names the application too.
+  await row.getByRole("button", { name: "Assign time only" }).click();
+  await expect(page.locator("#manual-source")).toContainText(
+    "Personal browsing · chrome.exe",
   );
+  await page.locator("#cancel-manual").click();
+  await row
+    .getByRole("button", { name: "Add to project", exact: true })
+    .click();
+  await expect(page.locator("#assign-source")).toContainText(
+    "Personal browsing · chrome.exe",
+  );
+  await page.locator("#assign-kind").selectOption("application");
+  await expect(page.locator("#assign-rule")).toHaveValue("chrome.exe");
+  await expect(page.locator("#assign-app")).toBeHidden();
+  await expect(page.locator("#assign-preview")).toContainText(
+    "Demo: 0h 1m 0s → 0h 2m 0s",
+  );
+  await page.getByRole("button", { name: "Add rule", exact: true }).click();
+  await expect(page.locator("#assign-dialog")).not.toBeVisible();
+  expect(settings.project_tracker.projects[0].rules.at(-1)).toMatchObject({
+    type: "application",
+    pattern: "chrome.exe",
+  });
+  await expect(page.locator("#assigned")).toHaveText("0h 2m");
+  // The project editor offers the same field.
+  await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
+  await page.getByRole("button", { name: "+ Add rule group" }).click();
+  const card = page.locator("#rule-rows .compact-rule").last();
+  await card.locator('[data-key="type"]').selectOption("application");
+  await card.locator('[data-key="patterns"]').fill("Telegram");
+  await card.getByRole("button", { name: "Preview matches" }).click();
+  await expect(card.locator(".rule-preview")).toContainText(
+    "1 matching applications · 0h 1m 0s",
+  );
+  await page.getByRole("button", { name: "Save project", exact: true }).click();
+  await expect(page.locator("#editor")).not.toBeVisible();
+  expect(settings.project_tracker.projects[0].rules.at(-1)).toMatchObject({
+    type: "application",
+    pattern: "Telegram",
+  });
+  await expect(page.locator("#assigned")).toHaveText("0h 3m");
   expect(errors).toEqual([]);
 });
 

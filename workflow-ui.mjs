@@ -204,7 +204,13 @@ export function setupWorkflow({
     "conflict-dialog",
     "Matched by more than one project",
   );
+  const dates = (rule) =>
+    rule.from || rule.through
+      ? ` · ${rule.from || "…"} – ${rule.through || "…"}`
+      : "";
   const ruleText = (rule) => {
+    if (rule.type === "application")
+      return `application is "${rule.pattern}"${dates(rule)}`;
     const field =
       rule.type === "url"
         ? "page URL"
@@ -219,11 +225,7 @@ export function setupWorkflow({
           : "contains";
     const pattern =
       rule.type === "url" ? readableUrl(rule.pattern) : rule.pattern;
-    const dates =
-      rule.from || rule.through
-        ? ` · ${rule.from || "…"} – ${rule.through || "…"}`
-        : "";
-    return `${field} ${how} "${pattern}"${rule.appFilter ? ` in ${rule.appFilter}` : ""}${dates}`;
+    return `${field} ${how} "${pattern}"${rule.appFilter ? ` in ${rule.appFilter}` : ""}${dates(rule)}`;
   };
   function explainConflict(ids) {
     const name = (id) =>

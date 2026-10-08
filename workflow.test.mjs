@@ -361,18 +361,29 @@ assert.equal(
 assert.equal(
   analyzeActivityTypes(
     data,
-    [{ ...activity, applications: ["telegram"] }],
+    [
+      {
+        ...activity,
+        rules: [{ type: "title", pattern: "Demo", appFilter: "telegram" }],
+      },
+    ],
     t,
     t + 60000,
   ).assigned,
   0,
 );
-assert.throws(() =>
-  normalizeActivityType({ ...activity, mode: "regex", titles: ["["] }),
+// The old list shape converts to the same rules.
+assert.deepEqual(
+  activity.rules.map((r) => [r.type, r.appFilter, r.pattern]),
+  [["title", "maya", "Demo"]],
 );
 assert.throws(() =>
-  normalizeActivityType({ ...activity, applications: [], titles: [] }),
+  normalizeActivityType({
+    ...activity,
+    rules: [{ type: "title", mode: "regex", pattern: "[" }],
+  }),
 );
+assert.throws(() => normalizeActivityType({ ...activity, rules: [] }));
 assert.equal(
   validateConfig({ ...cfg, activityTypes: [activity] }).activityTypes[0].name,
   "Creation",

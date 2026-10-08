@@ -258,7 +258,14 @@ export function rulePreview(
   rule,
   start,
   end,
-  { previous = null, next = null, projectId = null, options = {} } = {},
+  {
+    previous = null,
+    next = null,
+    projectId = null,
+    options = {},
+    analyzer = (d, list, s, e) => analyze(d, list, s, e, options),
+    unassignedName = "Not assigned",
+  } = {},
 ) {
   const alone = analyze(
     data,
@@ -293,7 +300,7 @@ export function rulePreview(
     .sort((a, b) => b.seconds - a.seconds);
   let changes = null;
   if (previous && next) {
-    const after = analyze(data, next, start, end, options);
+    const after = analyzer(data, next, start, end);
     const list = after.projects.map((p) => ({
       id: p.id,
       name: p.name,
@@ -303,7 +310,7 @@ export function rulePreview(
     list.push(
       {
         id: "unassigned",
-        name: "Not assigned",
+        name: unassignedName,
         before: previous.unassigned,
         after: after.unassigned,
       },

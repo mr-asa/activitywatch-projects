@@ -9,7 +9,7 @@ import { projectRules } from "./rule-engine.mjs";
 const DB_NAME = "activitywatch-projects";
 const STORE = "workload-days";
 // Bump when daySummaries changes what it stores or how it counts.
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 
 let opening = null;
 function database() {

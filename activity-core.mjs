@@ -1,5 +1,10 @@
 import { analyze, merge, clipSorted, duration } from "./projects-core.mjs";
 import { normalizeRule } from "./rule-engine.mjs";
+import { addRule } from "./rule-groups.mjs";
+// An activity type is { id, name, color, rules[] }: the same rules as a
+// project (title, application, URL, editor path; text or regex; dates).
+// Types saved before that had applications / titles / urls / combinations /
+// mode lists; they are converted on load (see legacyRules).
 export function normalizeActivityType(raw, others = []) {
   const name = String(raw.name || "").trim();
   if (!name || name.length > 80)
@@ -18,6 +23,19 @@ export function normalizeActivityType(raw, others = []) {
     throw Error("Activity type name already exists.");
   if (!/^#[0-9a-f]{6}$/i.test(raw.color || ""))
     throw Error("Choose an activity color.");
+  if (raw.rules !== undefined && !Array.isArray(raw.rules))
+    throw Error("Activity type rules must be a list.");
+  const rules = (raw.rules ?? legacyRules(raw)).map((r) => normalizeRule(r));
+  if (!rules.length)
+    throw Error("Add at least one rule: an application, title or website.");
+  if (new Set(rules.map((r) => r.id)).size !== rules.length)
+    throw Error("Duplicate activity type rule ID.");
+  return { id: raw.id, name, color: raw.color, rules };
+}
+// Old lists as rules: applications × titles (both must match), standalone
+// URLs, and standalone { app, title } combinations. Ids are derived from the
+// position so the same old type always converts to the same rules.
+export function legacyRules(raw) {
   const list = (key) => {
     if (raw[key] !== undefined && !Array.isArray(raw[key]))
       throw Error("Activity matchers must be lists.");
@@ -25,127 +43,70 @@ export function normalizeActivityType(raw, others = []) {
       ...new Set((raw[key] || []).map((v) => String(v).trim()).filter(Boolean)),
     ];
   };
-  const type = {
-    id: raw.id,
-    name,
-    color: raw.color,
-    applications: list("applications"),
-    titles: list("titles"),
-    urls: list("urls"),
-    combinations: combinations(raw.combinations),
-    mode: raw.mode || "text",
-  };
-  if (!["text", "regex"].includes(type.mode))
+  const applications = list("applications"),
+    titles = list("titles"),
+    urls = list("urls");
+  const mode = raw.mode || "text";
+  if (!["text", "regex"].includes(mode))
     throw Error("Choose text or regex for titles.");
-  if (
-    !type.applications.length &&
-    !type.titles.length &&
-    !type.urls.length &&
-    !type.combinations.length
-  )
-    throw Error("Add at least an application, title, or website.");
-  activityRules(type);
-  return type;
-}
-// Combinations are standalone alternatives: an app with an optional title
-// fragment, or a title in any app. They never change the main lists.
-function combinations(raw = []) {
-  if (!Array.isArray(raw)) throw Error("Activity matchers must be lists.");
-  const seen = new Set();
-  return raw
-    .map((c) => ({
-      app: String(c?.app || "").trim(),
-      title: String(c?.title || "").trim(),
-    }))
-    .filter((c) => {
-      const key = JSON.stringify([c.app.toLowerCase(), c.title]);
-      if ((!c.app && !c.title) || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
-export function parseCombinations(text) {
-  return String(text || "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const at = line.indexOf("|");
-      if (at < 0)
-        throw Error(`Write combinations as "App | title fragment": ${line}`);
-      return {
-        app: line.slice(0, at).trim(),
-        title: line.slice(at + 1).trim(),
-      };
-    });
-}
-export const formatCombinations = (list = []) =>
-  list.map((c) => `${c.app} | ${c.title}`).join("\n");
-export function activityRules(type) {
+  if (raw.combinations !== undefined && !Array.isArray(raw.combinations))
+    throw Error("Activity matchers must be lists.");
   const rules = [];
-  const apps = type.applications.length ? type.applications : [""];
-  for (const app of apps) {
-    const titles = type.titles.length ? type.titles : app ? [".*"] : [];
-    for (const pattern of titles)
-      rules.push(
-        normalizeRule({
-          id: `title-${rules.length}`,
-          type: "title",
-          mode: type.titles.length ? type.mode : "regex",
-          pattern,
-          appFilter: app,
-          ignoreCase: true,
-        }),
-      );
-  }
-  for (const { app, title } of type.combinations || [])
+  const push = (rule) =>
     rules.push(
       normalizeRule({
-        id: `title-${rules.length}`,
-        type: "title",
-        mode: title ? type.mode : "regex",
-        pattern: title || ".*",
-        appFilter: app,
+        id: `m${rules.length}`,
         ignoreCase: true,
+        ...rule,
       }),
     );
-  for (const pattern of type.urls)
-    rules.push(
-      normalizeRule({
-        id: `url-${rules.length}`,
-        type: "url",
-        mode: "text",
-        pattern,
-      }),
-    );
+  if (titles.length)
+    for (const app of applications.length ? applications : [""])
+      for (const pattern of titles)
+        push({ type: "title", mode, pattern, appFilter: app });
+  else
+    for (const app of applications) push({ type: "application", pattern: app });
+  for (const pattern of urls) push({ type: "url", mode: "text", pattern });
+  const seen = new Set();
+  for (const c of raw.combinations || []) {
+    const app = String(c?.app || "").trim(),
+      title = String(c?.title || "").trim();
+    const key = JSON.stringify([app.toLowerCase(), title]);
+    if ((!app && !title) || seen.has(key)) continue;
+    seen.add(key);
+    if (title) push({ type: "title", mode, pattern: title, appFilter: app });
+    else push({ type: "application", pattern: app });
+  }
   return rules;
 }
-// Kinds: "url", "application", "title" (any app), "app-title" (title in
-// the given app). When the main app × title lists would change meaning, the
-// addition becomes a standalone combination instead.
-export function addActivityMatcher(type, kind, value, app = "") {
-  value = String(value || "").trim();
-  app = String(app || "").trim();
-  if (!value) throw Error("Enter a value to match.");
-  if (kind === "url") return { ...type, urls: [...type.urls, value] };
-  const combos = type.combinations || [];
-  const escaped =
-    type.mode === "regex"
-      ? value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
-      : value;
-  if (kind === "application")
-    return type.titles.length
-      ? { ...type, combinations: [...combos, { app: value, title: "" }] }
-      : { ...type, applications: [...type.applications, value] };
-  if (kind === "title")
-    return type.applications.length
-      ? { ...type, combinations: [...combos, { app: "", title: escaped }] }
-      : { ...type, titles: [...type.titles, escaped] };
-  if (kind === "app-title") {
-    if (!app) throw Error("This activity has no application to combine with.");
-    return { ...type, combinations: [...combos, { app, title: escaped }] };
-  }
-  throw Error("Choose what to match.");
+// The rules the engine runs for a type, whichever shape it was saved in.
+export const typeRules = (type) => type.rules ?? legacyRules(type);
+// A type in the current shape, without the name / duplicate checks.
+export function upgradeActivityType(type) {
+  return type.rules
+    ? type
+    : {
+        id: type.id,
+        name: type.name,
+        color: type.color,
+        rules: legacyRules(type),
+      };
+}
+// The config with every activity type in the current shape (the same object
+// when nothing needs converting, so cached results stay valid).
+export function upgradeConfigTypes(config) {
+  const types = config?.activityTypes;
+  if (!types?.some((t) => !t.rules)) return config;
+  return { ...config, activityTypes: types.map(upgradeActivityType) };
+}
+// A rule stored as a new matcher of the type: joins the group with the same
+// settings, and is skipped when the type already has that pattern.
+export function addTypeRule(type, rule) {
+  const added = addRule(typeRules(type), rule);
+  return {
+    type: { ...upgradeActivityType(type), rules: added.rules },
+    ...added,
+  };
 }
 // Types are labels, not a partition: an activity may carry several. Time
 // matched by more than one type counts fully in each of them (there is no
@@ -157,7 +118,7 @@ export function analyzeActivityTypes(data, types, start, end) {
       id: t.id,
       name: t.name,
       color: t.color,
-      rules: activityRules(t),
+      rules: typeRules(t),
     })),
     start,
     end,
@@ -195,22 +156,12 @@ export function analyzeActivityTypes(data, types, start, end) {
     nonProject: 0,
   };
 }
-// What a matcher would catch in [start, end): its own active time, the time
-// it adds to `type` (null for a new type), and the matching titles or links.
-export function matcherPreview(data, type, kind, value, app, start, end) {
-  const empty = {
-    id: "preview",
-    name: "Preview",
-    color: "#000000",
-    applications: [],
-    titles: [],
-    urls: [],
-    combinations: [],
-    mode: type?.mode || "text",
-  };
+// What a rule would catch in [start, end): its own active time, the time it
+// adds to `type` (null for a new type), and the matching titles or links.
+export function matcherPreview(data, type, rule, start, end) {
   const alone = analyzeActivityTypes(
     data,
-    [addActivityMatcher(empty, kind, value, app)],
+    [{ id: "preview", name: "Preview", color: "#000000", rules: [rule] }],
     start,
     end,
   );
@@ -230,9 +181,7 @@ export function matcherPreview(data, type, kind, value, app, start, end) {
     analyzeActivityTypes(data, types, start, end).projects[0].total;
   return {
     total: alone.projects[0].total,
-    added: type
-      ? total([addActivityMatcher(type, kind, value, app)]) - total([type])
-      : null,
+    added: type ? total([addTypeRule(type, rule).type]) - total([type]) : null,
     matches,
   };
 }

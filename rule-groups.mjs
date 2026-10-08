@@ -43,9 +43,11 @@ export function addRule(rules, rule) {
   if (last < 0)
     return { rules: [...rules, rule], merged: false, duplicate: false };
   const same = (a, b) =>
-    rule.mode === "text" && rule.ignoreCase !== false
-      ? a.toLocaleLowerCase() === b.toLocaleLowerCase()
-      : a === b;
+    rule.type === "application"
+      ? applicationKey(a) === applicationKey(b)
+      : rule.mode === "text" && rule.ignoreCase !== false
+        ? a.toLocaleLowerCase() === b.toLocaleLowerCase()
+        : a === b;
   if (rules.some((r) => groupKey(r) === key && same(r.pattern, rule.pattern)))
     return { rules, merged: true, duplicate: true };
   const next = [...rules];

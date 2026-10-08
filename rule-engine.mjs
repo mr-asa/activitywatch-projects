@@ -34,13 +34,25 @@ export function normalizeRule(input) {
     appFilter: input.type === "url" ? "" : String(input.appFilter || "").trim(),
   };
   if (
-    !["title", "url", "editor-project", "editor-file"].includes(r.type) ||
+    !["title", "application", "url", "editor-project", "editor-file"].includes(
+      r.type,
+    ) ||
     !["text", "regex"].includes(r.mode)
   )
     throw Error("Choose a supported rule type and matching mode.");
+  // An application rule names the application; there is nothing to pattern-match.
+  if (r.type === "application") {
+    r.mode = "text";
+    r.appFilter = "";
+  }
   if (r.type.startsWith("editor-") && r.mode === "text")
     r.pattern = r.pattern.replaceAll("\\", "/");
-  if (!r.pattern) throw Error("Enter a title or URL pattern.");
+  if (!r.pattern)
+    throw Error(
+      r.type === "application"
+        ? "Enter an application name."
+        : "Enter a title or URL pattern.",
+    );
   for (const d of [r.from, r.through])
     if (
       d &&
@@ -207,6 +219,7 @@ function compiled(pattern, flags) {
   return regexCache.get(key);
 }
 export function ruleMatches(rule, value, matchTitle, matchUrl, app = "") {
+  if (rule.type === "application") return applicationMatches(rule.pattern, app);
   if (rule.type !== "url" && !applicationMatches(rule.appFilter, app))
     return false;
   if (rule.mode === "regex") {

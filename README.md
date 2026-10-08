@@ -33,6 +33,7 @@ Each project has its own card: color, total time, and a split between apps and b
 Sorting rules can be set up in several ways:
 
 - by a word in the **window title**: `Blender` or `Quarterly report`;
+- by a **whole application**: everything done in Figma or Telegram, whatever the window says;
 - by a **website address**: a specific board, repository or document;
 - by a **file or folder** in VS Code or Obsidian (if their watchers are installed).
 
@@ -53,7 +54,7 @@ Each row shows which activity types it already belongs to, so it's clear at once
 ![Not assigned activities with activity type tags](docs/images/not-assigned.png)
 
 ### Activity types: *what* you did, not just *for whom*
-Projects answer "who was this for?". Activity types answer "what was I doing?": messaging, video, design, coding, whatever you choose. They're counted independently, so the same hour can be both *Client A* and *Messaging* without making your day any longer.
+Projects answer "who was this for?". Activity types answer "what was I doing?": messaging, video, design, coding, whatever you choose. They're counted independently, so the same hour can be both *Client A* and *Messaging* without making your day any longer. A type is described with the same rules as a project: a whole application, a window title, a website, regular expressions, dates.
 
 ### Daily workload
 Hours per day for a week, a month or any period: for one project or all of them at once, with a daily target, a 7-day trend and the share of non-project time. Long periods fit the screen as weekly or monthly averages, and days you have already looked at open instantly: the browser remembers finished days until you change your rules. The days the report above shows are highlighted; click a day, or drag across several, to open them in the report.

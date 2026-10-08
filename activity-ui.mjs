@@ -1,11 +1,9 @@
 import { openModal } from "./dialogs.mjs";
-import { regexHelp } from "./regex-help.mjs";
+import { createRuleEditor } from "./compact-rule-editor.mjs";
 import {
   normalizeActivityType,
   analyzeActivityTypes,
   scopedActivityTypes,
-  parseCombinations,
-  formatCombinations,
 } from "./activity-core.mjs";
 import { restoredOption, setPref } from "./ui-prefs.mjs";
 export function setupActivities({
@@ -28,10 +26,26 @@ export function setupActivities({
   dialog.id = "activity-type-editor";
   dialog.className = "workflow-dialog";
   dialog.innerHTML =
-    '<form id="activity-type-form"><div class="dialog-heading"><h2>Activity type</h2><button type="button" id="activity-close">Close</button></div><label>Name<input id="activity-name" maxlength="80" required></label><label>Color<input id="activity-color" type="color" value="#8ca8ff"></label><div class="activity-rule-fields"><label>Applications · one per line<textarea id="activity-apps" rows="3" placeholder="Telegram&#10;Discord"></textarea></label><label>Title patterns · one per line<textarea id="activity-titles" rows="3" placeholder="Optional title fragments"></textarea></label><label>Title matching<select id="activity-mode"><option value="text">Plain text</option><option value="regex">Regex</option></select></label><label>Website URLs · one per line<textarea id="activity-urls" rows="3" placeholder="https://www.youtube.com/"></textarea></label><label class="activity-combinations">App + title combinations · one per line<textarea id="activity-combinations" rows="3" placeholder="Obsidian.exe | OpenCode&#10; | Jupyter&#10;Figma |"></textarea></label></div><p class="field-help">Applications alone match any title in those apps. When titles are entered, both app and title must match; blank apps means any app. Website rules are alternatives and need browser tracking. Combinations are separate alternatives written as App | title fragment: leave the app blank for any app, or the title blank for the whole app. These rules apply to recorded history and never assign a project.</p><p id="activity-type-error" role="alert" class="error"></p><div class="dialog-actions"><button id="activity-delete" class="danger" type="button">Delete type</button><span class="spacer"></span><button id="activity-save" class="primary" type="submit">Save activity type</button></div></form>';
+    '<form id="activity-type-form"><div class="dialog-heading"><h2>Activity type</h2><button type="button" id="activity-close">Close</button></div><label>Name<input id="activity-name" maxlength="80" required></label><label>Color<input id="activity-color" type="color" value="#8ca8ff"></label><p id="activity-type-error" role="alert" class="error"></p><div class="dialog-actions"><button id="activity-delete" class="danger" type="button">Delete type</button><span class="spacer"></span><button id="activity-save" class="primary" type="submit">Save activity type</button></div></form>';
   document.body.append(dialog);
-  const titleHelp = regexHelp();
-  dialog.querySelector(".activity-rule-fields").after(titleHelp);
+  // The same rule editor as projects: any field, text or regex, dates.
+  const ruleEditor = createRuleEditor({
+    state,
+    ids: {
+      section: "type-rule-editor",
+      rows: "type-rule-rows",
+      add: "type-add-rule",
+    },
+    title: "Rules",
+  });
+  ruleEditor.element.insertAdjacentHTML(
+    "beforeend",
+    '<p class="field-help">A type is a label: a moment may carry several types, and the time counts in each. Types never assign a project. Rules apply to recorded history too; website rules need browser tracking.</p>',
+  );
+  $("activity-type-error").before(ruleEditor.element);
+  ruleEditor.element.addEventListener("input", () => {
+    $("activity-type-error").textContent = "";
+  });
   const node = (tag, text) => {
     const n = document.createElement(tag);
     if (text !== undefined) n.textContent = text;
@@ -39,19 +53,13 @@ export function setupActivities({
   };
   const time = (s) =>
     `${(s / 3600).toLocaleString(undefined, { maximumFractionDigits: 2 })} h`;
+  // `type` is an existing type, or a seed (no id) with prefilled rules.
   function open(type = null) {
     editing = type?.id || null;
     $("activity-name").value = type?.name || "";
     $("activity-color").value = type?.color || "#8ca8ff";
-    for (const [id, key] of [
-      ["activity-apps", "applications"],
-      ["activity-titles", "titles"],
-      ["activity-urls", "urls"],
-    ])
-      $(id).value = (type?.[key] || []).join("\n");
-    $("activity-combinations").value = formatCombinations(type?.combinations);
-    $("activity-mode").value = type?.mode || "text";
-    titleHelp.hidden = $("activity-mode").value !== "regex";
+    ruleEditor.load(type?.rules || []);
+    if (!type?.rules?.length) ruleEditor.add();
     $("activity-type-error").textContent = "";
     $("activity-delete").hidden = !editing;
     $("activity-delete").textContent = "Delete type";
@@ -85,21 +93,12 @@ export function setupActivities({
     if (state.saving) return;
     try {
       const types = state.config.activityTypes || [];
-      const lines = (id) =>
-        $(id)
-          .value.split(/\r?\n/)
-          .map((s) => s.trim())
-          .filter(Boolean);
       const type = normalizeActivityType(
         {
           id: editing || crypto.randomUUID(),
           name: $("activity-name").value,
           color: $("activity-color").value,
-          applications: lines("activity-apps"),
-          titles: lines("activity-titles"),
-          urls: lines("activity-urls"),
-          combinations: parseCombinations($("activity-combinations").value),
-          mode: $("activity-mode").value,
+          rules: ruleEditor.read(),
         },
         types,
       );
@@ -125,9 +124,6 @@ export function setupActivities({
   dialog.addEventListener("cancel", (e) => {
     if (state.saving) e.preventDefault();
   });
-  $("activity-mode").onchange = () => {
-    titleHelp.hidden = $("activity-mode").value !== "regex";
-  };
   $("add-activity-type").onclick = () => open();
   $("activity-scope").onchange = () => {
     setPref("activityScope", $("activity-scope").value);
@@ -167,7 +163,7 @@ export function setupActivities({
     }
     $("activity-untyped").textContent = summary.types.length
       ? `No activity type: ${time(summary.untyped)} · Total in scope: ${time(summary.total)}`
-      : "No activity types yet. Use a starter above or create your own. They do not replace projects or non-project categories.";
+      : "No activity types yet. Create one with + Add activity type, or from an activity in the Not assigned list. Types do not replace projects or non-project categories.";
     resizeFrame();
   }
   function typeResult() {
