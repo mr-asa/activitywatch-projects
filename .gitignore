@@ -1,57 +1,20 @@
-# Track only the reusable dashboard and synthetic tests.
-# Local settings, screenshots, old migrations and backups stay local.
-/*
-!/index.html
-!/projects.html
-!/projects.css
-!/projects-app.mjs
-!/projects-core.mjs
-!/compact-rule-editor.mjs
-!/rule-engine.mjs
-!/rule-groups.mjs
-!/manual-ui.mjs
-!/time-charts.mjs
-!/unassigned-core.mjs
-!/unassigned-ui.mjs
-!/projects.test.mjs
-!/display-fixes.test.mjs
-!/unassigned.test.mjs
-!/advanced-rules.test.mjs
-!/compact-rules.test.mjs
-!/README.md
-!/README.ru.md
-!/AGENTS.md
-!/CLAUDE.md
-!/package.json
-!/.gitignore
-!/.gitattributes
-!/.github/
-!/.github/workflows/
-!/.github/workflows/tests.yml
-!/deploy.ps1
+# Dependencies, test output and local tooling.
+node_modules/
+test-results/
+playwright-report/
+.dirac-cache/
+.kilo/
+.live-activity-check.mjs
 
-!/workflow-core.mjs
-!/workflow-ui.mjs
-!/workflow.test.mjs
-!/export-core.mjs
-!/export-ui.mjs
-!/export.test.mjs
-!/package-lock.json
-!/playwright.config.mjs
-!/tests/
-!/tests/**
-!/docs/
-!/docs/**
-!/.prettierrc.json
-
-!/workload-core.mjs
-!/workload-ui.mjs
-
-!/activity-core.mjs
-!/activity-ui.mjs
-!/ui-prefs.mjs
-!/dialogs.mjs
-!/regex-help.mjs
-!/day-cache.mjs
-!/scripts/
-!/scripts/**
+# Real data never belongs in the repository: exported settings, backups,
+# activity exports and local copies. Demo screenshots live in docs/images.
+*.local.*
+*.bak
+*.log
+backups/
+deployment-backups/
+deployment.json
+settings*.json
+project_tracker*.json
+*.csv
+*.tsv
