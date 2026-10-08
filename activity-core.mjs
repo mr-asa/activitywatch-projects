@@ -147,8 +147,11 @@ export function addActivityMatcher(type, kind, value, app = "") {
   }
   throw Error("Choose what to match.");
 }
+// Types are labels, not a partition: an activity may carry several. Time
+// matched by more than one type counts fully in each of them (there is no
+// "needs review" for types); only time matched by none is "unassigned".
 export function analyzeActivityTypes(data, types, start, end) {
-  return analyze(
+  const result = analyze(
     data,
     types.map((t) => ({
       id: t.id,
@@ -159,6 +162,38 @@ export function analyzeActivityTypes(data, types, start, end) {
     start,
     end,
   );
+  const byId = new Map(result.projects.map((t) => [t.id, t]));
+  const segments = [],
+    last = new Map();
+  for (const s of result.segments) {
+    const ids = s.project === "conflict" ? s.ids : [s.project];
+    for (const id of ids) {
+      const prev = last.get(id);
+      if (prev && prev.end === s.start && prev.kind === s.kind) {
+        prev.end = s.end;
+        continue;
+      }
+      const piece = { ...s, project: id, ids: [id] };
+      last.set(id, piece);
+      segments.push(piece);
+    }
+  }
+  for (const t of result.projects) t.total = t.browser = t.desktop = 0;
+  for (const s of segments) {
+    const t = byId.get(s.project);
+    if (!t) continue;
+    const seconds = (s.end - s.start) / 1000;
+    t.total += seconds;
+    t[s.kind] += seconds;
+  }
+  const typed = result.projects.reduce((n, t) => n + t.total, 0);
+  return {
+    ...result,
+    segments,
+    conflict: 0,
+    assigned: typed,
+    nonProject: 0,
+  };
 }
 // What a matcher would catch in [start, end): its own active time, the time
 // it adds to `type` (null for a new type), and the matching titles or links.
@@ -208,22 +243,19 @@ export function scopedActivityTypes(projectResult, typeResult, scope = null) {
       .map((s) => [s.start, s.end]),
   );
   const totals = new Map(typeResult.projects.map((t) => [t.id, 0]));
-  let untyped = 0,
-    conflict = 0;
+  let untyped = 0;
   for (const s of typeResult.segments) {
     const seconds = clipSorted(ranges, s.start, s.end).reduce(
       (n, [a, b]) => n + (b - a) / 1000,
       0,
     );
     if (s.project === "unassigned") untyped += seconds;
-    else if (s.project === "conflict") conflict += seconds;
     else totals.set(s.project, totals.get(s.project) + seconds);
   }
   return {
     total: duration(ranges),
     types: typeResult.projects.map((t) => ({ ...t, total: totals.get(t.id) })),
     untyped,
-    conflict,
   };
 }
 export function activitySegments(

@@ -153,13 +153,6 @@ export function exportCategories(config) {
       kind: "activity type",
     })),
     {
-      key: "t:conflict",
-      id: "conflict",
-      name: "Type needs review",
-      source: "t",
-      kind: "conflict",
-    },
-    {
       key: "t:unassigned",
       id: "unassigned",
       name: "No activity type",

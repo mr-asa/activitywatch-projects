@@ -566,13 +566,6 @@ label {
   padding: 1px 8px;
   font-size: 12px;
 }
-.activity-type-tag.review .chip {
-  background: repeating-linear-gradient(
-    45deg,
-    #d9a441 0 2px,
-    transparent 2px 4px
-  );
-}
 .activity-type-tag.untyped {
   border-style: dashed;
   color: var(--muted);

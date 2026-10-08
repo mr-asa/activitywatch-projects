@@ -12,6 +12,7 @@ import {
   unassignedActivities,
   suggestedRule,
   activityTypeBreakdown,
+  untypedSeconds,
 } from "./unassigned-core.mjs";
 const e = (s, d, data) => ({
   timestamp: new Date(s * 1000).toISOString(),
@@ -210,11 +211,9 @@ assert.deepEqual(
     t.id,
     t.seconds,
   ]),
-  [
-    ["chat", 20],
-    ["conflict", 10],
-  ],
+  [["chat", 20]],
 );
+assert.equal(untypedSeconds([[10000, 50000]], typeResult), 10);
 assert.deepEqual(activityTypeBreakdown([[0, 1000]], null), []);
 const appType = {
   id: "chat",

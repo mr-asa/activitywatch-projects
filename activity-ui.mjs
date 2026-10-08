@@ -18,7 +18,7 @@ export function setupActivities({
   panel.id = "activity-types-panel";
   panel.className = "timeline-panel";
   panel.innerHTML =
-    '<div class="section-heading"><div><h2>Activity types</h2><p class="muted">What you did, independently of which project it belonged to.</p></div><button type="button" id="add-activity-type">+ Add activity type</button></div><div class="workload-controls"><label>Show activity within<select id="activity-scope" aria-label="Activity project scope"></select></label></div><details class="panel-help"><summary>How activity types work</summary><p class="field-help">The same minute can belong to a project and an activity type. These are separate views, not time to add together. Overlapping activity rules appear as Type needs review and do not affect project attribution.</p></details><div id="activity-type-totals"></div><p id="activity-untyped" class="muted"></p>';
+    '<div class="section-heading"><div><h2>Activity types</h2><p class="muted">What you did, independently of which project it belonged to.</p></div><button type="button" id="add-activity-type">+ Add activity type</button></div><div class="workload-controls"><label>Show activity within<select id="activity-scope" aria-label="Activity project scope"></select></label></div><details class="panel-help"><summary>How activity types work</summary><p class="field-help">The same minute can belong to a project and an activity type. These are separate views, not time to add together. An activity may carry several types; its time counts in each of them. Types do not affect project attribution.</p></details><div id="activity-type-totals"></div><p id="activity-untyped" class="muted"></p>';
   document.getElementById("projects").after(panel);
   const $ = (id) => document.getElementById(id);
   let editing = null,
@@ -159,7 +159,7 @@ export function setupActivities({
       $("activity-type-totals").append(row);
     }
     $("activity-untyped").textContent = summary.types.length
-      ? `No activity type: ${time(summary.untyped)} · Type needs review: ${time(summary.conflict)} · Total in scope: ${time(summary.total)}`
+      ? `No activity type: ${time(summary.untyped)} · Total in scope: ${time(summary.total)}`
       : "No activity types yet. Use a starter above or create your own. They do not replace projects or non-project categories.";
     resizeFrame();
   }

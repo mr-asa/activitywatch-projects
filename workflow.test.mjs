@@ -351,7 +351,14 @@ const typeConflict = analyzeActivityTypes(
   t,
   t + 60000,
 );
-assert.equal(scopedActivityTypes(projectResult, typeConflict).conflict, 60);
+// Types are labels: overlapping types each count the full time.
+const overlapping = scopedActivityTypes(projectResult, typeConflict);
+assert.equal(overlapping.conflict, undefined);
+assert.deepEqual(
+  overlapping.types.map((x) => x.total),
+  [60, 60],
+);
+assert.equal(overlapping.untyped, 0);
 assert.equal(projectResult.conflict, 0);
 assert.equal(
   scopedActivityTypes(projectResult, typeResult, "unassigned").total,

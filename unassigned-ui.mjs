@@ -10,6 +10,7 @@ import {
   unassignedActivities,
   suggestedRule,
   activityTypeBreakdown,
+  untypedSeconds,
   urlLevels,
   urlCoverage,
 } from "./unassigned-core.mjs";
@@ -163,7 +164,7 @@ export function setupUnassigned({
         .toLocaleLowerCase()
         .includes(term),
     );
-    // Rows carrying any activity type tag (including Type needs review).
+    // Rows carrying any activity type tag.
     const filtered = hideTyped
       ? matching.filter((r) => !rowTypes(r, typeResult).length)
       : matching;
@@ -192,29 +193,19 @@ export function setupUnassigned({
       if (hasTypes) {
         const types = node("div", "activity-type-tags");
         const found = rowTypes(row, typeResult);
-        let typed = 0;
         for (const t of found) {
-          typed += t.seconds;
           const tag = node("span", "activity-type-tag");
           const chip = node("span", "chip");
           if (t.color) chip.style.background = t.color;
-          else tag.classList.add("review");
           const share = Math.round((t.seconds / row.seconds) * 100);
           tag.append(
             chip,
             t.name +
               (share >= 100 ? "" : share < 1 ? " · <1%" : ` · ${share}%`),
           );
-          if (t.claimedBy?.length) {
-            tag.append(` — ${t.claimedBy.join(" / ")}`);
-            tag.title =
-              `Several activity types match this time: ${t.claimedBy.join(", ")}. ` +
-              "Time claimed by more than one type is not counted in any of them. " +
-              "Narrow the matchers of these types so only one matches.";
-          }
           types.append(tag);
         }
-        if (row.seconds - typed > 1)
+        if (untypedSeconds(row.ranges, typeResult) > 1)
           types.append(
             node(
               "span",

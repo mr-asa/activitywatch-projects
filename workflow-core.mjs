@@ -141,11 +141,6 @@ export function compareConfigs(
         after: b?.total || 0,
       });
     }
-    activityChanges.push({
-      name: "Type needs review",
-      before: oldTypes.conflict,
-      after: newTypes.conflict,
-    });
   }
   return { previous, next, changes, activityChanges };
 }
