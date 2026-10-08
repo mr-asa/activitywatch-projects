@@ -416,7 +416,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
         shape("path", {
           d: `M ${x(indexes[0])} ${y(0)} L ${points} L ${x(indexes.at(-1))} ${y(0)} Z`,
           fill: project.color,
-          opacity: 0.09,
+          opacity: 0.22,
         });
       }
     }
@@ -457,9 +457,10 @@ export function setupWorkload({ state, api, resizeFrame }) {
         });
     }
     if (totalLine) line("tracked", "#cfd8e3", 1.5, "2 4");
-    if (all) line("work", "#8495ad", 1.5);
     if (trend) line("trend", "#d6e2ee", 1.7, "5 5");
     line("seconds", project.color, 3);
+    // Thin and on top: where it equals the project, it rides on its edge.
+    if (all) line("work", "#d6e2ee", 1.2);
     for (const activity of activities) {
       line(activity.field, activity.color, 2, "7 4");
       days.forEach((d, i) => {
@@ -519,7 +520,14 @@ export function setupWorkload({ state, api, resizeFrame }) {
       if (!d.tracked) metric("No recorded active time — workload unknown.");
       if (totalLine)
         metric(`All active time: ${value(d.tracked)}`, "#cfd8e3", "dotted");
-      metric(`${project.name}: ${value(d.seconds)}`, project.color);
+      const base = project.kind === "non-project" ? d.tracked : d.work;
+      metric(
+        `${project.name}: ${value(d.seconds)}` +
+          (!aggregate && d.tracked && base
+            ? ` · ${Math.round((d.seconds / base) * 100)}% of ${project.kind === "non-project" ? "all active time" : "all project work"} (${hours(base)})`
+            : ""),
+        project.color,
+      );
       if (aggregate)
         for (const p of view.stack)
           metric(`${p.name}: ${value(p.days[i].seconds)}`, p.color);
@@ -535,7 +543,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
           "#d6e2ee",
           "dashed",
         );
-      if (all) metric(`All project work: ${value(d.work)}`, "#8495ad");
+      if (all) metric(`All project work: ${value(d.work)}`, "#d6e2ee");
       if (nonProject)
         metric(
           `Non-project · right axis: ${d.tracked ? percent(d.nonProjectPercent) : "—"}`,
