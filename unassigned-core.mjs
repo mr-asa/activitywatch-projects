@@ -183,9 +183,29 @@ export function activityTypeBreakdown(ranges, typeResult) {
       name: "Type needs review",
       color: "",
       seconds: seconds("conflict"),
+      claimedBy: conflictingTypes(ranges, typeResult),
     },
     // Adjacent events can overlap by fractions of a second; not a real match.
   ].filter((t) => t.seconds >= 1);
+}
+// Names of the activity types that claim the same time within the ranges
+// (the reason behind "Type needs review"), largest overlap first.
+function conflictingTypes(ranges, typeResult) {
+  const names = new Map(typeResult.projects.map((t) => [t.id, t.name]));
+  const own = new Map();
+  for (const s of typeResult.segments) {
+    if (s.project !== "conflict") continue;
+    const seconds = ranges.reduce(
+      (n, [start, end]) =>
+        n + Math.max(0, Math.min(end, s.end) - Math.max(start, s.start)) / 1000,
+      0,
+    );
+    if (seconds <= 0) continue;
+    for (const id of s.ids || []) own.set(id, (own.get(id) || 0) + seconds);
+  }
+  return [...own]
+    .sort((a, b) => b[1] - a[1])
+    .map(([id]) => names.get(id) || id);
 }
 export function suggestedRule(row) {
   let usable = false,

@@ -205,6 +205,13 @@ export function setupUnassigned({
             t.name +
               (share >= 100 ? "" : share < 1 ? " · <1%" : ` · ${share}%`),
           );
+          if (t.claimedBy?.length) {
+            tag.append(` — ${t.claimedBy.join(" / ")}`);
+            tag.title =
+              `Several activity types match this time: ${t.claimedBy.join(", ")}. ` +
+              "Time claimed by more than one type is not counted in any of them. " +
+              "Narrow the matchers of these types so only one matches.";
+          }
           types.append(tag);
         }
         if (row.seconds - typed > 1)
