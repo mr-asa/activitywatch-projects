@@ -6,6 +6,7 @@ import {
   projectDatesBlock,
 } from "./rule-engine.mjs";
 import { addRule } from "./rule-groups.mjs";
+import { regexHelp } from "./regex-help.mjs";
 import {
   unassignedActivities,
   suggestedRule,
@@ -57,6 +58,8 @@ export function setupUnassigned({
   dialog.innerHTML =
     '<form id="assign-form"><div class="dialog-heading"><h2>Add activity to a project</h2><button type="button" id="close-assign" aria-label="Close assignment">×</button></div><p id="assign-source" class="assignment-source"></p><label for="assign-project">Project</label><select id="assign-project"></select><label for="assign-kind">Match using</label><select id="assign-kind"><option value="keyword">Window title keyword</option><option value="url">Page URL</option><option value="regex">Window title regex</option></select><label for="assign-app">Application (optional)</label><input id="assign-app" list="recorded-apps" placeholder="Any app · e.g. Telegram"><label for="assign-rule">Rule to add</label><textarea id="assign-rule" rows="3" required></textarea><div id="assign-levels" class="url-levels" role="group" aria-label="Page URL level" hidden></div><p id="assign-coverage" class="field-help" role="status"></p><div class="rule-dates"><label>Valid from<input id="assign-from" type="date" aria-label="Assignment rule valid from"></label><label>Valid through<input id="assign-through" type="date" aria-label="Assignment rule valid through"></label></div><p id="assign-hint" class="field-help"></p><div id="assign-preview" class="match-preview" role="status" aria-label="Matches preview"></div><p class="field-help">This rule will apply to other matching activity and previously recorded days too.</p><p id="assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-assign" type="button">Cancel</button><button id="save-assign" class="primary" type="submit">Add rule</button></div></form>';
   document.body.append(dialog);
+  const assignHelp = regexHelp();
+  $("assign-hint").after(assignHelp);
   const typeDialog = document.createElement("dialog");
   typeDialog.id = "type-assign-dialog";
   typeDialog.innerHTML =
@@ -456,6 +459,7 @@ export function setupUnassigned({
       kind = $("assign-kind").value;
     $("assign-rule").value =
       kind === "url" ? readableUrl(suggested.url) : suggested.keyword;
+    assignHelp.hidden = kind !== "regex";
     $("assign-hint").textContent =
       kind === "url"
         ? "Use a project-specific URL. Its subpages also match; a homepage would match the whole site."

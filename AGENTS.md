@@ -25,6 +25,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `activity-core.mjs` / `activity-ui.mjs` | Activity types (independent second classification of the same time). |
 | `time-charts.mjs` | Proportion charts. |
 | `day-cache.mjs` | IndexedDB cache of workload day summaries, keyed by device + date, valid for one configuration fingerprint. |
+| `regex-help.mjs` | `regexHelp()`: collapsed regex cheat sheet, shown wherever a rule can be switched to regex (rule editor rows, "+ Project" dialog, activity type editor). |
 | `dialogs.mjs` | Dialog placement inside the ActivityWatch frame and the wheel lock behind open dialogs. |
 | `ui-prefs.mjs` | Per-browser view preferences in `localStorage` (report period, chart range and lines, filters). Never stored in ActivityWatch settings; saved automatically on change; unknown values fall back to defaults. |
 

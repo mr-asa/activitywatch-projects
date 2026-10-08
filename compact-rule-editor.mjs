@@ -1,4 +1,5 @@
 import { editorValue } from "./projects-core.mjs";
+import { regexHelp } from "./regex-help.mjs";
 import {
   projectRules,
   ruleMatches,
@@ -62,9 +63,12 @@ export function setupRuleEditor({ state }) {
       .map((r) => (group.type === "url" ? readableUrl(r.pattern) : r.pattern))
       .join("\n");
     area.rows = Math.min(6, Math.max(3, group.entries.length));
+    const help = regexHelp();
+    card.querySelector(".compact-body").after(help);
     const hint = () => {
       const mode = card.querySelector('[data-key="mode"]').value,
         type = card.querySelector('[data-key="type"]').value;
+      help.hidden = mode !== "regex";
       card.querySelector(".app-filter-label").hidden = type === "url";
       card.querySelector(".rule-mode-hint").textContent =
         mode === "regex"

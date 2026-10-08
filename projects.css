@@ -1602,3 +1602,23 @@ header .tools {
 .last-seen {
   font-size: 12px;
 }
+.regex-help {
+  margin: 6px 0;
+  font-size: 12px;
+}
+.regex-help[hidden] {
+  display: none;
+}
+.regex-help summary {
+  cursor: pointer;
+  color: var(--muted, #a7b5c4);
+}
+.regex-help ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.regex-help code {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 0 4px;
+}

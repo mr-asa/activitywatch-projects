@@ -1,4 +1,5 @@
 import { openModal } from "./dialogs.mjs";
+import { regexHelp } from "./regex-help.mjs";
 import {
   normalizeActivityType,
   analyzeActivityTypes,
@@ -29,6 +30,8 @@ export function setupActivities({
   dialog.innerHTML =
     '<form id="activity-type-form"><div class="dialog-heading"><h2>Activity type</h2><button type="button" id="activity-close">Close</button></div><label>Name<input id="activity-name" maxlength="80" required></label><label>Color<input id="activity-color" type="color" value="#8ca8ff"></label><div class="activity-rule-fields"><label>Applications · one per line<textarea id="activity-apps" rows="3" placeholder="Telegram&#10;Discord"></textarea></label><label>Title patterns · one per line<textarea id="activity-titles" rows="3" placeholder="Optional title fragments"></textarea></label><label>Title matching<select id="activity-mode"><option value="text">Plain text</option><option value="regex">Regex</option></select></label><label>Website URLs · one per line<textarea id="activity-urls" rows="3" placeholder="https://www.youtube.com/"></textarea></label><label class="activity-combinations">App + title combinations · one per line<textarea id="activity-combinations" rows="3" placeholder="Obsidian.exe | OpenCode&#10; | Jupyter&#10;Figma |"></textarea></label></div><p class="field-help">Applications alone match any title in those apps. When titles are entered, both app and title must match; blank apps means any app. Website rules are alternatives and need browser tracking. Combinations are separate alternatives written as App | title fragment: leave the app blank for any app, or the title blank for the whole app. These rules apply to recorded history and never assign a project.</p><p id="activity-type-error" role="alert" class="error"></p><div class="dialog-actions"><button id="activity-delete" class="danger" type="button">Delete type</button><span class="spacer"></span><button id="activity-save" class="primary" type="submit">Save activity type</button></div></form>';
   document.body.append(dialog);
+  const titleHelp = regexHelp();
+  dialog.querySelector(".activity-rule-fields").after(titleHelp);
   const node = (tag, text) => {
     const n = document.createElement(tag);
     if (text !== undefined) n.textContent = text;
@@ -48,6 +51,7 @@ export function setupActivities({
       $(id).value = (type?.[key] || []).join("\n");
     $("activity-combinations").value = formatCombinations(type?.combinations);
     $("activity-mode").value = type?.mode || "text";
+    titleHelp.hidden = $("activity-mode").value !== "regex";
     $("activity-type-error").textContent = "";
     $("activity-delete").hidden = !editing;
     $("activity-delete").textContent = "Delete type";
@@ -121,6 +125,9 @@ export function setupActivities({
   dialog.addEventListener("cancel", (e) => {
     if (state.saving) e.preventDefault();
   });
+  $("activity-mode").onchange = () => {
+    titleHelp.hidden = $("activity-mode").value !== "regex";
+  };
   $("add-activity-type").onclick = () => open();
   $("activity-scope").onchange = () => {
     setPref("activityScope", $("activity-scope").value);

@@ -350,6 +350,12 @@ test("unassigned rule creation and manual overrides save directly", async ({
   await row
     .getByRole("button", { name: "Add to project", exact: true })
     .click();
+  // The regex cheat sheet exists only while "Window title regex" is chosen.
+  await expect(page.locator("#assign-dialog .regex-help")).toBeHidden();
+  await page.locator("#assign-kind").selectOption("regex");
+  await expect(page.locator("#assign-dialog .regex-help")).toBeVisible();
+  await page.locator("#assign-kind").selectOption("keyword");
+  await expect(page.locator("#assign-dialog .regex-help")).toBeHidden();
   await page.locator("#assign-app").fill("chrome");
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
   await expect(page.locator("#assign-dialog")).not.toBeVisible();
