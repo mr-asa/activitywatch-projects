@@ -3,7 +3,6 @@ import { analyze, normalizeProject } from "./projects-core.mjs";
 import {
   validateConfig,
   reportBounds,
-  compareConfigs,
   revisionHistory,
 } from "./workflow-core.mjs";
 import {
@@ -126,11 +125,6 @@ assert.equal(
 assert.equal(
   analyze(data, [p, { ...p, id: "other", kind: "non-project" }], t, t + 60000)
     .conflict,
-  60,
-);
-assert.equal(
-  compareConfigs(data, { ...cfg, projects: [] }, cfg, t, t + 60000, "h")
-    .changes[0].delta,
   60,
 );
 // The event crosses the 04:00 day boundary: 30 s on each report day.

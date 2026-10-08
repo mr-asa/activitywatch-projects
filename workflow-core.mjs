@@ -1,10 +1,6 @@
-import {
-  normalizeActivityType,
-  analyzeActivityTypes,
-} from "./activity-core.mjs";
+import { normalizeActivityType } from "./activity-core.mjs";
 import {
   normalizeProject,
-  analyze,
   merge,
   clipSorted,
   duration,
@@ -81,68 +77,6 @@ export function reportBounds(
     end.setDate(end.getDate() + 1);
   } else end.setDate(end.getDate() + (period === "week" ? 7 : 1));
   return [+start, +end];
-}
-export function compareConfigs(
-  data,
-  before,
-  after,
-  start,
-  end,
-  host,
-  previousResult = null,
-) {
-  const run = (config) =>
-    analyze(data, config.projects, start, end, {
-      host,
-      manualAssignments: config.manualAssignments || [],
-    });
-  const previous = previousResult || run(before),
-    next = run(after);
-  const changes = [
-    ...new Set([...previous.projects, ...next.projects].map((p) => p.id)),
-  ]
-    .map((id) => {
-      const a = previous.projects.find((p) => p.id === id),
-        b = next.projects.find((p) => p.id === id);
-      return {
-        id,
-        name: b?.name || a.name,
-        before: a?.total || 0,
-        after: b?.total || 0,
-        delta: (b?.total || 0) - (a?.total || 0),
-      };
-    })
-    .filter((p) => p.delta !== 0);
-  let activityChanges = [];
-  if (
-    JSON.stringify(before.activityTypes || []) !==
-    JSON.stringify(after.activityTypes || [])
-  ) {
-    const oldTypes = analyzeActivityTypes(
-        data,
-        before.activityTypes || [],
-        start,
-        end,
-      ),
-      newTypes = analyzeActivityTypes(
-        data,
-        after.activityTypes || [],
-        start,
-        end,
-      );
-    for (const id of new Set(
-      [...oldTypes.projects, ...newTypes.projects].map((t) => t.id),
-    )) {
-      const a = oldTypes.projects.find((t) => t.id === id),
-        b = newTypes.projects.find((t) => t.id === id);
-      activityChanges.push({
-        name: b?.name || a.name,
-        before: a?.total || 0,
-        after: b?.total || 0,
-      });
-    }
-  }
-  return { previous, next, changes, activityChanges };
 }
 export function revisionHistory(
   history,

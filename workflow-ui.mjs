@@ -1,9 +1,5 @@
 import { openModal } from "./dialogs.mjs";
-import {
-  compareConfigs,
-  conflictActivities,
-  validateConfig,
-} from "./workflow-core.mjs";
+import { conflictActivities, validateConfig } from "./workflow-core.mjs";
 import { setupExport } from "./export-ui.mjs";
 import { unassignedActivities } from "./unassigned-core.mjs";
 import { clipSorted } from "./projects-core.mjs";
@@ -283,84 +279,6 @@ export function setupWorkflow({
       conflictView.body.append(node("p", "Nothing needs review here now."));
     show(conflictView.dialog);
   }
-  const preview = dialog("change-preview", "Preview changes");
-  let resolvePreview = null;
-  preview.dialog.addEventListener("close", () => {
-    if (resolvePreview) {
-      const done = resolvePreview;
-      resolvePreview = null;
-      done(false);
-    }
-  });
-  function previewChanges(next, confirm = false) {
-    const diff = compareConfigs(
-      state.data,
-      state.config,
-      next,
-      state.start,
-      state.resultEnd,
-      state.host,
-      state.result,
-    );
-    preview.body.replaceChildren(
-      node(
-        "p",
-        "Effect on the loaded report period only. Rules may also change other dates within their validity range.",
-      ),
-    );
-    const overview = node("ul");
-    for (const [label, key] of [
-      ["Project time", "assigned"],
-      ["Non-project time", "nonProject"],
-      ["Needs review", "conflict"],
-      ["Not assigned", "unassigned"],
-    ])
-      overview.append(
-        node(
-          "li",
-          `${label}: ${time(diff.previous[key] || 0)} → ${time(diff.next[key] || 0)}`,
-        ),
-      );
-    preview.body.append(overview);
-    for (const p of diff.changes)
-      preview.body.append(
-        node(
-          "p",
-          `${p.name}: ${time(p.before)} → ${time(p.after)} (${p.delta > 0 ? "+" : ""}${time(p.delta)})`,
-        ),
-      );
-    if (diff.activityChanges.length) {
-      preview.body.append(
-        node("h3", "Activity types · independent of projects"),
-      );
-      for (const t of diff.activityChanges)
-        preview.body.append(
-          node("p", `${t.name}: ${time(t.before)} → ${time(t.after)}`),
-        );
-    }
-    if (!diff.changes.length)
-      preview.body.append(
-        node(
-          "p",
-          "No category total changes in this period. Settings can still change, including archive state and future matching.",
-        ),
-      );
-    if (confirm)
-      preview.body.append(
-        button("Confirm save", () => {
-          const done = resolvePreview;
-          resolvePreview = null;
-          preview.dialog.close();
-          done?.(true);
-        }),
-      );
-    show(preview.dialog);
-    return confirm
-      ? new Promise((resolve) => {
-          resolvePreview = resolve;
-        })
-      : Promise.resolve(false);
-  }
   const exporter = setupExport({
     state,
     api,
@@ -486,7 +404,6 @@ export function setupWorkflow({
     explain,
     explainConflict,
     exportProject: (id) => exporter.openFor(id),
-    previewChanges,
     loadMetadata(p) {
       $("project-kind").value = p?.kind || "project";
       $("project-archived").checked = p?.archived || false;

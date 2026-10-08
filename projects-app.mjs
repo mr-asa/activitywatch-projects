@@ -521,16 +521,6 @@ async function persist(
   manualAssignments = state.config.manualAssignments || [],
   activityTypes = state.config.activityTypes || [],
 ) {
-  const candidate = {
-    ...state.config,
-    activityTypes,
-    projects,
-    manualAssignments: manualAssignments.filter((a) =>
-      projects.some((p) => p.id === a.projectId),
-    ),
-  };
-  if (!(await workflow.previewChanges(candidate, true)))
-    throw Error("Changes were not saved.");
   const latest = await readSettings([KEY, "project_tracker_history"]);
   if (latest[KEY]?.revision !== state.config.revision)
     throw Error(
@@ -695,30 +685,6 @@ const workflow = setupWorkflow({
   resizeFrame,
   openEditor,
 });
-const previewButton = node("button", "", "Preview changes");
-previewButton.type = "button";
-previewButton.id = "preview-project";
-previewButton.onclick = () => {
-  try {
-    const p = normalizeProject(
-      {
-        id: state.editId || "preview-new-project",
-        name: $("project-name").value,
-        color: $("project-color").value,
-        rules: ruleEditor.read(),
-        ...workflow.readMetadata(),
-      },
-      state.config.projects,
-    );
-    const projects = state.config.projects.some((x) => x.id === p.id)
-      ? state.config.projects.map((x) => (x.id === p.id ? p : x))
-      : [...state.config.projects, p];
-    workflow.previewChanges({ ...state.config, projects });
-  } catch (e) {
-    $("form-error").textContent = e.message;
-  }
-};
-$("save-project").before(previewButton);
 const activities = setupActivities({
   state,
   persist,

@@ -84,10 +84,6 @@ async function setup(page, config = sample(), transform = () => {}) {
   ).toBeEnabled();
   return { settings, errors };
 }
-async function confirm(page) {
-  await page.getByRole("button", { name: "Confirm save", exact: true }).click();
-  await expect(page.locator("#change-preview")).not.toBeVisible();
-}
 
 test("workload reuses a covered report but explicit refresh fetches fresh data", async ({
   page,
@@ -152,19 +148,8 @@ test("explanations, previews and categories survive reload", async ({
     .click();
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-kind").selectOption("non-project");
-  await page
-    .getByRole("button", { name: "Preview changes", exact: true })
-    .click();
-  await expect(page.locator("#change-preview")).toContainText(
-    "Non-project time: 0h 0m 0s → 0h 1m 0s",
-  );
-  await page
-    .locator("#change-preview")
-    .getByRole("button", { name: "Close", exact: true })
-    .click();
   expect(settings.project_tracker.projects[0].kind).toBeUndefined();
   await page.getByRole("button", { name: "Save project", exact: true }).click();
-  await confirm(page);
   await expect(page.locator("#editor")).not.toBeVisible();
   await expect(page.locator("#assigned")).toHaveText("0h 0m");
   await expect(page.locator("#non-project-total")).toHaveText("0h 1m");
@@ -184,7 +169,6 @@ test("archive hides cards without losing history; cutoff stops rules", async ({
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-archived").check();
   await page.getByRole("button", { name: "Save project", exact: true }).click();
-  await confirm(page);
   await expect(page.locator("#editor")).not.toBeVisible();
   await expect(page.locator("#projects .project-card")).toHaveCount(0);
   await expect(page.locator("#assigned")).toHaveText("0h 1m");
@@ -192,7 +176,6 @@ test("archive hides cards without losing history; cutoff stops rules", async ({
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-rules-through").fill("2026-09-21");
   await page.getByRole("button", { name: "Save project", exact: true }).click();
-  await confirm(page);
   await expect(page.locator("#assigned")).toHaveText("0h 0m");
   expect(settings.project_tracker.projects[0].rulesThrough).toBe("2026-09-21");
 });
@@ -269,7 +252,6 @@ test("recovery validates imports and restores revisions with undo history", asyn
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-name").fill("Renamed");
   await page.getByRole("button", { name: "Save project", exact: true }).click();
-  await confirm(page);
   await expect(page.locator("#editor")).not.toBeVisible();
   await page
     .getByRole("button", { name: "Settings & recovery", exact: true })
@@ -277,7 +259,6 @@ test("recovery validates imports and restores revisions with undo history", asyn
   await page
     .getByRole("button", { name: "Restore this version", exact: true })
     .click();
-  await confirm(page);
   await expect(
     page.getByRole("button", { name: "Edit Demo", exact: true }),
   ).toBeVisible();
@@ -299,7 +280,6 @@ test("recovery validates imports and restores revisions with undo history", asyn
     mimeType: "application/json",
     buffer: Buffer.from(JSON.stringify(data)),
   });
-  await confirm(page);
   await expect(
     page.getByRole("button", { name: "Edit Imported", exact: true }),
   ).toBeVisible();
@@ -311,12 +291,8 @@ test("mobile dialogs fit and cancelling save changes nothing", async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-name").fill("Unsaved");
-  await page.getByRole("button", { name: "Save project", exact: true }).click();
-  await page
-    .locator("#change-preview")
-    .getByRole("button", { name: "Close", exact: true })
-    .click();
-  await expect(page.locator("#form-error")).toContainText("not saved");
+  await page.locator("#cancel-editor").click();
+  await expect(page.locator("#editor")).not.toBeVisible();
   expect(settings.project_tracker.projects[0].name).toBe("Demo");
   await page.screenshot({
     path: "test-results/mobile-editor.png",
@@ -355,14 +331,13 @@ test("conflict explanations and stale-save protection", async ({ page }) => {
     .click();
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-name").fill("Draft");
-  await page.getByRole("button", { name: "Save project", exact: true }).click();
   settings.project_tracker.revision = "external-change";
-  await confirm(page);
+  await page.getByRole("button", { name: "Save project", exact: true }).click();
   await expect(page.locator("#form-error")).toContainText("another tab");
   expect(settings.project_tracker.projects[0].name).toBe("Demo");
   expect(settings.project_tracker_history).toBeUndefined();
 });
-test("unassigned rule creation and manual overrides use previews", async ({
+test("unassigned rule creation and manual overrides save directly", async ({
   page,
 }) => {
   const { settings } = await setup(page);
@@ -377,10 +352,6 @@ test("unassigned rule creation and manual overrides use previews", async ({
     .click();
   await page.locator("#assign-app").fill("chrome");
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
-  await expect(page.locator("#change-preview")).toContainText(
-    "Project time: 0h 1m 0s → 0h 2m 0s",
-  );
-  await confirm(page);
   await expect(page.locator("#assign-dialog")).not.toBeVisible();
   expect(settings.project_tracker.projects[0].rules).toHaveLength(2);
   await page
@@ -395,7 +366,6 @@ test("unassigned rule creation and manual overrides use previews", async ({
   await page.locator("#manual-start").fill(ranges[0].slice(0, 16));
   await page.locator("#manual-end").fill(ranges[1].slice(0, 16));
   await page.getByRole("button", { name: "Assign time", exact: true }).click();
-  await confirm(page);
   await expect(page.locator("#manual-dialog")).not.toBeVisible();
   expect(settings.project_tracker.manualAssignments).toHaveLength(1);
   await expect(page.locator("#assigned")).toHaveText("0h 3m");
@@ -446,10 +416,6 @@ test("grouped activity assigns every occurrence without assigning gaps", async (
   await page
     .getByRole("button", { name: "Assign selected occurrences", exact: true })
     .click();
-  await expect(page.locator("#change-preview")).toContainText(
-    "Project time: 0h 1m 0s → 0h 31m 0s",
-  );
-  await confirm(page);
   await expect(page.locator("#manual-dialog")).not.toBeVisible();
   expect(settings.project_tracker.manualAssignments).toHaveLength(2);
   expect(
@@ -540,10 +506,6 @@ test("all-occurrence limits clip boundary visits, preserve gaps and subsecond pr
   await page
     .getByRole("button", { name: "Assign selected occurrences", exact: true })
     .click();
-  await expect(page.locator("#change-preview")).toContainText(
-    "Project time: 0h 1m 0s → 0h 2m 0s",
-  );
-  await confirm(page);
   await expect(page.locator("#manual-dialog")).not.toBeVisible();
   expect(
     settings.project_tracker.manualAssignments.map((a) => [
@@ -774,8 +736,6 @@ test("activity types remain independent and all projects stack without double co
   await page
     .getByRole("button", { name: "Save activity type", exact: true })
     .click();
-  await expect(page.locator("#change-preview")).toContainText("Activity types");
-  await confirm(page);
   await expect(page.locator("#activity-type-editor")).not.toBeVisible();
   expect(settings.project_tracker.activityTypes).toHaveLength(1);
   expect(settings.project_tracker.projects).toEqual(cfg.projects);
@@ -860,7 +820,6 @@ test("unassigned activity can be added to an existing or new activity type", asy
   await page.locator("#type-assign-value").fill("Personal");
   await expect(preview).toContainText("adds 0h 1m 0s to Messaging");
   await page.getByRole("button", { name: "Add to type", exact: true }).click();
-  await confirm(page);
   await expect(page.locator("#type-assign-dialog")).not.toBeVisible();
   const saved = settings.project_tracker.activityTypes[0];
   expect(saved.applications).toEqual(["Telegram"]);
@@ -904,7 +863,6 @@ test("unassigned activity can be added to an existing or new activity type", asy
   await page
     .getByRole("button", { name: "Save activity type", exact: true })
     .click();
-  await confirm(page);
   await expect
     .poll(() => settings.project_tracker.activityTypes[1]?.combinations)
     .toEqual([{ app: "Telegram.exe", title: "Shared task" }]);
@@ -1071,7 +1029,6 @@ test("assign application time collects all titles despite search and preserves a
     "unassigned time only",
   );
   await page.locator("#save-manual").click();
-  await confirm(page);
   await expect(page.locator("#manual-dialog")).not.toBeVisible();
   await expect
     .poll(() =>
@@ -1125,7 +1082,6 @@ test("a rule added from unassigned activity joins the matching rule group", asyn
     .getByRole("button", { name: "Add to project", exact: true })
     .click();
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
-  await confirm(page);
   await expect(page.locator("#notice")).toContainText(
     "Pattern added to an existing rule group in Demo",
   );
@@ -1248,7 +1204,6 @@ test("URL rules can be cut to a folder with readable links and live coverage", a
     .locator("#assign-rule")
     .fill("https://disk.example.com/client/disk/Twin проект/2609_DEMO");
   await page.getByRole("button", { name: "Add rule", exact: true }).click();
-  await confirm(page);
   await expect
     .poll(() => settings.project_tracker.projects[0].rules?.at(-1))
     .toMatchObject({ type: "url", pattern: folder });
@@ -1301,7 +1256,6 @@ test("a project's common start date limits its rules and the whole-project scan"
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-rules-from").fill("2026-09-20");
   await page.getByRole("button", { name: "Save project", exact: true }).click();
-  await confirm(page);
   await expect
     .poll(() => settings.project_tracker.projects[0].rulesFrom)
     .toBe("2026-09-20");
@@ -1318,7 +1272,6 @@ test("a project's common start date limits its rules and the whole-project scan"
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-rules-from").fill("2026-09-23");
   await page.getByRole("button", { name: "Save project", exact: true }).click();
-  await confirm(page);
   await expect(page.locator("#assigned")).toHaveText("0h 0m");
 });
 test("long chart ranges fit the width as weekly averages", async ({ page }) => {
@@ -1396,7 +1349,6 @@ test("the chart caches complete days and fetches only what is missing", async ({
   await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
   await page.locator("#project-rules-from").fill("2026-09-23");
   await page.getByRole("button", { name: "Save project", exact: true }).click();
-  await confirm(page);
   await expect
     .poll(() => settings.project_tracker.projects[0].rulesFrom)
     .toBe("2026-09-23");
@@ -1504,7 +1456,6 @@ test("adding a rule explains and widens project dates that exclude the activity"
   await error
     .getByRole("button", { name: "Widen Demo's dates to include it" })
     .click();
-  await confirm(page);
   await expect(page.locator("#assign-dialog")).not.toBeVisible();
   await expect
     .poll(() => settings.project_tracker.projects[0].rulesFrom)

@@ -19,7 +19,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `rule-groups.mjs`, `compact-rule-editor.mjs` | Grouped multiline rule editor (one alternative per line; group settings shared). Groups are derived from settings (type, mode, case, dates, application by `applicationKey`); `addRule` joins a new rule to its group and skips known patterns. |
 | `unassigned-core.mjs` / `unassigned-ui.mjs` | "Not assigned · activities" list: grouping of unassigned time by app/title/URL, activity-type breakdown per row, add-to-project / add-to-activity-type dialogs. |
 | `manual-ui.mjs` | Manual interval assignments (single, all occurrences, whole application). |
-| `workflow-core.mjs` / `workflow-ui.mjs` | Config validation, report bounds, before/after previews, revision history, explanations, settings import/export. |
+| `workflow-core.mjs` / `workflow-ui.mjs` | Config validation, report bounds, revision history, explanations, settings import/export. |
 | `export-core.mjs` / `export-ui.mjs` | "Reports & export": a spec (range, row grouping/split, user-built columns, formatting) → table → CSV/TSV/Markdown/JSON. Columns = metric × target set (`all`, `work`, `nonproject`, `p:<id>`, `t:<id>`, `row`) × optional `within` × share base. Presets: built-in + saved. A project card's "Export hours" opens it as that project's hours per day of the report period, empty days included (`openFor`; a one-day report opens as This month). The export range "Whole project" uses the first column's project: `projectPeriod` over `historyStart`, shared with the chart. |
 | `workload-core.mjs` / `workload-ui.mjs` | Daily workload chart (own data range, independent of the report period), drawn from per-day summaries. |
 | `activity-core.mjs` / `activity-ui.mjs` | Activity types (independent second classification of the same time). |
@@ -118,7 +118,7 @@ After deploying, the dashboard needs **Ctrl+F5** (modules are cached).
 - UI text is English. Build DOM with `textContent` / `createElement`; `innerHTML` only for static templates (no user data).
 - Open modal dialogs with `openModal()` / `placeDialog()` from `dialogs.mjs`: inside the ActivityWatch iframe a dialog is placed in the currently visible part of the frame (clipping ancestors, then `elementFromPoint` to skip a fixed header/footer drawn over it); never scroll the ActivityWatch page to show a dialog.
 - While any dialog is open, a document-level `wheel` handler (`dialogs.mjs`) cancels scrolling unless an element inside the dialog can still scroll that way, so neither the page nor the ActivityWatch page around the frame moves. New scrollable areas inside dialogs need `overflow: auto|scroll` to be recognised.
-- Every configuration save goes through `persist()`, which shows a before/after preview and requires confirmation.
+- Every configuration save goes through `persist()`: revision check, history/backup write, then verified write. There is no confirmation step; the "+ Project" and "+ Type" dialogs preview their effect live instead, and revision history allows recovery.
 - Tests use invented names and `example.com` URLs. Never commit real project names, links, exported settings, activity data, screenshots or local backups.
 - Keep the README human-oriented (see top of this file). Document mechanics here instead.
 - README images come only from `scripts/readme-screenshots.mjs`: the real UI over invented demo data, with the seed chosen by checking the demo day with `analyze()`. Rerun it after visible UI changes; never commit screenshots of real data.
