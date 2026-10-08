@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { analyze } from "./projects-core.mjs";
+import { normalizeRule } from "./rule-engine.mjs";
 import {
   addActivityMatcher,
   activityRules,
@@ -13,6 +14,7 @@ import {
   suggestedRule,
   activityTypeBreakdown,
   untypedSeconds,
+  rulePreview,
 } from "./unassigned-core.mjs";
 const e = (s, d, data) => ({
   timestamp: new Date(s * 1000).toISOString(),
@@ -375,3 +377,43 @@ assert.throws(() => addActivityMatcher(appType, "url", "  "), /Enter a value/);
   assert.equal(anywhere.added, null);
   assert.throws(() => matcherPreview(data, type, "title", "  ", "", t0, end));
 }
+
+// Rule preview: entries caught by a new rule, and how categories change.
+{
+  const data = {
+    windows: [
+      e(0, 20, { app: "Code.exe", title: "alpha - Visual Studio Code" }),
+      e(20, 10, { app: "Code.exe", title: "beta - Visual Studio Code" }),
+    ],
+    afk: [e(0, 25, { status: "not-afk" })],
+    browsers: [],
+  };
+  const project = (id, rules) => ({ id, name: id, color: "#112233", rules });
+  const rule = normalizeRule({ type: "title", pattern: "Visual Studio" });
+  const taken = [
+    project("a", [normalizeRule({ type: "title", pattern: "alpha" })]),
+  ];
+  const previous = analyze(data, taken, 0, 30000);
+  const next = [taken[0], project("b", [rule])];
+  const preview = rulePreview(data, rule, 0, 30000, {
+    previous,
+    next,
+    projectId: "b",
+  });
+  // 25 s of active time: only the active part of both windows is caught.
+  assert.equal(preview.total, 25);
+  assert.deepEqual(
+    preview.matches.map((m) => [m.label, m.seconds]),
+    [
+      ["alpha - Visual Studio Code", 20],
+      ["beta - Visual Studio Code", 5],
+    ],
+  );
+  const by = Object.fromEntries(preview.changes.map((c) => [c.id, c]));
+  assert.equal(preview.changes[0].id, "b");
+  assert.equal(by.b.after, 5); // alpha is claimed by both, beta by b only
+  assert.equal(by.conflict.after, 20);
+  assert.equal(by.unassigned.before - by.unassigned.after, 5);
+  assert.equal(rulePreview(data, rule, 0, 30000).changes, null);
+}
+console.log("PASS: rule preview");

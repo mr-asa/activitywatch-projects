@@ -13,6 +13,7 @@ import {
   untypedSeconds,
   urlLevels,
   urlCoverage,
+  rulePreview,
 } from "./unassigned-core.mjs";
 import { merge, normalizeProject } from "./projects-core.mjs";
 import { persistControl } from "./ui-prefs.mjs";
@@ -54,7 +55,7 @@ export function setupUnassigned({
   const dialog = document.createElement("dialog");
   dialog.id = "assign-dialog";
   dialog.innerHTML =
-    '<form id="assign-form"><div class="dialog-heading"><h2>Add activity to a project</h2><button type="button" id="close-assign" aria-label="Close assignment">×</button></div><p id="assign-source" class="assignment-source"></p><label for="assign-project">Project</label><select id="assign-project"></select><label for="assign-kind">Match using</label><select id="assign-kind"><option value="keyword">Window title keyword</option><option value="url">Page URL</option><option value="regex">Window title regex</option></select><label for="assign-app">Application (optional)</label><input id="assign-app" list="recorded-apps" placeholder="Any app · e.g. Telegram"><label for="assign-rule">Rule to add</label><textarea id="assign-rule" rows="3" required></textarea><div id="assign-levels" class="url-levels" role="group" aria-label="Page URL level" hidden></div><p id="assign-coverage" class="field-help" role="status"></p><div class="rule-dates"><label>Valid from<input id="assign-from" type="date" aria-label="Assignment rule valid from"></label><label>Valid through<input id="assign-through" type="date" aria-label="Assignment rule valid through"></label></div><p id="assign-hint" class="field-help"></p><p class="field-help">This rule will apply to other matching activity and previously recorded days too.</p><p id="assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-assign" type="button">Cancel</button><button id="save-assign" class="primary" type="submit">Add rule</button></div></form>';
+    '<form id="assign-form"><div class="dialog-heading"><h2>Add activity to a project</h2><button type="button" id="close-assign" aria-label="Close assignment">×</button></div><p id="assign-source" class="assignment-source"></p><label for="assign-project">Project</label><select id="assign-project"></select><label for="assign-kind">Match using</label><select id="assign-kind"><option value="keyword">Window title keyword</option><option value="url">Page URL</option><option value="regex">Window title regex</option></select><label for="assign-app">Application (optional)</label><input id="assign-app" list="recorded-apps" placeholder="Any app · e.g. Telegram"><label for="assign-rule">Rule to add</label><textarea id="assign-rule" rows="3" required></textarea><div id="assign-levels" class="url-levels" role="group" aria-label="Page URL level" hidden></div><p id="assign-coverage" class="field-help" role="status"></p><div class="rule-dates"><label>Valid from<input id="assign-from" type="date" aria-label="Assignment rule valid from"></label><label>Valid through<input id="assign-through" type="date" aria-label="Assignment rule valid through"></label></div><p id="assign-hint" class="field-help"></p><div id="assign-preview" class="match-preview" role="status" aria-label="Matches preview"></div><p class="field-help">This rule will apply to other matching activity and previously recorded days too.</p><p id="assign-error" class="error" role="alert"></p><div class="dialog-actions"><span class="spacer"></span><button id="cancel-assign" type="button">Cancel</button><button id="save-assign" class="primary" type="submit">Add rule</button></div></form>';
   document.body.append(dialog);
   const typeDialog = document.createElement("dialog");
   typeDialog.id = "type-assign-dialog";
@@ -321,6 +322,7 @@ export function setupUnassigned({
         $("assign-rule").value = level.value;
         drawLevels();
         coverage();
+        rulePreviewSoon();
       };
       box.append(b);
     });
@@ -341,6 +343,113 @@ export function setupUnassigned({
       `Matches ${covered.count} unassigned ${covered.count === 1 ? "entry" : "entries"} in this list · ${time(covered.seconds)}` +
       (site ? " · the whole site" : " · this folder and everything below it");
   }
+  // Live preview: which entries the rule catches and how the totals change.
+  let rulePreviewTimer = null;
+  function rulePreviewSoon() {
+    clearTimeout(rulePreviewTimer);
+    rulePreviewTimer = setTimeout(drawRulePreview, 250);
+  }
+  function drawRulePreview() {
+    const box = $("assign-preview");
+    box.replaceChildren();
+    if (!state.data || !state.result || !selected || !dialog.open) return;
+    const value = $("assign-rule").value.trim();
+    if (!value) return;
+    const kind = $("assign-kind").value;
+    const projectId = $("assign-project").value,
+      project = state.config.projects.find((p) => p.id === projectId);
+    let rule, next, added;
+    try {
+      rule = normalizeRule({
+        type: kind === "url" ? "url" : "title",
+        mode: kind === "regex" ? "regex" : "text",
+        pattern: value,
+        appFilter: $("assign-app").value,
+        from: $("assign-from").value,
+        through: $("assign-through").value,
+        ignoreCase: true,
+      });
+      if (project) {
+        added = addRule(projectRules(project), rule);
+        const changed = normalizeProject(
+          { ...project, rules: added.rules },
+          state.config.projects,
+        );
+        next = state.config.projects.map((p) =>
+          p.id === changed.id ? changed : p,
+        );
+      }
+    } catch (error) {
+      box.append(node("p", "error", error.message));
+      return;
+    }
+    const preview = rulePreview(
+      state.data,
+      rule,
+      state.start,
+      state.resultEnd,
+      {
+        previous: added && !added.duplicate ? state.result : null,
+        next,
+        projectId,
+        options: {
+          host: state.host,
+          manualAssignments: state.config.manualAssignments || [],
+        },
+      },
+    );
+    const own = preview.changes?.find((c) => c.id === projectId);
+    box.append(
+      node(
+        "p",
+        "match-preview-summary",
+        added?.duplicate
+          ? `${project.name} already has this pattern.`
+          : !preview.total
+            ? "Matches nothing in the loaded period. Check the text."
+            : `Matches ${time(preview.total)} in the loaded period` +
+              (own
+                ? ` · ${project.name}: ${time(own.before)} → ${time(own.after)}`
+                : project
+                  ? ` · nothing new for ${project.name} (already counted, or claimed by a manual assignment)`
+                  : ""),
+      ),
+    );
+    const others = (preview.changes || []).filter((c) => c.id !== projectId);
+    if (others.length) {
+      const list = node("ul", "match-preview-list");
+      for (const c of others) {
+        const item = node("li", "");
+        item.append(
+          node("span", "", c.name),
+          node(
+            "span",
+            "muted",
+            ` · ${time(c.before)} → ${time(c.after)} (${c.after > c.before ? "+" : "−"}${time(Math.abs(c.after - c.before))})`,
+          ),
+        );
+        list.append(item);
+      }
+      box.append(node("p", "muted", "Also changes:"), list);
+    }
+    if (preview.matches.length) {
+      const list = node("ul", "match-preview-list");
+      for (const m of preview.matches.slice(0, 8)) {
+        const item = node("li", "");
+        item.append(
+          node("span", "", readableUrl(m.label)),
+          node("span", "muted", ` · ${m.app} · ${time(m.seconds)}`),
+        );
+        list.append(item);
+      }
+      box.append(node("p", "muted", "Entries it catches:"), list);
+      if (preview.matches.length > 8)
+        box.append(
+          node("p", "muted", `… and ${preview.matches.length - 8} more`),
+        );
+    }
+    resizeFrame();
+  }
   function chooseKind() {
     $("assign-app").disabled = $("assign-kind").value === "url";
     const suggested = suggestedRule(selected),
@@ -355,6 +464,7 @@ export function setupUnassigned({
           : "Use a distinctive part of the title. Matching ignores capitalization.";
     drawLevels();
     coverage();
+    rulePreviewSoon();
   }
   function assign(row) {
     selected = row;
@@ -683,14 +793,20 @@ export function setupUnassigned({
     }
   }
   $("assign-kind").onchange = chooseKind;
+  for (const id of ["assign-app", "assign-from", "assign-through"])
+    $(id).oninput = rulePreviewSoon;
   $("assign-rule").oninput = () => {
+    rulePreviewSoon();
     if ($("assign-kind").value !== "url") return;
     const current = $("assign-rule").value.trim();
     for (const b of $("assign-levels").querySelectorAll(".url-level"))
       b.setAttribute("aria-pressed", String(b.dataset.value === current));
     coverage();
   };
-  $("assign-project").onchange = updateSubmit;
+  $("assign-project").onchange = () => {
+    updateSubmit();
+    rulePreviewSoon();
+  };
   $("close-assign").onclick = close;
   $("cancel-assign").onclick = close;
   dialog.addEventListener("cancel", (e) => {

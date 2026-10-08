@@ -5,6 +5,7 @@ import {
   browserFamily,
   clipSorted,
   matchUrl,
+  analyze,
 } from "./projects-core.mjs";
 import { readableUrl } from "./rule-engine.mjs";
 function subtractSorted(a, b) {
@@ -247,4 +248,79 @@ export function urlCoverage(rows, pattern) {
       seconds += r.seconds;
     }
   return { count, seconds };
+}
+
+// What a new rule would do in the loaded period: the entries it catches (its
+// own active time) and, when `next` projects are given, how every category's
+// time changes against `previous`.
+export function rulePreview(
+  data,
+  rule,
+  start,
+  end,
+  { previous = null, next = null, projectId = null, options = {} } = {},
+) {
+  const alone = analyze(
+    data,
+    [{ id: "preview", name: "Preview", color: "#000000", rules: [rule] }],
+    start,
+    end,
+  );
+  const active = merge(
+    alone.segments
+      .filter((s) => s.project === "preview")
+      .map((s) => [s.start, s.end]),
+  );
+  const byEntry = new Map();
+  for (const e of alone.evidence) {
+    const pieces = clipSorted(active, e.s, e.e);
+    if (!pieces.length) continue;
+    const key = JSON.stringify([e.label, e.app || ""]);
+    const entry = byEntry.get(key) || {
+      label: e.label,
+      app: e.app || "",
+      ranges: [],
+    };
+    entry.ranges.push(...pieces);
+    byEntry.set(key, entry);
+  }
+  const matches = [...byEntry.values()]
+    .map((m) => ({
+      label: m.label,
+      app: m.app,
+      seconds: duration(merge(m.ranges)),
+    }))
+    .sort((a, b) => b.seconds - a.seconds);
+  let changes = null;
+  if (previous && next) {
+    const after = analyze(data, next, start, end, options);
+    const list = after.projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      before: previous.projects.find((x) => x.id === p.id)?.total || 0,
+      after: p.total,
+    }));
+    list.push(
+      {
+        id: "unassigned",
+        name: "Not assigned",
+        before: previous.unassigned,
+        after: after.unassigned,
+      },
+      {
+        id: "conflict",
+        name: "Needs review",
+        before: previous.conflict,
+        after: after.conflict,
+      },
+    );
+    changes = list
+      .filter((c) => Math.abs(c.after - c.before) >= 1)
+      .sort(
+        (a, b) =>
+          (b.id === projectId) - (a.id === projectId) ||
+          Math.abs(b.after - b.before) - Math.abs(a.after - a.before),
+      );
+  }
+  return { total: duration(active), matches, changes };
 }

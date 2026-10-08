@@ -1225,6 +1225,11 @@ test("URL rules can be cut to a folder with readable links and live coverage", a
   await expect(page.locator("#assign-coverage")).toContainText(
     "Matches 1 unassigned entry",
   );
+  // The live preview lists what the rule catches and the project's change.
+  await expect(page.locator("#assign-preview")).toContainText(
+    "in the loaded period",
+  );
+  await expect(page.locator("#assign-preview")).toContainText("Demo:");
   await page.getByRole("button", { name: "Match 2609_DEMO and below" }).click();
   await expect(page.locator("#assign-rule")).toHaveValue(
     "https://disk.example.com/client/disk/Twin проект/2609_DEMO",
