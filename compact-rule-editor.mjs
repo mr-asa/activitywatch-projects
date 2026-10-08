@@ -1,4 +1,4 @@
-import { editorValue } from "./projects-core.mjs";
+import { editorValue, merge, intersect, duration } from "./projects-core.mjs";
 import { regexHelp } from "./regex-help.mjs";
 import {
   projectRules,
@@ -81,80 +81,28 @@ export function setupRuleEditor({ state }) {
     for (const key of ["type", "mode"])
       card.querySelector(`[data-key="${key}"]`).onchange = hint;
     card.querySelector(".remove-rule").onclick = () => card.remove();
-    card.querySelector(".preview-rule").onclick = () => {
-      const out = card.querySelector(".rule-preview");
-      out.replaceChildren();
-      try {
-        const cutoff = document.getElementById("project-rules-through")?.value;
-        const rules = readRow(card).map((rule) =>
-            cutoff && (!rule.through || cutoff < rule.through)
-              ? { ...rule, through: cutoff }
-              : rule,
-          ),
-          type = rules[0].type;
-        const events =
-          type === "title"
-            ? state.data?.windows || []
-            : type.startsWith("editor-")
-              ? (state.data?.editors || []).flatMap((s) =>
-                  s.events.map((e) => ({
-                    ...e,
-                    data: { ...e.data, app: s.app },
-                  })),
-                )
-              : (state.data?.browsers || []).flatMap((b) => b.events);
-        const matches = [
-          ...new Set(
-            events
-              .filter((e) => {
-                const start = Date.parse(e.timestamp);
-                return rules.some(
-                  (rule) =>
-                    clipRule(
-                      [
-                        [
-                          Math.max(start, state.start),
-                          Math.min(start + e.duration * 1000, state.end),
-                        ],
-                      ],
-                      rule,
-                    ).length &&
-                    ruleMatches(
-                      rule,
-                      type.startsWith("editor-")
-                        ? editorValue(e, type)
-                        : e.data[type === "title" ? "title" : "url"],
-                      matchTitle,
-                      matchUrl,
-                      e.data.app,
-                    ),
-                );
-              })
-              .map((e) =>
-                type === "title"
-                  ? `${e.data.title} · ${e.data.app}`
-                  : type.startsWith("editor-")
-                    ? editorValue(e, type)
-                    : e.data.url,
-              ),
-          ),
-        ];
-        out.textContent = `${matches.length} matching ${type.startsWith("editor-") ? "editor records" : type === "title" ? "titles" : "URLs"} in the loaded report period.`;
-        const ul = document.createElement("ul");
-        for (const value of matches.slice(0, 8)) {
-          const li = document.createElement("li");
-          li.textContent = value;
-          ul.append(li);
-        }
-        out.append(ul);
-      } catch (e) {
-        out.textContent = e.message;
-      }
+    // Live preview: the whole group, or only the line the cursor is on.
+    let timer = null;
+    const schedule = () => {
+      if (!card._previewed) return;
+      clearTimeout(timer);
+      timer = setTimeout(() => drawPreview(card), 200);
     };
+    card.querySelector(".preview-rule").onclick = () => {
+      card._previewed = true;
+      drawPreview(card);
+    };
+    for (const type of ["input", "keyup", "click", "blur"])
+      area.addEventListener(type, schedule);
+    area.addEventListener("focus", () => {
+      card._previewed = true;
+      schedule();
+    });
+    card.addEventListener("change", schedule);
     $("rule-rows").append(card);
     return card;
   }
-  function readRow(card) {
+  function readInput(card) {
     const input = {};
     for (const key of [
       "type",
@@ -166,7 +114,144 @@ export function setupRuleEditor({ state }) {
     ])
       input[key] = card.querySelector(`[data-key="${key}"]`).value;
     input.ignoreCase = card.querySelector('[data-key="ignoreCase"]').checked;
-    return expandGroup(input, card._entries);
+    return input;
+  }
+  function readRow(card) {
+    return expandGroup(readInput(card), card._entries);
+  }
+  // The project's cutoff date narrows every rule being tried.
+  function withCutoff(rules) {
+    const cutoff = document.getElementById("project-rules-through")?.value;
+    return rules.map((rule) =>
+      cutoff && (!rule.through || cutoff < rule.through)
+        ? { ...rule, through: cutoff }
+        : rule,
+    );
+  }
+  // The line under the caret, only while the pattern box has focus.
+  function activeLine(card) {
+    const area = card.querySelector('[data-key="patterns"]');
+    if (document.activeElement !== area) return null;
+    const index =
+      area.value.slice(0, area.selectionStart).split("\n").length - 1;
+    const pattern = area.value.split("\n")[index]?.trim();
+    return pattern ? { index, pattern } : null;
+  }
+  // Recorded events the rules match in the loaded period: their time and the
+  // time per title / link.
+  function scan(rules) {
+    const type = rules[0].type;
+    const editor = type.startsWith("editor-");
+    const events = editor
+      ? (state.data?.editors || []).flatMap((source) =>
+          source.events.map((e) => ({
+            ...e,
+            data: { ...e.data, app: source.app },
+          })),
+        )
+      : type === "title"
+        ? state.data?.windows || []
+        : (state.data?.browsers || []).flatMap((b) => b.events);
+    const all = [],
+      labels = new Map();
+    for (const e of events) {
+      const start = Date.parse(e.timestamp);
+      const from = Math.max(start, state.start),
+        to = Math.min(start + e.duration * 1000, state.end);
+      if (to <= from) continue;
+      const value = editor
+        ? editorValue(e, type)
+        : e.data[type === "title" ? "title" : "url"];
+      for (const rule of rules) {
+        const pieces = clipRule([[from, to]], rule);
+        if (
+          !pieces.length ||
+          !ruleMatches(rule, value, matchTitle, matchUrl, e.data.app)
+        )
+          continue;
+        all.push(...pieces);
+        const label = type === "title" ? `${value} · ${e.data.app}` : value;
+        labels.set(label, [...(labels.get(label) || []), ...pieces]);
+        break;
+      }
+    }
+    return { type, ranges: merge(all), labels };
+  }
+  const clock = (seconds) => {
+    const s = Math.round(seconds);
+    return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m ${s % 60}s`;
+  };
+  function drawPreview(card) {
+    const out = card.querySelector(".rule-preview");
+    out.replaceChildren();
+    const line = activeLine(card);
+    const text = (tag, value, cls = "") => {
+      const n = document.createElement(tag);
+      n.textContent = value;
+      if (cls) n.className = cls;
+      return n;
+    };
+    try {
+      const group = withCutoff(readRow(card)),
+        input = readInput(card);
+      let rules = group,
+        others = [];
+      if (line) {
+        rules = withCutoff(
+          expandGroup({ ...input, patterns: line.pattern }, []),
+        );
+        const rest = input.patterns
+          .split("\n")
+          .filter((v, i) => i !== line.index && v.trim())
+          .join("\n");
+        if (rest) {
+          try {
+            others = withCutoff(expandGroup({ ...input, patterns: rest }, []));
+          } catch {}
+        }
+      }
+      const found = scan(rules);
+      const noun = found.type.startsWith("editor-")
+        ? "editor records"
+        : found.type === "title"
+          ? "titles"
+          : "URLs";
+      out.append(
+        text(
+          "strong",
+          line
+            ? `Line ${line.index + 1} only · ${line.pattern}`
+            : `Whole group · ${group.length} ${group.length === 1 ? "pattern" : "patterns"}`,
+          "rule-preview-head",
+        ),
+      );
+      let summary = found.labels.size
+        ? `${found.labels.size} matching ${noun} · ${clock(duration(found.ranges))} in the loaded report period`
+        : "Matches nothing in the loaded report period.";
+      if (line && others.length && found.labels.size) {
+        const covered = scan(others).ranges;
+        const added =
+          duration(found.ranges) - duration(intersect(found.ranges, covered));
+        summary += ` · ${clock(added)} not covered by the other lines`;
+      }
+      out.append(text("p", summary));
+      const ul = document.createElement("ul");
+      for (const [label, ranges] of [...found.labels]
+        .map(([l, r]) => [l, duration(merge(r))])
+        .sort((x, y) => y[1] - x[1])
+        .slice(0, 8))
+        ul.append(
+          text(
+            "li",
+            `${found.type === "url" ? readableUrl(label) : label} · ${clock(ranges)}`,
+          ),
+        );
+      out.append(ul);
+      if (found.labels.size > 8)
+        out.append(text("p", `… and ${found.labels.size - 8} more`, "muted"));
+    } catch (e) {
+      out.append(text("p", e.message, "error"));
+    }
   }
   $("add-rule").onclick = () => add();
   return {

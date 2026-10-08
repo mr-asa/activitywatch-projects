@@ -16,7 +16,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `projects-app.mjs` | Entry point: state, data loading, rendering of cards/timeline/legend, persistence, wiring of all panels. |
 | `projects-core.mjs` | Pure analysis: `analyze()` (time attribution), interval helpers (`merge`, `intersect`, `clipSorted`, `duration`), URL/title matching, browser & editor source discovery. |
 | `rule-engine.mjs` | Rule normalization/matching (`normalizeRule`, `ruleMatches`, date bounds, app filter), manual assignment validation, `stable()` JSON, `localDate()`. |
-| `rule-groups.mjs`, `compact-rule-editor.mjs` | Grouped multiline rule editor (one alternative per line; group settings shared). Groups are derived from settings (type, mode, case, dates, application by `applicationKey`); `addRule` joins a new rule to its group and skips known patterns. |
+| `rule-groups.mjs`, `compact-rule-editor.mjs` | Grouped multiline rule editor (one alternative per line; group settings shared). Its preview is live: the whole group, or only the line under the caret while the pattern box has focus (with the time the line adds beyond the other lines). Groups are derived from settings (type, mode, case, dates, application by `applicationKey`); `addRule` joins a new rule to its group and skips known patterns. |
 | `unassigned-core.mjs` / `unassigned-ui.mjs` | "Not assigned · activities" list: grouping of unassigned time by app/title/URL, activity-type breakdown per row, add-to-project / add-to-activity-type dialogs. |
 | `manual-ui.mjs` | Manual interval assignments (single, all occurrences, whole application). |
 | `workflow-core.mjs` / `workflow-ui.mjs` | Config validation, report bounds, revision history, explanations, settings import/export. |

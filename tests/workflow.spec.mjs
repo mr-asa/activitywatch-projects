@@ -162,6 +162,33 @@ test("explanations, previews and categories survive reload", async ({
   });
   expect(errors).toEqual([]);
 });
+test("the rule preview follows the line under the cursor", async ({ page }) => {
+  await setup(page);
+  await page.getByRole("button", { name: "Edit Demo", exact: true }).click();
+  await page.getByRole("button", { name: "+ Add rule group" }).click();
+  const card = page.locator("#rule-rows .compact-rule").last();
+  await card.locator('[data-key="mode"]').selectOption("regex");
+  const area = card.locator('[data-key="patterns"]');
+  await area.fill("Demo\nPersonal|Shared");
+  await area.focus();
+  await area.evaluate((el) => el.setSelectionRange(8, 8));
+  await area.dispatchEvent("keyup");
+  const preview = card.locator(".rule-preview");
+  await expect(preview).toContainText("Line 2 only · Personal|Shared");
+  await expect(preview).toContainText("2 matching titles · 0h 2m 0s");
+  await expect(preview).toContainText("not covered by the other lines");
+  await area.evaluate((el) => el.setSelectionRange(1, 1));
+  await area.dispatchEvent("keyup");
+  await expect(preview).toContainText("Line 1 only · Demo");
+  // Leaving the box shows the whole group again.
+  await page.locator("#project-name").focus();
+  await expect(preview).toContainText("Whole group · 2 patterns");
+  await expect(preview).toContainText("3 matching titles");
+  // A broken pattern is reported right away.
+  await area.fill("Demo\n(");
+  await area.focus();
+  await expect(preview.locator(".error")).toBeVisible();
+});
 test("archive hides cards without losing history; cutoff stops rules", async ({
   page,
 }) => {
