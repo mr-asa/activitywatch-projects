@@ -1,8 +1,8 @@
 # ActivityWatch Projects
 
 <p align="center">
-  <a href="README.md"><img src="https://img.shields.io/badge/English-65d6b4?style=for-the-badge" alt="English" /></a>
-  <a href="README.ru.md"><img src="https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-4b5563?style=for-the-badge" alt="Русский" /></a>
+  <a href="README.md"><img src="docs/images/btn-english-active.svg" height="28" alt="English" /></a>
+  <a href="README.ru.md"><img src="docs/images/btn-russian.svg" height="28" alt="Русский" /></a>
 </p>
 
 **Find out where your screen time actually goes.**

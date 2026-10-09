@@ -1,10 +1,10 @@
 ![cover](docs/images/activitywatch-logic-cover.webp)
 
 <p align="center">
-  <a href="https://ai.mr-asa.com/blog/activitywatch-interface-ru.html"><img src="docs/images/blog-button.svg" height="28" alt="Описание в блоге" /></a>
-  &nbsp;│&nbsp;
-  <a href="README.md"><img src="https://img.shields.io/badge/English-4b5563?style=for-the-badge" alt="English" /></a>
-  <a href="README.ru.md"><img src="https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-65d6b4?style=for-the-badge" alt="Русский" /></a>
+  <a href="https://ai.mr-asa.com/blog/activitywatch-interface-ru.html"><img src="docs/images/btn-blog.svg" height="28" alt="Описание в блоге" /></a>
+  <img src="docs/images/btn-separator.svg" height="28" alt="" />
+  <a href="README.md"><img src="docs/images/btn-english.svg" height="28" alt="English" /></a>
+  <a href="README.ru.md"><img src="docs/images/btn-russian-active.svg" height="28" alt="Русский" /></a>
 </p>
 
 ---
