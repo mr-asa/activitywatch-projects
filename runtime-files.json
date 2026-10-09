@@ -26,5 +26,7 @@
   "day-cache.mjs",
   "update-core.mjs",
   "update-ui.mjs",
+  "menu-core.mjs",
+  "menu-ui.mjs",
   "version.json"
 ]

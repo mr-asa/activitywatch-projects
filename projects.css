@@ -1638,7 +1638,8 @@ header .tools {
 .assign-app-row button {
   white-space: nowrap;
 }
-#update-banner button {
+#update-banner button,
+#menu-banner button {
   margin-left: 8px;
 }
 #update-banner code {

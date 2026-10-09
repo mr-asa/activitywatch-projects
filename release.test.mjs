@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
+import { addView, hasView, pageName } from "./menu-core.mjs";
 import {
   isNewer,
   parseRelease,
@@ -51,4 +52,17 @@ test("the check runs at most once a day", () => {
   assert.ok(checkDue(NaN));
   assert.ok(!checkDue(1000, 1000 + 3600e3));
   assert.ok(checkDue(1000, 1000 + 25 * 3600e3));
+});
+test("menu entry: page name, detection and a non-destructive addition", () => {
+  assert.equal(pageName("/pages/projects/"), "projects");
+  assert.equal(pageName("/"), "");
+  const views = [
+    { id: "summary", name: "Summary", elements: [{ type: "top_apps" }] },
+  ];
+  assert.ok(!hasView(views, "projects"));
+  const next = addView(views, "projects");
+  assert.equal(next.length, 2);
+  assert.equal(next[0], views[0]);
+  assert.ok(hasView(next, "projects"));
+  assert.equal(addView([{ id: "projects" }], "projects")[1].id, "projects-2");
 });

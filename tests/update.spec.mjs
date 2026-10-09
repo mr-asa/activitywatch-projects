@@ -5,7 +5,9 @@ async function open(page, release) {
   await page.clock.setFixedTime(new Date("2026-09-27T12:00:00Z"));
   await page.route("http://127.0.0.1:5719/**", async (route) => {
     const name =
-      new URL(route.request().url()).pathname.slice(1) || "index.html";
+      new URL(route.request().url()).pathname
+        .slice(1)
+        .replace("pages/projects/", "") || "index.html";
     const body = await readFile(resolve(name));
     await route.fulfill({
       body,
@@ -51,4 +53,20 @@ test("no banner when already up to date", async ({ page }) => {
   await open(page, release("v0.0.1"));
   await expect(page.locator("#app-version")).toBeVisible();
   await expect(page.locator("#update-banner")).toBeHidden();
+});
+test("the dashboard offers an ActivityWatch menu entry and adds it", async ({
+  page,
+}) => {
+  let views = [{ id: "summary", name: "Summary", elements: [] }];
+  await open(page, release("v0.0.1"));
+  await page.route("**/api/0/settings/views", async (route) => {
+    if (route.request().method() === "POST")
+      views = route.request().postDataJSON();
+    await route.fulfill({ json: views });
+  });
+  await page.goto("/pages/projects/?updatecheck=1");
+  await expect(page.locator("#menu-banner")).toContainText("no menu entry");
+  await page.getByRole("button", { name: "Add to menu" }).click();
+  await expect(page.locator("#menu-banner")).toContainText("Added");
+  expect(views.map((v) => v.id)).toEqual(["summary", "projects"]);
 });
