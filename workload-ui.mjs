@@ -20,7 +20,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="project">Whole project</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
+    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><span id="workload-chip" class="filter-chip" hidden></span><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button><label>Fit to project<select id="workload-fit" aria-label="Fit range to project"></select></label></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
   document.getElementById("history").append(section);
   const $ = (id) => document.getElementById(id);
   let summaries = null, // day summaries of the shown days
@@ -54,7 +54,6 @@ export function setupWorkload({ state, api, resizeFrame }) {
       $("workload-through").value = localDate(last);
       return;
     }
-    if (mode === "project") return; // resolved from data in load()
     const first = new Date(anchor);
     first.setHours(12, 0, 0, 0);
     if (mode === "week")
@@ -77,8 +76,6 @@ export function setupWorkload({ state, api, resizeFrame }) {
     "week",
   );
   $("workload-range").value = savedRange;
-  $("workload-prev").disabled = $("workload-next").disabled =
-    savedRange === "project";
   const savedDates = pref("workloadDates");
   if (savedRange === "custom" && Array.isArray(savedDates)) {
     $("workload-from").value = savedDates[0];
@@ -89,8 +86,6 @@ export function setupWorkload({ state, api, resizeFrame }) {
   );
   $("workload-range").onchange = () => {
     const mode = $("workload-range").value;
-    $("workload-prev").disabled = $("workload-next").disabled =
-      mode === "project";
     if (mode !== "custom") {
       preset($("workload-range").value);
       load();
@@ -108,7 +103,6 @@ export function setupWorkload({ state, api, resizeFrame }) {
   ])
     $(id).onclick = () => {
       const mode = $("workload-range").value;
-      if (mode === "project") return;
       const first = new Date($("workload-from").value + "T12:00:00");
       if (mode === "month") first.setMonth(first.getMonth() + direction);
       else if (mode === "week") first.setDate(first.getDate() + 7 * direction);
@@ -818,28 +812,52 @@ export function setupWorkload({ state, api, resizeFrame }) {
     );
     chart();
   }
-  // Report days to scan for "Whole project": recorded history, narrowed to
-  // when the selected project can receive time (its common and per-rule
-  // dates, manual assignments). All projects scan the whole history.
-  function projectScan() {
+  // Report days to scan when fitting the range to a project: recorded
+  // history, narrowed to when the project can receive time (its common and
+  // per-rule dates, manual assignments).
+  function projectScan(id) {
     const now = Date.now();
     const [start, end] = projectPeriod(
-      state.config.projects.find((p) => p.id === $("workload-project").value),
+      state.config.projects.find((p) => p.id === id),
       state.config.manualAssignments,
       historyStart(state.buckets, state.settings, state.host) ?? now,
       now,
     );
     return [reportDay(start), reportDay(end)];
   }
-  async function load({ force = false, keepRange = false } = {}) {
+  // Status with a spinner and the elapsed time while a range loads.
+  let ticker = null;
+  function working(text) {
+    idle();
+    const status = $("workload-status");
+    const spinner = el("span");
+    spinner.className = "spinner";
+    const message = el("span");
+    const elapsed = el("span");
+    const started = performance.now();
+    message.textContent = text + " ";
+    status.replaceChildren(spinner, message, elapsed);
+    ticker = setInterval(() => {
+      elapsed.textContent = `${Math.round((performance.now() - started) / 1000)} s`;
+    }, 1000);
+    $("workload-chart").classList.add("loading");
+  }
+  function idle() {
+    clearInterval(ticker);
+    ticker = null;
+    $("workload-chart").classList.remove("loading");
+  }
+  async function load({ force = false, keepRange = false, fit } = {}) {
     if (!state.config) return;
-    // keepRange: recalculate the shown days as they are ("Whole project" is
-    // not rescanned after a settings change).
-    const projectMode = !keepRange && $("workload-range").value === "project";
+    // keepRange: recalculate the shown days as they are (a fitted project
+    // span is not rescanned after a settings change). fit: a project id whose
+    // first to last day with time becomes the (custom) range.
+    const projectMode = !keepRange && fit !== undefined;
+    if (projectMode) $("workload-range").value = "custom";
     let from = keepRange && shown ? shown.from : $("workload-from").value,
       through =
         keepRange && shown ? shown.through : $("workload-through").value;
-    if (projectMode) [from, through] = projectScan();
+    if (projectMode) [from, through] = projectScan(fit);
     if ($("workload-range").value === "custom" && from && through)
       setPref("workloadDates", [from, through]);
     if (!from || !through || from > through) {
@@ -852,9 +870,11 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const device = state.host;
     requestedHost = device;
     $("workload-load").disabled = true;
-    $("workload-status").textContent = projectMode
-      ? "Scanning recorded history for the project span… Other panels remain available."
-      : "Loading selected range… Other panels remain available.";
+    working(
+      projectMode
+        ? `Scanning ${reportDates(from, through).length} days of history for the project span… Other panels remain available.`
+        : "Loading selected range… Other panels remain available.",
+    );
     try {
       const warnings = discoverBrowsers(state.buckets, device).warnings;
       const loaded = await summariesFor(
@@ -864,27 +884,24 @@ export function setupWorkload({ state, api, resizeFrame }) {
         run,
       );
       if (!loaded || run !== token || device !== state.host) return;
+      idle();
       let days = loaded.days,
         status = `${from} – ${through} · selected range loaded.`;
       if (projectMode) {
         // First to last day with time in the project (or any category).
-        const id = $("workload-project").value;
-        const used = (d) =>
-          id
-            ? (d.projects[id] || 0) > 0
-            : Object.entries(d.projects).some(
-                ([k, v]) => v > 0 && k !== "unassigned" && k !== "conflict",
-              );
+        const used = (d) => (d.projects[fit] || 0) > 0;
         const first = days.findIndex(used);
         if (first >= 0) days = days.slice(first, days.findLastIndex(used) + 1);
         from = days[0].date;
         through = days.at(-1).date;
         $("workload-from").value = from;
         $("workload-through").value = through;
+        setPref("workloadRange", "custom");
+        setPref("workloadDates", [from, through]);
         status =
           first >= 0
-            ? `${from} – ${through} · whole project, first to last recorded day.`
-            : `No recorded time for this selection · showing all history, ${from} – ${through}.`;
+            ? `${from} – ${through} · fitted to the project, first to last day with time.`
+            : `No recorded time in this project · showing all scanned history, ${from} – ${through}.`;
       }
       summaries = days;
       shown = { host: device, from, through };
@@ -899,10 +916,13 @@ export function setupWorkload({ state, api, resizeFrame }) {
       // Quietly after the page settles, so it never delays the first view.
       else if (!rawCovers()) setTimeout(() => prefetchRaw(run), 1500);
     } catch (e) {
-      if (run === token)
+      if (run === token) {
+        idle();
         $("workload-status").textContent = "Could not load range: " + e.message;
+      }
     } finally {
       if (run === token) {
+        idle();
         busy = false;
         $("workload-load").disabled = false;
         resizeFrame();
@@ -927,11 +947,34 @@ export function setupWorkload({ state, api, resizeFrame }) {
   };
   $("workload-project").onchange = () => {
     setPref("workloadProject", $("workload-project").value);
-    // Summaries hold every category, so another project only redraws; a
-    // project span is found again (from cache after the first scan).
-    if ($("workload-range").value !== "project") return calculate();
-    load();
+    // Summaries hold every category, so another project only redraws.
+    showChip();
+    calculate();
   };
+  $("workload-fit").onchange = () => {
+    const id = $("workload-fit").value;
+    $("workload-fit").value = "";
+    if (id && !busy) load({ fit: id });
+  };
+  function showChip() {
+    const chip = $("workload-chip");
+    const project = state.config?.projects.find(
+      (p) => p.id === $("workload-project").value,
+    );
+    chip.hidden = !project;
+    if (!project) return;
+    const clear = el("button");
+    clear.type = "button";
+    clear.textContent = "✕";
+    clear.setAttribute("aria-label", "Show all projects");
+    clear.onclick = () => {
+      $("workload-project").value = "";
+      $("workload-project").onchange();
+    };
+    const name = el("span");
+    name.textContent = `Showing only ${project.name}`;
+    chip.replaceChildren(name, clear);
+  }
   function update() {
     const selected = $("workload-project").value;
     const projects = state.config.projects;
@@ -950,8 +993,15 @@ export function setupWorkload({ state, api, resizeFrame }) {
         "workloadProject",
         projects.some((p) => p.id === selected) ? selected : "",
       );
+      $("workload-fit").replaceChildren(
+        new Option("Choose a project…", ""),
+        ...projects.map(
+          (p) => new Option(p.name + (p.archived ? " (archived)" : ""), p.id),
+        ),
+      );
       section.dataset.projects = signature;
     }
+    showChip();
     const typeSignature = JSON.stringify(
       (state.config.activityTypes || []).map((t) => [t.id, t.name, t.color]),
     );

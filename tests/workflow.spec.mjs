@@ -978,7 +978,7 @@ test("a whole application can be a project rule, from the list and from the edit
   expect(errors).toEqual([]);
 });
 
-test("workload presets cover rolling days and a whole project span", async ({
+test("workload presets cover rolling days and fitting the range to a project", async ({
   page,
 }) => {
   const queries = [];
@@ -997,9 +997,14 @@ test("workload presets cover rolling days and a whole project span", async ({
   await expect(page.getByLabel("Chart from")).toHaveValue("2026-07-30");
   await expect(page.getByLabel("Chart through")).toHaveValue("2026-08-28");
 
-  await range.selectOption("project");
-  await expect(page.getByLabel("Previous chart period")).toBeDisabled();
-  await expect(page.locator("#workload-status")).toContainText("whole project");
+  await page.getByLabel("Fit range to project").selectOption("demo");
+  await expect(page.locator("#workload-status")).toContainText(
+    "fitted to the project",
+  );
+  // The range becomes a normal custom range; the project filter is untouched.
+  await expect(range).toHaveValue("custom");
+  await expect(page.getByLabel("Workload project")).toHaveValue("");
+  await expect(page.getByLabel("Previous chart period")).toBeEnabled();
   // History since the window bucket's creation (2026-09-01) was cached by
   // the ranges above; only the still-running day is fetched.
   const scanStart = Date.parse(queries.at(-1).split("/")[0]);
@@ -1346,7 +1351,7 @@ test("dialogs fit inside ActivityWatch's scrolling content area", async ({
     await page.evaluate(() => document.getElementById("content").scrollTop),
   ).toBe(500);
 });
-test("a project's common start date limits its rules and the whole-project scan", async ({
+test("a project's common start date limits its rules and the project-fit scan", async ({
   page,
 }) => {
   const queries = [];
@@ -1362,10 +1367,11 @@ test("a project's common start date limits its rules and the whole-project scan"
     .poll(() => settings.project_tracker.projects[0].rulesFrom)
     .toBe("2026-09-20");
   await expect(page.locator("#assigned")).toHaveText("0h 1m");
-  // Whole project scans from the common start, not from 2026-09-01.
-  await page.getByLabel("Workload project").selectOption("demo");
-  await page.getByLabel("Workload range").selectOption("project");
-  await expect(page.locator("#workload-status")).toContainText("whole project");
+  // Fitting scans from the common start, not from 2026-09-01.
+  await page.getByLabel("Fit range to project").selectOption("demo");
+  await expect(page.locator("#workload-status")).toContainText(
+    "fitted to the project",
+  );
   const scanStart = Date.parse(queries.at(-1).split("/")[0]);
   expect(scanStart).toBeGreaterThan(Date.parse("2026-09-18T00:00:00Z"));
   expect(scanStart).toBeLessThan(Date.parse("2026-09-20T12:00:00Z"));
@@ -1739,4 +1745,17 @@ test("not assigned can be sorted by most recent activity", async ({ page }) => {
     .click();
   await expect(page.locator("#unassigned-sort")).toHaveValue("recent");
   await expect(rows.first()).toContainText("Shared task");
+});
+
+test("the project filter shows a chip that returns to all projects", async ({
+  page,
+}) => {
+  await setup(page);
+  const chip = page.locator("#workload-chip");
+  await expect(chip).toBeHidden();
+  await page.getByLabel("Workload project").selectOption("demo");
+  await expect(chip).toContainText("Showing only Demo");
+  await chip.getByRole("button", { name: "Show all projects" }).click();
+  await expect(chip).toBeHidden();
+  await expect(page.getByLabel("Workload project")).toHaveValue("");
 });

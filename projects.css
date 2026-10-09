@@ -1681,3 +1681,38 @@ header .tools {
   color: #d5efe6;
   font-weight: 400;
 }
+.spinner {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.workload-chart.loading {
+  opacity: 0.45;
+  transition: opacity 0.2s;
+}
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+}
+.filter-chip button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0 6px;
+}
