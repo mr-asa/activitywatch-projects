@@ -29,4 +29,9 @@ export function checkDue(lastChecked, now = Date.now()) {
     Number.isFinite(lastChecked) && now - lastChecked < CHECK_INTERVAL_MS
   );
 }
-export const MANUAL_COMMAND = `irm https://github.com/${REPO}/releases/latest/download/install.ps1 | iex`;
+const BASE = `https://github.com/${REPO}/releases/latest/download`;
+// The command that installs/updates by hand, for the visitor's platform.
+export const manualCommand = (platform = "") =>
+  /win/i.test(platform)
+    ? `irm ${BASE}/install.ps1 | iex`
+    : `curl -fsSL ${BASE}/install.sh | sh`;

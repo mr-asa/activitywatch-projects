@@ -29,8 +29,10 @@ rmSync(dist, { recursive: true, force: true });
 mkdirSync(join(stage, "app"), { recursive: true });
 for (const file of json("runtime-files.json"))
   cpSync(join(root, file), join(stage, "app", file));
-cpSync(join(root, "install.ps1"), join(stage, "install.ps1"));
-cpSync(join(root, "install.ps1"), join(dist, "install.ps1"));
+for (const script of ["install.ps1", "install.sh"])
+  cpSync(join(root, script), join(stage, script));
+for (const script of ["install.ps1", "install.sh"])
+  cpSync(join(root, script), join(dist, script));
 const zip = join(dist, "activitywatch-projects.zip");
 if (process.platform === "win32")
   // bsdtar writes a normal zip with forward-slash paths (Compress-Archive in PowerShell 5.1 does not).

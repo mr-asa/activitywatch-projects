@@ -18,6 +18,6 @@ jobs:
       - run: >
           gh release create "$GITHUB_REF_NAME" --generate-notes
           --title "$GITHUB_REF_NAME"
-          dist/activitywatch-projects.zip dist/activitywatch-projects.zip.sha256 dist/install.ps1
+          dist/activitywatch-projects.zip dist/activitywatch-projects.zip.sha256 dist/install.ps1 dist/install.sh
         env:
           GH_TOKEN: ${{ github.token }}

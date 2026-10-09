@@ -1,7 +1,7 @@
 import { pref, setPref } from "./ui-prefs.mjs";
 import {
   REPO,
-  MANUAL_COMMAND,
+  manualCommand,
   checkDue,
   isNewer,
   parseRelease,
@@ -98,17 +98,19 @@ function banner(release, current) {
   };
 }
 function manual(box) {
+  const windows = /win/i.test(navigator.platform);
+  const command = manualCommand(navigator.platform);
   const help = node("div", "update-manual");
   help.append(
     node(
       "p",
       "muted",
-      "The one-click updater did not respond (it exists only when installed with install.ps1). Run this in PowerShell, then press Ctrl+F5:",
+      `The one-click updater did not respond (it needs the installer's ${windows ? "install.ps1" : "install.sh, Linux only"}). Run this in ${windows ? "PowerShell" : "a terminal"}, then press Ctrl+F5:`,
     ),
   );
-  const command = node("code", "", MANUAL_COMMAND);
+  const code = node("code", "", command);
   const copy = node("button", "", "Copy");
-  copy.onclick = () => navigator.clipboard?.writeText(MANUAL_COMMAND);
-  help.append(command, " ", copy);
+  copy.onclick = () => navigator.clipboard?.writeText(command);
+  help.append(code, " ", copy);
   box.append(help);
 }

@@ -7,6 +7,7 @@ import {
   parseRelease,
   parseVersion,
   checkDue,
+  manualCommand,
 } from "./update-core.mjs";
 const json = (name) => JSON.parse(readFileSync(name, "utf8"));
 const files = json("runtime-files.json");
@@ -65,4 +66,8 @@ test("menu entry: page name, detection and a non-destructive addition", () => {
   assert.equal(next[0], views[0]);
   assert.ok(hasView(next, "projects"));
   assert.equal(addView([{ id: "projects" }], "projects")[1].id, "projects-2");
+});
+test("the manual command matches the platform", () => {
+  assert.match(manualCommand("Win32"), /install.ps1 | iex$/);
+  assert.match(manualCommand("Linux x86_64"), /install.sh | sh$/);
 });
