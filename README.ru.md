@@ -1,6 +1,9 @@
 # ActivityWatch Projects
 
-[English](README.md) · **Русский**
+<p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/English-4b5563?style=for-the-badge" alt="English" /></a>
+  <a href="README.ru.md"><img src="https://img.shields.io/badge/%D0%A0%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-65d6b4?style=for-the-badge" alt="Русский" /></a>
+</p>
 
 **Узнайте, куда уходит время, проведённое у монитора.**
 ActivityWatch Projects превращает историю ActivityWatch в понятную картину времени по проектам: без таймеров, которые нужно запускать, и без ввода тегов или правил по каждой активности изо дня в день!
