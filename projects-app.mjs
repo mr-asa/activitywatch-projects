@@ -2,6 +2,7 @@ import { lockScrollBehindDialogs, openModal } from "./dialogs.mjs";
 import { setupActivities } from "./activity-ui.mjs";
 import { setupWorkload } from "./workload-ui.mjs";
 import { setPref } from "./ui-prefs.mjs";
+import { setupManicTime } from "./manictime-ui.mjs";
 import { setupMenuEntry } from "./menu-ui.mjs";
 import { setupUpdates } from "./update-ui.mjs";
 import { setupWorkflow } from "./workflow-ui.mjs";
@@ -719,6 +720,7 @@ new ResizeObserver(resizeFrame).observe(document.querySelector("main"));
 load();
 setupUpdates();
 setupMenuEntry({ api });
+setupManicTime({ api, load, notice, resizeFrame });
 setInterval(() => {
   if (!document.querySelector("dialog[open]") && !document.hidden)
     load({ auto: true });

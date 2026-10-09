@@ -39,9 +39,14 @@ New-Item -ItemType Directory -Path $backupRoot -Force | Out-Null
 New-Item -ItemType Directory -Path $targetRoot -Force | Out-Null
 foreach ($file in $files) {
     $target = Join-Path $targetRoot $file
-    if (Test-Path -LiteralPath $target) { Copy-Item -LiteralPath $target -Destination (Join-Path $backupRoot $file) }
+    if (Test-Path -LiteralPath $target) {
+        $saved = Join-Path $backupRoot $file
+        New-Item -ItemType Directory -Path (Split-Path $saved -Parent) -Force | Out-Null
+        Copy-Item -LiteralPath $target -Destination $saved
+    }
 }
 foreach ($file in $files) {
+    New-Item -ItemType Directory -Path (Split-Path (Join-Path $targetRoot $file) -Parent) -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $sourceRoot $file) -Destination (Join-Path $targetRoot $file) -Force
     if ((Get-RuntimeHash (Join-Path $sourceRoot $file)) -ne (Get-RuntimeHash (Join-Path $targetRoot $file))) { throw "Verification failed for $file. Previous files: $backupRoot" }
 }

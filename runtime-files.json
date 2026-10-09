@@ -28,5 +28,10 @@
   "update-ui.mjs",
   "menu-core.mjs",
   "menu-ui.mjs",
+  "manictime-core.mjs",
+  "manictime-ui.mjs",
+  "vendor/sql-wasm.js",
+  "vendor/sql-wasm.wasm",
+  "vendor/sql-js-LICENSE.txt",
   "version.json"
 ]
