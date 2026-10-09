@@ -1647,3 +1647,37 @@ header .tools {
   margin-top: 6px;
   user-select: all;
 }
+/* Update and menu offers must not be missed: strong accent, large text. */
+#menu-banner,
+#update-banner {
+  background: #12463a;
+  border: 2px solid var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 18px;
+}
+#menu-banner a,
+#update-banner a {
+  color: #bff5e4;
+}
+#menu-banner button,
+#update-banner button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b1f19;
+  font-weight: 700;
+}
+#menu-banner button:hover,
+#update-banner button:hover {
+  background: #8de8ca;
+}
+#menu-banner button:disabled,
+#update-banner button:disabled {
+  opacity: 0.6;
+}
+#menu-banner .muted,
+#update-banner .muted {
+  color: #d5efe6;
+  font-weight: 400;
+}
