@@ -1638,3 +1638,11 @@ header .tools {
 .assign-app-row button {
   white-space: nowrap;
 }
+#update-banner button {
+  margin-left: 8px;
+}
+#update-banner code {
+  display: inline-block;
+  margin-top: 6px;
+  user-select: all;
+}

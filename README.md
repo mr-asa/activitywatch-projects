@@ -82,16 +82,19 @@ Before saving, every change shows the numbers **"before → after"**. The last 2
 
 You need [ActivityWatch](https://activitywatch.net/) running with its window and AFK watchers. For website rules, also install the ActivityWatch browser extension.
 
-1. **Download** the repository to a permanent folder, e.g. `C:/Tools/activitywatch-projects`.
-2. **Tell ActivityWatch about it.** Open `aw-server.toml` (on Windows: `%LOCALAPPDATA%/activitywatch/activitywatch/aw-server/aw-server.toml`) and add a line to the existing `[server.custom_static]` section:
+1. **Install.** In PowerShell:
 
-   ```toml
-   [server.custom_static]
-   projects = "C:/Tools/activitywatch-projects"
+   ```powershell
+   irm https://github.com/mr-asa/activitywatch-projects/releases/latest/download/install.ps1 | iex
    ```
 
-3. **Restart ActivityWatch** and open <http://localhost:5600/pages/projects/>.
-4. Click **+ Add project**, give it a name and a rule, and your history starts filling in.
+   It downloads the latest release into `%LOCALAPPDATA%/ActivityWatchProjects` and adds one line to ActivityWatch's `aw-server.toml` (a backup is made first).
+2. **Restart ActivityWatch** once and open <http://127.0.0.1:5600/pages/projects/>.
+3. Click **+ Add project**, give it a name and a rule, and your history starts filling in.
+
+**Updates.** The dashboard checks GitHub for a new release once a day and shows a banner with an **Update** button; one click installs it and reloads the page. If the button does nothing, run the install command again. The check can be switched off by setting `updateCheck` to `false` in the browser's local storage entry `activitywatch-projects.view`.
+
+Prefer to do it by hand? Download `activitywatch-projects.zip` from the [releases](https://github.com/mr-asa/activitywatch-projects/releases), unpack the `app` folder anywhere and add `projects = "<that folder>"` to the `[server.custom_static]` section of `aw-server.toml`.
 
 Tested on Windows with ActivityWatch 0.14. Other platforms may work but haven't been verified.
 

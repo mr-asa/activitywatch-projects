@@ -83,16 +83,19 @@ ActivityWatch Projects превращает историю ActivityWatch в по
 
 Нужен запущенный [ActivityWatch](https://activitywatch.net/) с вотчерами окон и AFK. Для правил по сайтам установите ещё браузерное расширение ActivityWatch.
 
-1. **Скачайте** репозиторий в постоянную папку, например `C:/Tools/activitywatch-projects`.
-2. **Сообщите о нём ActivityWatch.** Откройте `aw-server.toml` (в Windows: `%LOCALAPPDATA%/activitywatch/activitywatch/aw-server/aw-server.toml`) и добавьте строку в существующую секцию `[server.custom_static]`:
+1. **Установите.** В PowerShell:
 
-   ```toml
-   [server.custom_static]
-   projects = "C:/Tools/activitywatch-projects"
+   ```powershell
+   irm https://github.com/mr-asa/activitywatch-projects/releases/latest/download/install.ps1 | iex
    ```
 
-3. **Перезапустите ActivityWatch** и откройте <http://localhost:5600/pages/projects/>.
-4. Нажмите **+ Add project**, задайте имя и правило, и история начнёт заполняться.
+   Скрипт скачает последний релиз в `%LOCALAPPDATA%/ActivityWatchProjects` и добавит одну строку в `aw-server.toml` ActivityWatch (сначала делается резервная копия).
+2. **Один раз перезапустите ActivityWatch** и откройте <http://127.0.0.1:5600/pages/projects/>.
+3. Нажмите **+ Add project**, задайте имя и правило, и история начнёт заполняться.
+
+**Обновления.** Раз в сутки панель проверяет GitHub и, если вышла новая версия, показывает плашку с кнопкой **Update**: один клик устанавливает обновление и перезагружает страницу. Если кнопка ничего не делает, запустите команду установки ещё раз.
+
+Вручную: скачайте `activitywatch-projects.zip` из [релизов](https://github.com/mr-asa/activitywatch-projects/releases), распакуйте папку `app` куда угодно и добавьте `projects = "<эта папка>"` в секцию `[server.custom_static]` файла `aw-server.toml`.
 
 Проверено на Windows с ActivityWatch 0.14. На других платформах может работать, но не проверялось.
 

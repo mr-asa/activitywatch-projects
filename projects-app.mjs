@@ -2,6 +2,7 @@ import { lockScrollBehindDialogs, openModal } from "./dialogs.mjs";
 import { setupActivities } from "./activity-ui.mjs";
 import { setupWorkload } from "./workload-ui.mjs";
 import { setPref } from "./ui-prefs.mjs";
+import { setupUpdates } from "./update-ui.mjs";
 import { setupWorkflow } from "./workflow-ui.mjs";
 import { reportBounds, revisionHistory } from "./workflow-core.mjs";
 import { projectRules, stable, localDate } from "./rule-engine.mjs";
@@ -715,6 +716,7 @@ const inspector = setupUnassigned({
 });
 new ResizeObserver(resizeFrame).observe(document.querySelector("main"));
 load();
+setupUpdates();
 setInterval(() => {
   if (!document.querySelector("dialog[open]") && !document.hidden)
     load({ auto: true });

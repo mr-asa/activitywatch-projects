@@ -28,6 +28,7 @@ Tested with ActivityWatch 0.14.0b8 on Windows. Node.js 22+ is needed for tests a
 | `day-cache.mjs` | IndexedDB cache of workload day summaries, keyed by device + date, valid for one configuration fingerprint. |
 | `regex-help.mjs` | `regexHelp()`: collapsed regex cheat sheet, shown wherever a rule can be switched to regex (rule editor rows in projects and types, the add-rule dialog). |
 | `dialogs.mjs` | Dialog placement inside the ActivityWatch frame and the wheel lock behind open dialogs. |
+| `update-core.mjs` / `update-ui.mjs` | Update check: once a day (`updateChecked`/`updateRelease` prefs) asks the GitHub latest-release API, compares with the installed `version.json`, shows `#update-banner`. "Update" navigates to `awprojects://update` (registered by `install.ps1`), then polls `version.json` and reloads; after ~60 s without change it shows the manual command. Skipped under browser automation unless `?updatecheck=1`. |
 | `ui-prefs.mjs` | Per-browser view preferences in `localStorage` (report period, chart range and lines, filters). Never stored in ActivityWatch settings; saved automatically on change; unknown values fall back to defaults. |
 
 Page layout (`index.html` slots): header with `#tool-buttons` (Assign interval, Explain activities, Reports & export, Settings & recovery) and one Refresh (report + chart's newest days); the period bar (`#report-period`, dates, Today = back to one day); `#report` holds everything for the report period (totals, review, breakdown, timeline, Not assigned, projects with their own "+ Add project" and "Show archived", activity types, manual assignments); `#history` holds the workload chart with its own range, the report's days highlighted and "Open this range in the report". Modules insert into these slots, not relative to each other.
@@ -101,6 +102,13 @@ npm run deploy                         # tests + copy runtime files (Windows)
 ```
 
 GitHub Actions runs both suites on push and PR.
+
+## Releases and installation
+
+- `runtime-files.json` is the single list of files served by ActivityWatch (used by `deploy.ps1` and the release build; `release.test.mjs` checks that it covers every import). A new runtime file goes there, not into the scripts.
+- Version: `version.json` (shipped, read by the page) must equal `package.json`.
+- Release: bump both versions, commit, `git tag vX.Y.Z`, push the tag. `.github/workflows/release.yml` tests, runs `scripts/build-release.mjs` (zip with `app/` + `install.ps1`, `.sha256`) and publishes a GitHub release with fixed asset names (`releases/latest/download/…`). `npm run release` builds locally into `dist/`.
+- `install.ps1` is installer and updater: verifies SHA-256, unpacks to `%LOCALAPPDATA%/ActivityWatchProjects/app` (previous version kept in `app-previous`, log in `install.log`), adds `projects = "…/app"` to `aw-server.toml` on first install (never changes an existing `projects` key), registers the per-user `awprojects://` protocol that runs `install.ps1 -Update` (takes no arguments from the URL). Parameters `-ZipSource`, `-BaseDir`, `-ConfigPath`, `-NoProtocol` allow testing against a local zip.
 
 ## Deployment
 

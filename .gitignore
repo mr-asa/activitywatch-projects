@@ -18,3 +18,4 @@ settings*.json
 project_tracker*.json
 *.csv
 *.tsv
+dist/
