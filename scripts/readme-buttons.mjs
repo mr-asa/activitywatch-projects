@@ -29,6 +29,7 @@ const GREY = "#4b5563";
 const GREEN = "#2f9e7f";
 const files = {
   "btn-blog.svg": { label: "Описание в блоге", fill: "#2563eb", icon: true },
+  "btn-blog-en.svg": { label: "Read on the blog", fill: "#2563eb", icon: true },
   "btn-english.svg": { label: "English", fill: GREY },
   "btn-english-active.svg": { label: "English", fill: GREEN },
   "btn-russian.svg": { label: "Русский", fill: GREY },
