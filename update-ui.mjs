@@ -85,6 +85,11 @@ function banner(release, current) {
     status.textContent = " Updating…";
     const link = node("a");
     link.href = "awprojects://update";
+    // Inside the ActivityWatch frame a protocol navigation is blocked by the
+    // page's CSP and blanks the frame; the top window launches the handler
+    // without unloading anything.
+    link.target = "_top";
+    link.rel = "noopener";
     link.click();
     for (let i = 0; i < 30; i++) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
