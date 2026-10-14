@@ -1799,6 +1799,7 @@ test("project chips hide projects and the popup switches between all, custom and
   const chips = page.locator("#workload-project-chips .layer-chip");
   const popup = page.getByLabel("Workload project");
   await expect(popup).toHaveValue("");
+  await expect(chips.first()).toBeVisible();
   const all = await chips.count();
   expect(all).toBeGreaterThan(1);
   await page.getByRole("button", { name: "Hide Demo" }).click();

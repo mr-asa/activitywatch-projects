@@ -1216,7 +1216,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   $("workload-fit").onchange = () => {
     const id = $("workload-fit").value;
     $("workload-fit").value = "";
-    if (id && !busy) load({ fit: id });
+    if (id) load({ fit: id });
   };
   function update() {
     const selected = $("workload-project").value;
