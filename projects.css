@@ -972,6 +972,7 @@ button.share-segment:hover {
   font-variant-numeric: tabular-nums;
 }
 .workload-chart {
+  position: relative;
   overflow-x: auto;
   border-radius: 10px;
   background: linear-gradient(180deg, #182029, #12191f);
@@ -1715,4 +1716,43 @@ header .tools {
   background: transparent;
   color: inherit;
   padding: 0 6px;
+}
+
+.workload-tip {
+  position: absolute;
+  z-index: 3;
+  pointer-events: none;
+  min-width: 180px;
+  max-width: 340px;
+  padding: 8px 10px;
+  border: 1px solid #3b4856;
+  border-radius: 8px;
+  background: #121a21f2;
+  box-shadow: 0 6px 18px #0008;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.workload-tip[hidden] {
+  display: none;
+}
+.workload-tip .tip-head {
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+.workload-tip .tip-series {
+  padding: 1px 0;
+  color: #cbd6e0;
+}
+.workload-tip .tip-series::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 7px;
+  border-radius: 2px;
+  background: var(--legend-color);
+}
+.workload-tip .near {
+  font-weight: 700;
+  color: #fff;
 }

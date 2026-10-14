@@ -743,6 +743,41 @@ test("workload line overlays use distinct units and an editable whole-day target
   await page
     .locator("#workload-panel")
     .screenshot({ path: "test-results/workload-stack.png" });
+  // Hover shows a tooltip beside the cursor with the day's values.
+  await page.locator("#workload-chart").scrollIntoViewIfNeeded();
+  const hit = page.locator("#workload-chart rect[role=button]").first();
+  await hit.hover();
+  const tip = page.locator("#workload-chart .workload-tip");
+  await expect(tip).toBeVisible();
+  await expect(tip).toContainText("All active time: 6.5 h");
+  // Bar views replace the lines and overlays.
+  await page.locator("#workload-mode").selectOption("bars");
+  await page
+    .locator("#workload-panel")
+    .screenshot({ path: "test-results/workload-bars.png" });
+  for (const id of ["demo", "q", "rest", "unclassified"])
+    await expect(
+      page.locator(`#workload-chart rect[data-bar="${id}"]`),
+    ).toHaveCount(7);
+  await expect(page.locator("#workload-chart path[data-series]")).toHaveCount(
+    0,
+  );
+  await expect(page.locator("#workload-trend")).toBeDisabled();
+  await page.locator("#workload-chart rect[role=button]").first().focus();
+  await expect(page.locator("#workload-detail")).toContainText(
+    "All active time: 6.5 h",
+  );
+  await page.locator("#workload-mode").selectOption("share");
+  await expect(page.locator("#workload-chart")).toContainText("100%");
+  await expect(
+    page.locator("#workload-chart rect[data-bar]").first(),
+  ).toBeVisible();
+  // One project: its bar on top of everything else.
+  await page.getByLabel("Workload project").selectOption("demo");
+  await expect(
+    page.locator('#workload-chart rect[data-bar="rest"]'),
+  ).not.toHaveCount(0);
+  await page.locator("#workload-mode").selectOption("lines");
   await page.locator("#workload-total").uncheck();
   await expect(
     page.locator('#workload-chart path[data-series="tracked"]'),

@@ -20,7 +20,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><span id="workload-chip" class="filter-chip" hidden></span><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button><label>Fit to project<select id="workload-fit" aria-label="Fit range to project"></select></label></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
+    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><span id="workload-chip" class="filter-chip" hidden></span><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button><label>Fit to project<select id="workload-fit" aria-label="Fit range to project"></select></label></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label>View<select id="workload-mode" aria-label="Chart view"><option value="lines">Lines</option><option value="bars">Stacked bars</option><option value="share">100% bars</option></select></label><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
   document.getElementById("history").append(section);
   const $ = (id) => document.getElementById(id);
   let summaries = null, // day summaries of the shown days
@@ -230,10 +230,22 @@ export function setupWorkload({ state, api, resizeFrame }) {
       resizeFrame();
       return;
     }
-    const trend = $("workload-trend").checked,
-      all = $("workload-all").checked && !aggregate,
-      totalLine = $("workload-total").checked,
-      nonProject = $("workload-nonproject").checked;
+    // Overlays belong to the line view; the bar views show the stack.
+    const mode = $("workload-mode").value,
+      lines = mode === "lines",
+      share = mode === "share";
+    for (const id of [
+      "workload-trend",
+      "workload-total",
+      "workload-all",
+      "workload-nonproject",
+    ])
+      $(id).disabled = !lines;
+    const trend = lines && $("workload-trend").checked,
+      all = lines && $("workload-all").checked && !aggregate,
+      totalLine = lines && $("workload-total").checked,
+      nonProject = lines && $("workload-nonproject").checked;
+    const shownActivities = lines ? activities : [];
     const ns = "http://www.w3.org/2000/svg",
       svg = document.createElementNS(ns, "svg");
     // Always the panel's width: long ranges become weekly or monthly averages.
@@ -248,7 +260,36 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const view = chartBuckets(layers.days, stack, PW),
       days = view.days,
       unit = view.unit,
-      spacing = PW / Math.max(1, days.length - 1);
+      bars = !lines,
+      spacing = PW / Math.max(1, bars ? days.length : days.length - 1);
+    // Bar views: layers to stack. All projects uses the chart's stack; one
+    // project is stacked on everything else.
+    const barLayers = !bars
+      ? []
+      : aggregate
+        ? view.stack
+        : [
+            {
+              id: project.id,
+              name: project.name,
+              color: project.color,
+              days: days.map((d) => ({
+                seconds: d.seconds,
+                bottom: 0,
+                top: d.seconds,
+              })),
+            },
+            {
+              id: "rest",
+              name: "Everything else",
+              color: "#7d8896",
+              extra: true,
+              days: days.map((d) => {
+                const seconds = Math.max(0, d.tracked - d.seconds);
+                return { seconds, bottom: d.seconds, top: d.seconds + seconds };
+              }),
+            },
+          ];
     const max = Math.max(
       1,
       Math.ceil(
@@ -258,9 +299,9 @@ export function setupWorkload({ state, api, resizeFrame }) {
             (d) =>
               Math.max(
                 d.seconds,
-                ...activities.map((t) => d[t.field]),
+                ...shownActivities.map((t) => d[t.field]),
                 all || target ? d.work : 0,
-                totalLine || aggregate ? d.tracked : 0,
+                totalLine || aggregate || bars ? d.tracked : 0,
                 trend ? d.trend || 0 : 0,
               ) / 3600,
           ),
@@ -268,15 +309,18 @@ export function setupWorkload({ state, api, resizeFrame }) {
       ),
     );
     const x = (i) =>
-        L + (days.length === 1 ? PW / 2 : (i * PW) / (days.length - 1)),
-      y = (s) => T + PH - (s / 3600 / max) * PH;
+        bars
+          ? L + ((i + 0.5) * PW) / days.length
+          : L + (days.length === 1 ? PW / 2 : (i * PW) / (days.length - 1)),
+      y = (s) => T + PH - (s / 3600 / max) * PH,
+      yShare = (f) => T + PH - f * PH;
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.style.width = "100%";
     svg.style.height = H + "px";
     svg.setAttribute("role", "group");
     svg.setAttribute(
       "aria-label",
-      `${project.name}: daily workload lines, ${days[0].date} to ${days.at(-1).date}`,
+      `${project.name}: daily workload ${lines ? "lines" : "bars"}, ${days[0].date} to ${days.at(-1).date}`,
     );
     const shape = (tag, attrs, text) => {
       const n = document.createElementNS(ns, tag);
@@ -304,7 +348,9 @@ export function setupWorkload({ state, api, resizeFrame }) {
           fill: "#a7b5c4",
           "font-size": 12,
         },
-        `${((max * i) / 4).toLocaleString(undefined, { maximumFractionDigits: 2 })} h`,
+        share
+          ? `${i * 25}%`
+          : `${((max * i) / 4).toLocaleString(undefined, { maximumFractionDigits: 2 })} h`,
       );
       if (nonProject)
         shape(
@@ -381,7 +427,27 @@ export function setupWorkload({ state, api, resizeFrame }) {
       }
     };
     // Straight segments retain measured day-to-day values; no decorative smoothing.
-    if (aggregate) {
+    if (bars) {
+      const bandwidth = Math.max(2, Math.min(spacing * 0.72, 56));
+      for (const layer of barLayers)
+        days.forEach((d, i) => {
+          const v = layer.days[i];
+          if (!d.tracked || !v.seconds) return;
+          const [top, bottom] = share
+            ? [yShare(v.top / d.tracked), yShare(v.bottom / d.tracked)]
+            : [y(v.top), y(v.bottom)];
+          shape("rect", {
+            x: x(i) - bandwidth / 2,
+            y: top,
+            width: bandwidth,
+            height: Math.max(0.5, bottom - top),
+            fill: layer.color,
+            opacity: layer.extra ? 0.5 : 0.85,
+            "data-bar": layer.id,
+            "pointer-events": "none",
+          });
+        });
+    } else if (aggregate) {
       for (const layer of view.stack)
         for (const indexes of runs) {
           const upper = indexes.map((i) => `${x(i)} ${y(layer.days[i].top)}`),
@@ -398,7 +464,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
             d: "M " + upper.join(" L "),
             fill: "none",
             stroke: layer.color,
-            "stroke-width": layer.extra ? 1 : 1.5,
+            "stroke-width": layer.extra ? 1 : 1.2,
             "stroke-dasharray": layer.extra ? "4 3" : "",
           });
         }
@@ -414,7 +480,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
         });
       }
     }
-    if (target) {
+    if (target && !share) {
       const yy = y(target * 3600);
       shape("line", {
         x1: L,
@@ -429,52 +495,54 @@ export function setupWorkload({ state, api, resizeFrame }) {
         { x: L + 8, y: yy - 7, fill: "#ec8b98", "font-size": 12 },
         `Daily target · ${target} h`,
       );
-      const clip = shape("clipPath", { id: "workload-above-target" });
-      const clipRect = document.createElementNS(ns, "rect");
-      for (const [attr, value] of Object.entries({
-        x: L,
-        y: T,
-        width: PW,
-        height: Math.max(0, yy - T),
-      }))
-        clipRect.setAttribute(attr, value);
-      clip.append(clipRect);
-      for (const indexes of runs)
-        shape("path", {
-          d:
-            `M ${x(indexes[0])} ${y(0)} ` +
-            indexes.map((i) => `L ${x(i)} ${y(days[i].work)}`).join(" ") +
-            ` L ${x(indexes.at(-1))} ${y(0)} Z`,
-          fill: "#ec8b98",
-          opacity: 0.2,
-          "clip-path": "url(#workload-above-target)",
-        });
+      if (lines) {
+        const clip = shape("clipPath", { id: "workload-above-target" });
+        const clipRect = document.createElementNS(ns, "rect");
+        for (const [attr, value] of Object.entries({
+          x: L,
+          y: T,
+          width: PW,
+          height: Math.max(0, yy - T),
+        }))
+          clipRect.setAttribute(attr, value);
+        clip.append(clipRect);
+        for (const indexes of runs)
+          shape("path", {
+            d:
+              `M ${x(indexes[0])} ${y(0)} ` +
+              indexes.map((i) => `L ${x(i)} ${y(days[i].work)}`).join(" ") +
+              ` L ${x(indexes.at(-1))} ${y(0)} Z`,
+            fill: "#ec8b98",
+            opacity: 0.2,
+            "clip-path": "url(#workload-above-target)",
+          });
+      }
     }
-    if (totalLine) line("tracked", "#cfd8e3", 1.5, "2 4");
-    if (trend) line("trend", "#d6e2ee", 1.7, "5 5");
-    line("seconds", project.color, 3);
+    if (totalLine) line("tracked", "#cfd8e3", 1.2, "2 4");
+    if (trend) line("trend", "#d6e2ee", 1.2, "5 5");
+    if (lines) line("seconds", project.color, 2);
     // Thin and on top: where it equals the project, it rides on its edge.
-    if (all) line("work", "#d6e2ee", 1.2);
-    for (const activity of activities) {
-      line(activity.field, activity.color, 2, "7 4");
+    if (all) line("work", "#d6e2ee", 1);
+    for (const activity of shownActivities) {
+      line(activity.field, activity.color, 1.5, "7 4");
       days.forEach((d, i) => {
         if (d.tracked && spacing >= 8)
           shape("circle", {
             cx: x(i),
             cy: y(d[activity.field]),
-            r: 3,
+            r: 2.5,
             fill: activity.color,
             "data-activity": activity.id,
           });
       });
     }
-    if (nonProject) line("nonProjectPercent", "#e6b56d", 2, "3 5", true);
+    if (nonProject) line("nonProjectPercent", "#e6b56d", 1.5, "3 5", true);
     days.forEach((d, i) => {
-      if (d.tracked && spacing >= 6)
+      if (lines && d.tracked && spacing >= 6)
         shape("circle", {
           cx: x(i),
           cy: y(d.seconds),
-          r: spacing >= 14 ? 4 : 2.5,
+          r: spacing >= 14 ? 3.5 : 2.5,
           fill: project.color,
           stroke: "#16202a",
           "stroke-width": 2,
@@ -490,13 +558,72 @@ export function setupWorkload({ state, api, resizeFrame }) {
       "stroke-dasharray": "2 3",
     });
     const period = (d) => (unit === "day" ? d.date : `${d.from} – ${d.to}`);
+    // Details of one day: the row below the chart and the tooltip at the
+    // cursor show the same items.
+    const tip = el("div");
+    tip.className = "workload-tip";
+    tip.hidden = true;
+    tip.setAttribute("aria-hidden", "true");
+    let tipItems = [];
+    const nearest = (pointerY) => {
+      let best = null;
+      for (const item of tipItems)
+        if (item.y !== undefined) {
+          const gap = Math.abs(item.y - pointerY);
+          if (!best || gap < best.gap) best = { item, gap };
+        }
+      for (const item of tipItems)
+        item.row.classList.toggle("near", best?.item === item);
+    };
+    const fillTip = () => {
+      tip.replaceChildren();
+      const [head, ...rest] = tipItems;
+      const rows = rest
+        .map((item, order) => ({ item, order }))
+        .sort(
+          (a, b) =>
+            (b.item.value ?? -1) - (a.item.value ?? -1) || a.order - b.order,
+        )
+        .map(({ item }) => item);
+      for (const item of [head, ...rows]) {
+        const row = el("div", item.text);
+        if (item.color) {
+          row.className = "tip-series";
+          row.style.setProperty("--legend-color", item.color);
+        } else row.className = "tip-head";
+        item.row = row;
+        tip.append(row);
+      }
+    };
+    const showTip = (e) => {
+      const frame = $("workload-chart").getBoundingClientRect();
+      tip.hidden = false;
+      const px = e.clientX - frame.left,
+        py = e.clientY - frame.top;
+      const left =
+        px + 16 + tip.offsetWidth > frame.width
+          ? Math.max(0, px - 16 - tip.offsetWidth)
+          : px + 16;
+      tip.style.left = left + "px";
+      tip.style.top =
+        Math.max(0, Math.min(py + 12, frame.height - tip.offsetHeight)) + "px";
+      const box = svg.getBoundingClientRect();
+      nearest(((e.clientY - box.top) * H) / box.height);
+    };
+    svg.addEventListener("pointermove", (e) => {
+      if (!drag) showTip(e);
+    });
+    svg.addEventListener("pointerleave", () => {
+      tip.hidden = true;
+    });
     const describe = (d, i) => {
       cursor.setAttribute("x1", x(i));
       cursor.setAttribute("x2", x(i));
       cursor.setAttribute("opacity", 0.5);
       const detail = $("workload-detail");
       detail.replaceChildren();
-      const metric = (text, color, style = "solid") => {
+      tipItems = [];
+      const metric = (text, color, style = "solid", extra = {}) => {
         const item = el("span", text);
         if (color) {
           item.style.color = color;
@@ -504,54 +631,110 @@ export function setupWorkload({ state, api, resizeFrame }) {
           item.className = "detail-series " + style;
         }
         detail.append(item);
+        tipItems.push({ text, color, ...extra });
       };
       const value = (seconds) => (d.tracked ? hours(seconds) : "—");
+      const ofDay = (seconds) =>
+        bars && d.tracked
+          ? ` · ${Math.round((seconds / d.tracked) * 100)}%`
+          : "";
       metric(
         unit === "day"
           ? d.date
           : `${d.from} – ${d.to} · average per recorded day (${d.recorded} of ${d.count} days)`,
       );
       if (!d.tracked) metric("No recorded active time — workload unknown.");
-      if (totalLine)
-        metric(`All active time: ${value(d.tracked)}`, "#cfd8e3", "dotted");
+      if (totalLine || bars)
+        metric(`All active time: ${value(d.tracked)}`, "#cfd8e3", "dotted", {
+          value: d.tracked,
+          y: lines ? y(d.tracked) : T,
+        });
       const base = project.kind === "non-project" ? d.tracked : d.work;
-      metric(
-        `${project.name}: ${value(d.seconds)}` +
-          (!aggregate && d.tracked && base
-            ? ` · ${Math.round((d.seconds / base) * 100)}% of ${project.kind === "non-project" ? "all active time" : "all project work"} (${hours(base)})`
-            : ""),
-        project.color,
-      );
+      if (lines || !aggregate)
+        metric(
+          `${project.name}: ${value(d.seconds)}` +
+            (!aggregate && d.tracked && base
+              ? ` · ${Math.round((d.seconds / base) * 100)}% of ${project.kind === "non-project" ? "all active time" : "all project work"} (${hours(base)})`
+              : ""),
+          project.color,
+          "solid",
+          {
+            value: d.seconds,
+            y: lines ? y(d.seconds) : barY(d, i, d.seconds, d.seconds / 2 || 0),
+          },
+        );
       if (aggregate)
-        for (const p of view.stack)
-          metric(`${p.name}: ${value(p.days[i].seconds)}`, p.color);
-      for (const activity of activities)
+        for (const [k, p] of (bars ? barLayers : view.stack).entries()) {
+          const v = p.days[i];
+          metric(
+            `${p.name}: ${value(v.seconds)}${ofDay(v.seconds)}`,
+            p.color,
+            "solid",
+            {
+              value: v.seconds,
+              y: lines
+                ? y(v.top)
+                : barY(d, i, v.seconds, (v.top + v.bottom) / 2),
+            },
+          );
+        }
+      if (bars && !aggregate)
+        for (const p of barLayers.slice(1)) {
+          const v = p.days[i];
+          metric(
+            `${p.name}: ${value(v.seconds)}${ofDay(v.seconds)}`,
+            p.color,
+            "solid",
+            {
+              value: v.seconds,
+              y: barY(d, i, v.seconds, (v.top + v.bottom) / 2),
+            },
+          );
+        }
+      for (const activity of shownActivities)
         metric(
           `${activity.name}: ${value(d[activity.field])} · ${aggregate ? "all active time" : "within project"}`,
           activity.color,
           "dashed",
+          { value: d[activity.field], y: y(d[activity.field]) },
         );
       if (trend)
         metric(
           `7-day trend: ${d.tracked && d.trend !== null ? hours(d.trend) : "—"}`,
           "#d6e2ee",
           "dashed",
+          d.trend ? { value: d.trend, y: y(d.trend) } : {},
         );
-      if (all) metric(`All project work: ${value(d.work)}`, "#d6e2ee");
+      if (all)
+        metric(`All project work: ${value(d.work)}`, "#d6e2ee", "solid", {
+          value: d.work,
+          y: y(d.work),
+        });
       if (nonProject)
         metric(
           `Non-project · right axis: ${d.tracked ? percent(d.nonProjectPercent) : "—"}`,
           "#e6b56d",
           "dotted",
+          d.tracked
+            ? {
+                value: 0,
+                y: T + PH - ((d.nonProjectPercent || 0) / 100) * PH,
+              }
+            : {},
         );
-      if (target)
+      if (target && lines)
         metric(
           `Above target · all projects: ${value(d.overtime)}`,
           "#ec8b98",
           "area",
+          { value: d.overtime || 0 },
         );
-      if (!aggregate) metric(`Unclassified: ${value(d.unclassified)}`);
+      if (!aggregate && lines) metric(`Unclassified: ${value(d.unclassified)}`);
+      fillTip();
     };
+    // Vertical position of a bar segment's middle, for the nearest-row mark.
+    const barY = (d, i, seconds, middle) =>
+      share ? yShare(d.tracked ? middle / d.tracked : 0) : y(middle);
     // Range selection: drag across points, or click one and Shift+click
     // another. A single click opens that day (week, month) as before.
     const edges = (i) => [
@@ -578,7 +761,11 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const indexAt = (e) => {
       const box = svg.getBoundingClientRect();
       const px = ((e.clientX - box.left) * W) / box.width;
-      const i = days.length === 1 ? 0 : Math.round((px - L) / spacing);
+      const i = bars
+        ? Math.floor((px - L) / spacing)
+        : days.length === 1
+          ? 0
+          : Math.round((px - L) / spacing);
       return Math.max(0, Math.min(days.length - 1, i));
     };
     const open = (a, b) => {
@@ -681,7 +868,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
         { x: L, y: 14, fill: "#a7b5c4", "font-size": 12 },
         `${unit === "week" ? "Weekly" : "Monthly"} averages per recorded day · ${days.length} ${unit}s`,
       );
-    $("workload-chart").append(svg);
+    $("workload-chart").append(svg, tip);
     describe(days.at(-1), days.length - 1);
     resizeFrame();
   }
@@ -935,6 +1122,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
     "workload-all",
     "workload-nonproject",
     "workload-target",
+    "workload-mode",
   ]) {
     persistControl($(id), id);
     $(id).oninput = () => {
