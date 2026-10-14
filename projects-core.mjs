@@ -314,6 +314,8 @@ function prepare(data, start, end) {
   preparedCache.set(data, prepared);
   return prepared;
 }
+const MIN_CONFLICT_MS = 1000;
+
 export function analyze(data, projects, start, end, options = {}) {
   const {
     range,
@@ -484,6 +486,27 @@ export function analyze(data, projects, start, end, options = {}) {
     )
       last.end = next;
     else segments.push({ start: t, end: next, project, kind, ids });
+  }
+  // Overlaps shorter than a second are tab-switch noise (window title and page URL
+  // update separately): treat them as not assigned instead of "Needs review".
+  for (const s of segments) {
+    if (s.project === "conflict" && s.end - s.start < MIN_CONFLICT_MS) {
+      s.project = "unassigned";
+      s.kind = "desktop";
+      s.ids = [];
+    }
+  }
+  for (let k = segments.length - 1; k > 0; k--) {
+    const a = segments[k - 1],
+      b = segments[k];
+    if (
+      a.end === b.start &&
+      a.project === "unassigned" &&
+      b.project === "unassigned"
+    ) {
+      a.end = b.end;
+      segments.splice(k, 1);
+    }
   }
   const results = projects.map((p) => ({
     ...p,

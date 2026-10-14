@@ -90,6 +90,27 @@ r = analyze(data, [p, q], 0, 90000);
 assert.equal(r.conflict, 50);
 assert.equal(r.assigned, 30);
 assert.equal(r.tracked, r.assigned + r.conflict + r.unassigned);
+// Overlaps under a second are not "Needs review": they fall to unassigned.
+{
+  const noisy = {
+    windows: [event(0, 10, { app: "chrome.exe", title: "demo - Cent Browser" })],
+    afk: [event(0, 10, { status: "not-afk" })],
+    browsers: [
+      {
+        family: "chrome",
+        events: [event(0, 10, { url: "https://example.com/other/page" })],
+      },
+    ],
+  };
+  const other = { ...q, urls: ["https://example.com/other"], keywords: [] };
+  const mine = { ...p, urls: [] };
+  const long = analyze(noisy, [mine, other], 0, 10000);
+  assert.equal(long.conflict, 10);
+  const short = analyze(noisy, [mine, other], 0, 900);
+  assert.equal(short.conflict, 0);
+  assert.equal(short.unassigned, 0.9);
+  assert.equal(short.tracked, short.assigned + short.unassigned);
+}
 assert.equal(analyze(data, [p], 20000, 70000).assigned, 40);
 assert.equal(
   analyze({ ...data, browsers: [] }, [{ ...p, keywords: [] }], 0, 90000)
