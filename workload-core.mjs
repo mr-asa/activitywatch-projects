@@ -76,7 +76,7 @@ export function daySummaries(result, typeResult, dates, startOfDay = "04:00") {
 export function workloadFromSummaries(
   days,
   projects,
-  { projectId = null, target = null, types = [] } = {},
+  { projectId = null, target = null, types = [], include = null } = {},
 ) {
   const kinds = new Map(projects.map((p) => [p.id, p.kind || "project"]));
   const work = projects.filter((p) => kinds.get(p.id) !== "non-project");
@@ -85,6 +85,8 @@ export function workloadFromSummaries(
     ...type,
     field: `activity-${index}`,
   }));
+  // include: category ids shown in the all-projects view (null = every one).
+  const shownId = (id) => include === null || include.includes(id);
   const rows = days.map((d) => {
     let tracked = 0,
       workTime = 0,
@@ -103,7 +105,7 @@ export function workloadFromSummaries(
         projectId === null
           ? sum(
               d.projects,
-              work.map((p) => p.id),
+              work.filter((p) => shownId(p.id)).map((p) => p.id),
             )
           : d.projects[projectId] || 0,
       tracked,
@@ -141,37 +143,38 @@ export function workloadFromSummaries(
       return { date: rows[i].date, seconds, bottom, top: accumulated[i] };
     }),
   });
+  const specs = [
+    ...work.map((p) => [p, false]),
+    ...projects
+      .filter((p) => kinds.get(p.id) === "non-project")
+      .map((p) => [p, true]),
+  ]
+    .map(([p, extra]) => ({
+      id: p.id,
+      name: p.name,
+      color: p.color,
+      extra,
+      values: days.map((d) => d.projects[p.id] || 0),
+    }))
+    .concat({
+      id: "unclassified",
+      name: "Unclassified",
+      color: "#7d8896",
+      extra: true,
+      values: rows.map((r) => r.unclassified),
+    })
+    .filter((l) => l.values.some((v) => v > 0));
+  const candidates = specs.map(({ id, name, color, extra }) => ({
+    id,
+    name,
+    color,
+    extra,
+  }));
   const stack =
     projectId === null
-      ? [
-          ...work.map((p) =>
-            layer(
-              p.id,
-              p.name,
-              p.color,
-              days.map((d) => d.projects[p.id] || 0),
-              false,
-            ),
-          ),
-          ...projects
-            .filter((p) => kinds.get(p.id) === "non-project")
-            .map((p) =>
-              layer(
-                p.id,
-                p.name,
-                p.color,
-                days.map((d) => d.projects[p.id] || 0),
-                true,
-              ),
-            ),
-          layer(
-            "unclassified",
-            "Unclassified",
-            "#7d8896",
-            rows.map((r) => r.unclassified),
-            true,
-          ),
-        ].filter((l) => l.days.some((d) => d.seconds > 0))
+      ? specs
+          .filter((l) => shownId(l.id))
+          .map((l) => layer(l.id, l.name, l.color, l.values, l.extra))
       : [];
   return {
     summary: {
@@ -189,6 +192,7 @@ export function workloadFromSummaries(
       overtime: target > 0 ? total("overtime") : null,
     },
     stack,
+    candidates,
     activities,
   };
 }

@@ -20,7 +20,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><label>Project<select id="workload-project" aria-label="Workload project"></select></label><span id="workload-chip" class="filter-chip" hidden></span><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button><label>Fit to project<select id="workload-fit" aria-label="Fit range to project"></select></label></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div class="workload-overlays"><label>View<select id="workload-mode" aria-label="Chart view"><option value="lines">Lines</option><option value="bars">Stacked bars</option><option value="share">100% bars</option></select></label><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label class="check-label"><input type="checkbox" id="workload-total" checked> All active time</label><label class="check-label"><input type="checkbox" id="workload-all" checked> All project work</label><label class="check-label"><input type="checkbox" id="workload-nonproject" checked> Non-project %</label><div id="workload-activities" class="activity-toggles" role="group" aria-label="Activity lines"></div><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div id="workload-stats" class="workload-stats"></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
+    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button><label>Fit to project<select id="workload-fit" aria-label="Fit range to project"></select></label></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div id="workload-stats" class="workload-stats"></div><div class="workload-toolbar"><div class="workload-overlays"><label>View<select id="workload-mode" aria-label="Chart view"><option value="lines">Lines</option><option value="bars">Stacked bars</option></select></label><label class="check-label"><input type="checkbox" id="workload-full"> 100% of the day</label><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div><div class="layer-row"><label>Projects<select id="workload-project" aria-label="Workload project"></select></label><div id="workload-project-chips" class="layer-chips"></div></div><div class="layer-row" id="workload-tag-row" hidden><label>Tags<select id="workload-tags" aria-label="Activity tags"><option value="all">All</option><option value="custom">Custom</option><option value="none">None</option></select></label><div id="workload-type-chips" class="layer-chips"></div></div></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
   document.getElementById("history").append(section);
   const $ = (id) => document.getElementById(id);
   let summaries = null, // day summaries of the shown days
@@ -153,17 +153,99 @@ export function setupWorkload({ state, api, resizeFrame }) {
     if (summaries && width && Math.abs(width - drawnWidth) > 4) chart();
   }).observe($("workload-chart"));
   let drawnReport = null;
+  // The project popup and the chips behind it. Values: "" (all), "custom"
+  // (the remembered set), "none", or one project's id.
+  let customIds = pref("workloadCustom", null);
+  const realProject = (id) => state.config.projects.find((p) => p.id === id);
+  function projectSelection() {
+    const value = $("workload-project").value;
+    let single = realProject(value) ? value : null;
+    if (
+      value === "custom" &&
+      customIds?.length === 1 &&
+      realProject(customIds[0])
+    )
+      single = customIds[0];
+    const include =
+      single || value === "" || (value === "custom" && !customIds)
+        ? null
+        : value === "custom"
+          ? customIds
+          : [];
+    return { value, single, include };
+  }
+  // Chips: the shown items with ✕, and a small menu to bring hidden ones back.
+  function renderChips(box, noun, items, shownIds, apply) {
+    box.replaceChildren();
+    const shown = new Set(shownIds);
+    for (const item of items.filter((i) => shown.has(i.id))) {
+      const chip = el("span");
+      chip.className = "layer-chip";
+      chip.style.setProperty("--chip", item.color);
+      const close = el("button", "✕");
+      close.type = "button";
+      close.setAttribute("aria-label", `Hide ${item.name}`);
+      close.onclick = () => apply(shownIds.filter((id) => id !== item.id));
+      chip.append(el("span", item.name), close);
+      box.append(chip);
+    }
+    const hidden = items.filter((i) => !shown.has(i.id));
+    if (hidden.length) {
+      const add = el("select");
+      add.className = "chip-add";
+      add.setAttribute("aria-label", `Show more ${noun}`);
+      add.append(new Option("+ add", ""));
+      for (const item of hidden) add.append(new Option(item.name, item.id));
+      add.onchange = () => add.value && apply([...shownIds, add.value]);
+      box.append(add);
+    }
+  }
+  function applyProjects(ids, items) {
+    const every = items.every((i) => ids.includes(i.id));
+    const value = every ? "" : ids.length ? "custom" : "none";
+    if (value === "custom") {
+      customIds = ids;
+      setPref("workloadCustom", ids);
+    }
+    $("workload-project").value = value;
+    setPref("workloadProject", value);
+    chart();
+  }
+  function applyTypes(ids, items) {
+    hiddenTypes.clear();
+    for (const t of items) if (!ids.includes(t.id)) hiddenTypes.add(t.id);
+    setPref("hiddenActivityLines", [...hiddenTypes]);
+    chart();
+  }
+  // Legend hover: the series stays clear, everything else fades.
+  function focusSeries(svg, key) {
+    for (const node of svg.querySelectorAll("[data-k]")) {
+      const on = key !== null && node.dataset.k === key;
+      node.style.opacity = key === null ? "" : on ? "1" : "0.1";
+      const width = Number(node.getAttribute("stroke-width"));
+      node.style.strokeWidth = on && width ? String(width + 1.5) : "";
+    }
+  }
   function chart() {
     drawnWidth = $("workload-chart").clientWidth;
     drawnReport = `${state.start}|${state.end}`;
     if (!summaries) return;
-    const aggregate = $("workload-project").value === "";
-    const project = aggregate
-      ? { id: null, name: "All projects", color: "#65d6b4" }
-      : state.config.projects.find((p) => p.id === $("workload-project").value);
-    const activityTypes = (state.config.activityTypes || []).filter(
-      (t) => !hiddenTypes.has(t.id),
-    );
+    const { value: choice, single, include } = projectSelection();
+    const aggregate = !single;
+    const project = single
+      ? realProject(single)
+      : {
+          id: null,
+          name:
+            choice === ""
+              ? "All projects"
+              : choice === "none"
+                ? "No projects"
+                : "Selected projects",
+          color: "#65d6b4",
+        };
+    const allTypes = state.config.activityTypes || [];
+    const activityTypes = allTypes.filter((t) => !hiddenTypes.has(t.id));
     if (!project) {
       $("workload-stats").replaceChildren();
       $("workload-chart").replaceChildren();
@@ -178,6 +260,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
     }
     const cacheKey = JSON.stringify([
       project.id,
+      include,
       target,
       activityTypes.map((t) => t.id),
       state.config.projects.map((p) => [p.id, p.name, p.color, p.kind]),
@@ -190,16 +273,59 @@ export function setupWorkload({ state, api, resizeFrame }) {
           projectId: project.id,
           target,
           types: activityTypes,
+          include,
         }),
       );
     }
-    const { summary, layers, stack, activities } = cached.get(cacheKey);
+    const { summary, layers, stack, candidates, activities } =
+      cached.get(cacheKey);
+    // Chips for the projects (and unclassified time) with time in this range.
+    const projectItems =
+      single && !candidates.some((c) => c.id === single)
+        ? [
+            { id: single, name: project.name, color: project.color },
+            ...candidates,
+          ]
+        : candidates;
+    const shownIds = single
+      ? [single]
+      : choice === "none"
+        ? []
+        : (include ?? projectItems.map((c) => c.id)).filter((id) =>
+            projectItems.some((c) => c.id === id),
+          );
+    renderChips(
+      $("workload-project-chips"),
+      "projects",
+      projectItems,
+      shownIds,
+      (ids) => applyProjects(ids, projectItems),
+    );
+    $("workload-tag-row").hidden = !allTypes.length;
+    const typeIds = allTypes
+      .filter((t) => !hiddenTypes.has(t.id))
+      .map((t) => t.id);
+    $("workload-tags").value = !hiddenTypes.size
+      ? "all"
+      : typeIds.length
+        ? "custom"
+        : "none";
+    renderChips($("workload-type-chips"), "tags", allTypes, typeIds, (ids) =>
+      applyTypes(ids, allTypes),
+    );
     $("workload-stats").replaceChildren();
     $("workload-chart").replaceChildren();
     $("workload-detail").textContent = "";
     const percent = (value) => (value === null ? "—" : `${value.toFixed(1)}%`);
     for (const [label, value] of [
-      [aggregate ? "All project time" : "Project total", hours(summary.total)],
+      [
+        single
+          ? "Project total"
+          : choice === ""
+            ? "All project time"
+            : "Selected project time",
+        hours(summary.total),
+      ],
       [
         project.kind === "non-project"
           ? "Share of recorded time"
@@ -230,29 +356,24 @@ export function setupWorkload({ state, api, resizeFrame }) {
       resizeFrame();
       return;
     }
-    // Overlays belong to the line view; the bar views show the stack.
-    const mode = $("workload-mode").value,
-      lines = mode === "lines",
-      share = mode === "share";
-    for (const id of [
-      "workload-trend",
-      "workload-total",
-      "workload-all",
-      "workload-nonproject",
-    ])
-      $(id).disabled = !lines;
-    const trend = lines && $("workload-trend").checked,
-      all = lines && $("workload-all").checked && !aggregate,
-      totalLine = lines && $("workload-total").checked,
-      nonProject = lines && $("workload-nonproject").checked;
-    const shownActivities = lines ? activities : [];
+    // Lines overlay the day's values; bars stack them. "100% of the day"
+    // stretches either to the full height.
+    const lines = $("workload-mode").value === "lines",
+      bars = !lines,
+      full = $("workload-full").checked;
+    $("workload-trend").disabled = !lines || full;
+    $("workload-target").disabled = full;
+    const trend = lines && !full && $("workload-trend").checked,
+      showTarget = full ? null : target,
+      nonProject = lines && !full;
+    const shownActivities = activities;
     const ns = "http://www.w3.org/2000/svg",
       svg = document.createElementNS(ns, "svg");
     // Always the panel's width: long ranges become weekly or monthly averages.
     const W = $("workload-chart").clientWidth || 900,
       H = 330,
       L = 58,
-      R = nonProject ? 58 : 24,
+      R = 24,
       T = 24,
       B = 46,
       PW = W - L - R,
@@ -260,10 +381,12 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const view = chartBuckets(layers.days, stack, PW),
       days = view.days,
       unit = view.unit,
-      bars = !lines,
       spacing = PW / Math.max(1, bars ? days.length : days.length - 1);
-    // Bar views: layers to stack. All projects uses the chart's stack; one
-    // project is stacked on everything else.
+    // What a day's full height is: the visible stack, or all active time.
+    const stackTop = (i) => view.stack.at(-1)?.days[i].top || 0;
+    const total = (d, i) => (aggregate ? stackTop(i) || d.tracked : d.tracked);
+    // Bar views: all projects use the chart's stack; one project is stacked
+    // on everything else.
     const barLayers = !bars
       ? []
       : aggregate
@@ -294,14 +417,14 @@ export function setupWorkload({ state, api, resizeFrame }) {
       1,
       Math.ceil(
         Math.max(
-          target || 0,
+          showTarget || 0,
           ...days.map(
-            (d) =>
+            (d, i) =>
               Math.max(
                 d.seconds,
                 ...shownActivities.map((t) => d[t.field]),
-                all || target ? d.work : 0,
-                totalLine || aggregate || bars ? d.tracked : 0,
+                showTarget ? d.work : 0,
+                aggregate ? stackTop(i) : bars ? d.tracked : 0,
                 trend ? d.trend || 0 : 0,
               ) / 3600,
           ),
@@ -313,7 +436,10 @@ export function setupWorkload({ state, api, resizeFrame }) {
           ? L + ((i + 0.5) * PW) / days.length
           : L + (days.length === 1 ? PW / 2 : (i * PW) / (days.length - 1)),
       y = (s) => T + PH - (s / 3600 / max) * PH,
-      yShare = (f) => T + PH - f * PH;
+      yShare = (f) => T + PH - Math.min(1, Math.max(0, f)) * PH,
+      // Height of a value on day i, in hours or as a share of that day.
+      Y = (i, s) =>
+        full ? yShare(total(days[i], i) ? s / total(days[i], i) : 0) : y(s);
     svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
     svg.style.width = "100%";
     svg.style.height = H + "px";
@@ -348,16 +474,10 @@ export function setupWorkload({ state, api, resizeFrame }) {
           fill: "#a7b5c4",
           "font-size": 12,
         },
-        share
+        full
           ? `${i * 25}%`
           : `${((max * i) / 4).toLocaleString(undefined, { maximumFractionDigits: 2 })} h`,
       );
-      if (nonProject)
-        shape(
-          "text",
-          { x: W - R + 10, y: yy + 4, fill: "#e6b56d", "font-size": 12 },
-          `${i * 25}%`,
-        );
     }
     // The report period's days, so it is clear what the panels above show.
     if (state.start && state.end) {
@@ -406,12 +526,13 @@ export function setupWorkload({ state, api, resizeFrame }) {
       }
     });
     if (run.length) runs.push(run);
+    // Every series shape carries data-k, so the legend can bring one forward.
     const line = (field, color, width, dash = "", pct = false) => {
       for (const indexes of runs) {
         const path = indexes
           .map(
             (i, k) =>
-              `${k ? "L" : "M"} ${x(i)} ${pct ? T + PH - (days[i][field] / 100) * PH : y(days[i][field])}`,
+              `${k ? "L" : "M"} ${x(i)} ${pct ? T + PH - (days[i][field] / 100) * PH : Y(i, days[i][field])}`,
           )
           .join(" ");
         shape("path", {
@@ -423,18 +544,19 @@ export function setupWorkload({ state, api, resizeFrame }) {
           "stroke-linejoin": "round",
           "stroke-dasharray": dash,
           "data-series": field,
+          "data-k": field,
         });
       }
     };
     // Straight segments retain measured day-to-day values; no decorative smoothing.
     if (bars) {
-      const bandwidth = Math.max(2, Math.min(spacing * 0.72, 56));
+      const bandwidth = Math.max(2, Math.min(spacing * 0.84, 160));
       for (const layer of barLayers)
         days.forEach((d, i) => {
           const v = layer.days[i];
           if (!d.tracked || !v.seconds) return;
-          const [top, bottom] = share
-            ? [yShare(v.top / d.tracked), yShare(v.bottom / d.tracked)]
+          const [top, bottom] = full
+            ? [yShare(v.top / total(d, i)), yShare(v.bottom / total(d, i))]
             : [y(v.top), y(v.bottom)];
           shape("rect", {
             x: x(i) - bandwidth / 2,
@@ -444,21 +566,25 @@ export function setupWorkload({ state, api, resizeFrame }) {
             fill: layer.color,
             opacity: layer.extra ? 0.5 : 0.85,
             "data-bar": layer.id,
+            "data-k": "s:" + layer.id,
             "pointer-events": "none",
           });
         });
     } else if (aggregate) {
       for (const layer of view.stack)
         for (const indexes of runs) {
-          const upper = indexes.map((i) => `${x(i)} ${y(layer.days[i].top)}`),
+          const upper = indexes.map(
+              (i) => `${x(i)} ${Y(i, layer.days[i].top)}`,
+            ),
             lower = [...indexes]
               .reverse()
-              .map((i) => `${x(i)} ${y(layer.days[i].bottom)}`);
+              .map((i) => `${x(i)} ${Y(i, layer.days[i].bottom)}`);
           shape("path", {
             d: "M " + upper.join(" L ") + " L " + lower.join(" L ") + " Z",
             fill: layer.color,
             opacity: layer.extra ? 0.14 : 0.28,
             "data-stack": layer.id,
+            "data-k": "s:" + layer.id,
           });
           shape("path", {
             d: "M " + upper.join(" L "),
@@ -466,22 +592,24 @@ export function setupWorkload({ state, api, resizeFrame }) {
             stroke: layer.color,
             "stroke-width": layer.extra ? 1 : 1.2,
             "stroke-dasharray": layer.extra ? "4 3" : "",
+            "data-k": "s:" + layer.id,
           });
         }
     } else {
       for (const indexes of runs) {
         const points = indexes
-          .map((i) => `${x(i)} ${y(days[i].seconds)}`)
+          .map((i) => `${x(i)} ${Y(i, days[i].seconds)}`)
           .join(" L ");
         shape("path", {
-          d: `M ${x(indexes[0])} ${y(0)} L ${points} L ${x(indexes.at(-1))} ${y(0)} Z`,
+          d: `M ${x(indexes[0])} ${Y(indexes[0], 0)} L ${points} L ${x(indexes.at(-1))} ${Y(indexes[0], 0)} Z`,
           fill: project.color,
           opacity: 0.22,
+          "data-k": "seconds",
         });
       }
     }
-    if (target && !share) {
-      const yy = y(target * 3600);
+    if (showTarget) {
+      const yy = y(showTarget * 3600);
       shape("line", {
         x1: L,
         y1: yy,
@@ -493,7 +621,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
       shape(
         "text",
         { x: L + 8, y: yy - 7, fill: "#ec8b98", "font-size": 12 },
-        `Daily target · ${target} h`,
+        `Daily target · ${showTarget} h`,
       );
       if (lines) {
         const clip = shape("clipPath", { id: "workload-above-target" });
@@ -518,34 +646,34 @@ export function setupWorkload({ state, api, resizeFrame }) {
           });
       }
     }
-    if (totalLine) line("tracked", "#cfd8e3", 1.2, "2 4");
     if (trend) line("trend", "#d6e2ee", 1.2, "5 5");
-    if (lines) line("seconds", project.color, 2);
-    // Thin and on top: where it equals the project, it rides on its edge.
-    if (all) line("work", "#d6e2ee", 1);
+    if (lines && choice !== "none") line("seconds", project.color, 2);
     for (const activity of shownActivities) {
       line(activity.field, activity.color, 1.5, "7 4");
       days.forEach((d, i) => {
         if (d.tracked && spacing >= 8)
           shape("circle", {
             cx: x(i),
-            cy: y(d[activity.field]),
+            cy: Y(i, d[activity.field]),
             r: 2.5,
             fill: activity.color,
             "data-activity": activity.id,
+            "data-k": activity.field,
           });
       });
     }
+    // The share of non-project time rides along without an axis of its own.
     if (nonProject) line("nonProjectPercent", "#e6b56d", 1.5, "3 5", true);
     days.forEach((d, i) => {
-      if (lines && d.tracked && spacing >= 6)
+      if (lines && choice !== "none" && d.tracked && spacing >= 6)
         shape("circle", {
           cx: x(i),
-          cy: y(d.seconds),
+          cy: Y(i, d.seconds),
           r: spacing >= 14 ? 3.5 : 2.5,
           fill: project.color,
           stroke: "#16202a",
           "stroke-width": 2,
+          "data-k": "seconds",
         });
     });
     const cursor = shape("line", {
@@ -558,85 +686,38 @@ export function setupWorkload({ state, api, resizeFrame }) {
       "stroke-dasharray": "2 3",
     });
     const period = (d) => (unit === "day" ? d.date : `${d.from} – ${d.to}`);
-    // Details of one day: the row below the chart and the tooltip at the
-    // cursor show the same items.
-    const tip = el("div");
-    tip.className = "workload-tip";
-    tip.hidden = true;
-    tip.setAttribute("aria-hidden", "true");
-    let tipItems = [];
-    const nearest = (pointerY) => {
-      let best = null;
-      for (const item of tipItems)
-        if (item.y !== undefined) {
-          const gap = Math.abs(item.y - pointerY);
-          if (!best || gap < best.gap) best = { item, gap };
-        }
-      for (const item of tipItems)
-        item.row.classList.toggle("near", best?.item === item);
-    };
-    const fillTip = () => {
-      tip.replaceChildren();
-      const [head, ...rest] = tipItems;
-      const rows = rest
-        .map((item, order) => ({ item, order }))
-        .sort(
-          (a, b) =>
-            (b.item.value ?? -1) - (a.item.value ?? -1) || a.order - b.order,
-        )
-        .map(({ item }) => item);
-      for (const item of [head, ...rows]) {
-        const row = el("div", item.text);
-        if (item.color) {
-          row.className = "tip-series";
-          row.style.setProperty("--legend-color", item.color);
-        } else row.className = "tip-head";
-        item.row = row;
-        tip.append(row);
-      }
-    };
-    const showTip = (e) => {
-      const frame = $("workload-chart").getBoundingClientRect();
-      tip.hidden = false;
-      const px = e.clientX - frame.left,
-        py = e.clientY - frame.top;
-      const left =
-        px + 16 + tip.offsetWidth > frame.width
-          ? Math.max(0, px - 16 - tip.offsetWidth)
-          : px + 16;
-      tip.style.left = left + "px";
-      tip.style.top =
-        Math.max(0, Math.min(py + 12, frame.height - tip.offsetHeight)) + "px";
-      const box = svg.getBoundingClientRect();
-      nearest(((e.clientY - box.top) * H) / box.height);
-    };
-    svg.addEventListener("pointermove", (e) => {
-      if (!drag) showTip(e);
-    });
-    svg.addEventListener("pointerleave", () => {
-      tip.hidden = true;
-    });
+    // The row below the chart is the legend: one entry per series with the
+    // hovered day's value. Hovering an entry brings its series forward.
     const describe = (d, i) => {
       cursor.setAttribute("x1", x(i));
       cursor.setAttribute("x2", x(i));
       cursor.setAttribute("opacity", 0.5);
       const detail = $("workload-detail");
       detail.replaceChildren();
-      tipItems = [];
-      const metric = (text, color, style = "solid", extra = {}) => {
+      const metric = (text, color, style = "solid", key = null) => {
         const item = el("span", text);
         if (color) {
           item.style.color = color;
           item.style.setProperty("--legend-color", color);
           item.className = "detail-series " + style;
         }
+        if (key) {
+          item.tabIndex = 0;
+          item.classList.add("legend-entry");
+          for (const [on, off] of [
+            ["pointerenter", "pointerleave"],
+            ["focus", "blur"],
+          ]) {
+            item.addEventListener(on, () => focusSeries(svg, key));
+            item.addEventListener(off, () => focusSeries(svg, null));
+          }
+        }
         detail.append(item);
-        tipItems.push({ text, color, ...extra });
       };
       const value = (seconds) => (d.tracked ? hours(seconds) : "—");
       const ofDay = (seconds) =>
-        bars && d.tracked
-          ? ` · ${Math.round((seconds / d.tracked) * 100)}%`
+        (bars || full) && total(d, i)
+          ? ` · ${Math.round((seconds / total(d, i)) * 100)}%`
           : "";
       metric(
         unit === "day"
@@ -644,97 +725,70 @@ export function setupWorkload({ state, api, resizeFrame }) {
           : `${d.from} – ${d.to} · average per recorded day (${d.recorded} of ${d.count} days)`,
       );
       if (!d.tracked) metric("No recorded active time — workload unknown.");
-      if (totalLine || bars)
-        metric(`All active time: ${value(d.tracked)}`, "#cfd8e3", "dotted", {
-          value: d.tracked,
-          y: lines ? y(d.tracked) : T,
-        });
+      metric(`All active time: ${value(d.tracked)}`, "#cfd8e3", "dotted");
       const base = project.kind === "non-project" ? d.tracked : d.work;
-      if (lines || !aggregate)
+      if (!aggregate)
         metric(
           `${project.name}: ${value(d.seconds)}` +
-            (!aggregate && d.tracked && base
+            (d.tracked && base
               ? ` · ${Math.round((d.seconds / base) * 100)}% of ${project.kind === "non-project" ? "all active time" : "all project work"} (${hours(base)})`
               : ""),
           project.color,
           "solid",
-          {
-            value: d.seconds,
-            y: lines ? y(d.seconds) : barY(d, i, d.seconds, d.seconds / 2 || 0),
-          },
+          bars ? "s:" + project.id : "seconds",
         );
-      if (aggregate)
-        for (const [k, p] of (bars ? barLayers : view.stack).entries()) {
-          const v = p.days[i];
-          metric(
-            `${p.name}: ${value(v.seconds)}${ofDay(v.seconds)}`,
-            p.color,
-            "solid",
-            {
-              value: v.seconds,
-              y: lines
-                ? y(v.top)
-                : barY(d, i, v.seconds, (v.top + v.bottom) / 2),
-            },
-          );
-        }
+      else if (lines && choice !== "none")
+        metric(
+          `${project.name}: ${value(d.seconds)}${ofDay(d.seconds)}`,
+          project.color,
+          "solid",
+          "seconds",
+        );
       if (bars && !aggregate)
-        for (const p of barLayers.slice(1)) {
-          const v = p.days[i];
+        for (const p of barLayers.slice(1))
           metric(
-            `${p.name}: ${value(v.seconds)}${ofDay(v.seconds)}`,
+            `${p.name}: ${value(p.days[i].seconds)}${ofDay(p.days[i].seconds)}`,
             p.color,
             "solid",
-            {
-              value: v.seconds,
-              y: barY(d, i, v.seconds, (v.top + v.bottom) / 2),
-            },
+            "s:" + p.id,
           );
-        }
+      if (aggregate)
+        for (const p of view.stack)
+          metric(
+            `${p.name}: ${value(p.days[i].seconds)}${ofDay(p.days[i].seconds)}`,
+            p.color,
+            "solid",
+            "s:" + p.id,
+          );
       for (const activity of shownActivities)
         metric(
-          `${activity.name}: ${value(d[activity.field])} · ${aggregate ? "all active time" : "within project"}`,
+          `${activity.name}: ${value(d[activity.field])}${ofDay(d[activity.field])} · ${aggregate ? "all active time" : "within project"}`,
           activity.color,
           "dashed",
-          { value: d[activity.field], y: y(d[activity.field]) },
+          activity.field,
         );
       if (trend)
         metric(
           `7-day trend: ${d.tracked && d.trend !== null ? hours(d.trend) : "—"}`,
           "#d6e2ee",
           "dashed",
-          d.trend ? { value: d.trend, y: y(d.trend) } : {},
+          "trend",
         );
-      if (all)
-        metric(`All project work: ${value(d.work)}`, "#d6e2ee", "solid", {
-          value: d.work,
-          y: y(d.work),
-        });
       if (nonProject)
         metric(
-          `Non-project · right axis: ${d.tracked ? percent(d.nonProjectPercent) : "—"}`,
+          `Non-project share: ${d.tracked ? percent(d.nonProjectPercent) : "—"}`,
           "#e6b56d",
           "dotted",
-          d.tracked
-            ? {
-                value: 0,
-                y: T + PH - ((d.nonProjectPercent || 0) / 100) * PH,
-              }
-            : {},
+          "nonProjectPercent",
         );
-      if (target && lines)
+      if (showTarget && lines)
         metric(
           `Above target · all projects: ${value(d.overtime)}`,
           "#ec8b98",
           "area",
-          { value: d.overtime || 0 },
         );
       if (!aggregate && lines) metric(`Unclassified: ${value(d.unclassified)}`);
-      fillTip();
     };
-    // Vertical position of a bar segment's middle, for the nearest-row mark.
-    const barY = (d, i, seconds, middle) =>
-      share ? yShare(d.tracked ? middle / d.tracked : 0) : y(middle);
     // Range selection: drag across points, or click one and Shift+click
     // another. A single click opens that day (week, month) as before.
     const edges = (i) => [
@@ -868,7 +922,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
         { x: L, y: 14, fill: "#a7b5c4", "font-size": 12 },
         `${unit === "week" ? "Weekly" : "Monthly"} averages per recorded day · ${days.length} ${unit}s`,
       );
-    $("workload-chart").append(svg, tip);
+    $("workload-chart").append(svg);
     describe(days.at(-1), days.length - 1);
     resizeFrame();
   }
@@ -1118,9 +1172,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   }
   for (const id of [
     "workload-trend",
-    "workload-total",
-    "workload-all",
-    "workload-nonproject",
+    "workload-full",
     "workload-target",
     "workload-mode",
   ]) {
@@ -1135,34 +1187,25 @@ export function setupWorkload({ state, api, resizeFrame }) {
   };
   $("workload-project").onchange = () => {
     setPref("workloadProject", $("workload-project").value);
-    // Summaries hold every category, so another project only redraws.
-    showChip();
+    // Summaries hold every category, so another selection only redraws.
     calculate();
+  };
+  $("workload-tags").onchange = () => {
+    const types = state.config.activityTypes || [],
+      value = $("workload-tags").value;
+    if (value === "all")
+      applyTypes(
+        types.map((t) => t.id),
+        types,
+      );
+    else if (value === "none") applyTypes([], types);
+    else chart();
   };
   $("workload-fit").onchange = () => {
     const id = $("workload-fit").value;
     $("workload-fit").value = "";
     if (id && !busy) load({ fit: id });
   };
-  function showChip() {
-    const chip = $("workload-chip");
-    const project = state.config?.projects.find(
-      (p) => p.id === $("workload-project").value,
-    );
-    chip.hidden = !project;
-    if (!project) return;
-    const clear = el("button");
-    clear.type = "button";
-    clear.textContent = "✕";
-    clear.setAttribute("aria-label", "Show all projects");
-    clear.onclick = () => {
-      $("workload-project").value = "";
-      $("workload-project").onchange();
-    };
-    const name = el("span");
-    name.textContent = `Showing only ${project.name}`;
-    chip.replaceChildren(name, clear);
-  }
   function update() {
     const selected = $("workload-project").value;
     const projects = state.config.projects;
@@ -1170,16 +1213,26 @@ export function setupWorkload({ state, api, resizeFrame }) {
       .map((p) => [p.id, p.name, p.archived, p.kind].join(":"))
       .join("|");
     if (section.dataset.projects !== signature) {
-      $("workload-project").replaceChildren(
-        new Option("All projects", ""),
+      const only = document.createElement("optgroup");
+      only.label = "Only one project";
+      only.append(
         ...projects.map(
           (p) => new Option(p.name + (p.archived ? " (archived)" : ""), p.id),
         ),
       );
+      $("workload-project").replaceChildren(
+        new Option("All", ""),
+        new Option("Custom", "custom"),
+        new Option("None", "none"),
+        only,
+      );
+      const keep = [...$("workload-project").options].some(
+        (o) => o.value === selected,
+      );
       $("workload-project").value = restoredOption(
         $("workload-project"),
         "workloadProject",
-        projects.some((p) => p.id === selected) ? selected : "",
+        keep ? selected : "",
       );
       $("workload-fit").replaceChildren(
         new Option("Choose a project…", ""),
@@ -1188,31 +1241,6 @@ export function setupWorkload({ state, api, resizeFrame }) {
         ),
       );
       section.dataset.projects = signature;
-    }
-    showChip();
-    const typeSignature = JSON.stringify(
-      (state.config.activityTypes || []).map((t) => [t.id, t.name, t.color]),
-    );
-    if (section.dataset.activityTypes !== typeSignature) {
-      $("workload-activities").replaceChildren();
-      for (const type of state.config.activityTypes || []) {
-        const label = el("label");
-        label.className = "check-label";
-        const input = el("input");
-        input.type = "checkbox";
-        input.checked = !hiddenTypes.has(type.id);
-        input.setAttribute("aria-label", `Show activity ${type.name}`);
-        input.style.accentColor = type.color;
-        input.onchange = () => {
-          if (input.checked) hiddenTypes.delete(type.id);
-          else hiddenTypes.add(type.id);
-          setPref("hiddenActivityLines", [...hiddenTypes]);
-          chart();
-        };
-        label.append(input, document.createTextNode(type.name));
-        $("workload-activities").append(label);
-      }
-      section.dataset.activityTypes = typeSignature;
     }
     if (host && host !== state.host) {
       summaries = null;

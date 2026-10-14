@@ -707,32 +707,26 @@ test("workload line overlays use distinct units and an editable whole-day target
   await expect(
     page.locator('#workload-chart path[data-series="seconds"]'),
   ).toHaveCount(1);
-  await expect(page.locator("#workload-chart")).toContainText("100%");
   await expect(page.locator("#workload-stats>div").nth(2)).toContainText("1 h");
   await page
     .locator("#workload-panel")
     .screenshot({ path: "test-results/workload-lines.png" });
   await page.getByLabel("Daily work target").fill("6");
   await expect(page.locator("#workload-stats>div").nth(2)).toContainText("7 h");
-  await page.locator("#workload-nonproject").uncheck();
+  // The non-project share rides along without a right-hand axis.
   await expect(page.locator('[data-series="nonProjectPercent"]')).toHaveCount(
-    0,
+    1,
   );
   await page.getByLabel("Daily work target").fill("");
   await expect(page.locator("#workload-stats>div").nth(2)).toContainText(
     "Set a target",
   );
-  await page.locator("#workload-all").uncheck();
-  await expect(page.locator('[data-series="work"]')).toHaveCount(0);
   // All projects: work, non-project and unclassified layers add up to the day.
   await page.getByLabel("Workload project").selectOption("");
   for (const id of ["demo", "q", "rest", "unclassified"])
     await expect(
       page.locator(`#workload-chart path[data-stack="${id}"]`),
     ).toHaveCount(1);
-  await expect(
-    page.locator('#workload-chart path[data-series="tracked"]'),
-  ).toHaveCount(1);
   await page.locator("#workload-chart rect[role=button]").first().focus();
   await expect(page.locator("#workload-detail")).toContainText(
     "All active time: 6.5 h",
@@ -743,13 +737,22 @@ test("workload line overlays use distinct units and an editable whole-day target
   await page
     .locator("#workload-panel")
     .screenshot({ path: "test-results/workload-stack.png" });
-  // Hover shows a tooltip beside the cursor with the day's values.
-  await page.locator("#workload-chart").scrollIntoViewIfNeeded();
-  const hit = page.locator("#workload-chart rect[role=button]").first();
-  await hit.hover();
-  const tip = page.locator("#workload-chart .workload-tip");
-  await expect(tip).toBeVisible();
-  await expect(tip).toContainText("All active time: 6.5 h");
+  // Hovering a legend entry brings its series forward, the rest fade.
+  await page
+    .locator("#workload-detail .legend-entry", { hasText: "Demo:" })
+    .hover();
+  await expect(
+    page.locator('#workload-chart path[data-stack="demo"]'),
+  ).toHaveCSS("opacity", "1");
+  await expect(page.locator('#workload-chart path[data-stack="q"]')).toHaveCSS(
+    "opacity",
+    "0.1",
+  );
+  await page.mouse.move(0, 0);
+  await expect(page.locator('#workload-chart path[data-stack="q"]')).toHaveCSS(
+    "opacity",
+    "0.28",
+  );
   // Bar views replace the lines and overlays.
   await page.locator("#workload-mode").selectOption("bars");
   await page
@@ -767,7 +770,7 @@ test("workload line overlays use distinct units and an editable whole-day target
   await expect(page.locator("#workload-detail")).toContainText(
     "All active time: 6.5 h",
   );
-  await page.locator("#workload-mode").selectOption("share");
+  await page.locator("#workload-full").check();
   await expect(page.locator("#workload-chart")).toContainText("100%");
   await expect(
     page.locator("#workload-chart rect[data-bar]").first(),
@@ -777,11 +780,12 @@ test("workload line overlays use distinct units and an editable whole-day target
   await expect(
     page.locator('#workload-chart rect[data-bar="rest"]'),
   ).not.toHaveCount(0);
+  // 100% lines: the series are shares of the day.
   await page.locator("#workload-mode").selectOption("lines");
-  await page.locator("#workload-total").uncheck();
-  await expect(
-    page.locator('#workload-chart path[data-series="tracked"]'),
-  ).toHaveCount(0);
+  await expect(page.locator("#workload-chart")).toContainText("100%");
+  await expect(page.locator("#workload-target")).toBeDisabled();
+  await page.locator("#workload-full").uncheck();
+  await expect(page.locator("#workload-target")).toBeEnabled();
 });
 
 test("activity types remain independent and all projects stack without double counting", async ({
@@ -823,15 +827,19 @@ test("activity types remain independent and all projects stack without double co
   await expect(page.getByLabel("Workload project")).toHaveValue("");
   await expect(page.locator("#workload-stats")).toContainText("0.05 h");
   await expect(page.locator("#workload-chart [data-stack]")).toHaveCount(2);
-  await expect(page.getByLabel("Show activity Messaging")).toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Hide Messaging" }),
+  ).toBeVisible();
   await expect(
     page.locator('#workload-chart [data-series="activity-0"]'),
   ).toHaveCount(1);
-  await page.getByLabel("Show activity Messaging").uncheck();
+  await page.getByRole("button", { name: "Hide Messaging" }).click();
   await expect(
     page.locator('#workload-chart [data-series="activity-0"]'),
   ).toHaveCount(0);
-  await page.getByLabel("Show activity Messaging").check();
+  await expect(page.getByLabel("Activity tags")).toHaveValue("none");
+  await page.getByLabel("Show more tags").selectOption({ label: "Messaging" });
+  await expect(page.getByLabel("Activity tags")).toHaveValue("all");
   await expect(page.locator("#workload-stats")).toContainText("0.05 h");
   await page.screenshot({
     path: "test-results/activity-types-stack.png",
@@ -1088,7 +1096,7 @@ test("view preferences survive a reload", async ({ page }) => {
   await page.getByLabel("Workload project").selectOption("demo");
   await page.locator("#workload-trend").uncheck();
   await page.getByLabel("Daily work target").fill("6");
-  await page.getByLabel("Show activity Messaging").uncheck();
+  await page.getByRole("button", { name: "Hide Messaging" }).click();
   await page.getByLabel("Activity project scope").selectOption("demo");
   await page
     .getByRole("button", { name: "Show unassigned activities", exact: true })
@@ -1106,7 +1114,9 @@ test("view preferences survive a reload", async ({ page }) => {
   await expect(page.getByLabel("Workload project")).toHaveValue("demo");
   await expect(page.locator("#workload-trend")).not.toBeChecked();
   await expect(page.getByLabel("Daily work target")).toHaveValue("6");
-  await expect(page.getByLabel("Show activity Messaging")).not.toBeChecked();
+  await expect(
+    page.getByRole("button", { name: "Hide Messaging" }),
+  ).toHaveCount(0);
   await expect(page.getByLabel("Activity project scope")).toHaveValue("demo");
   await expect(page.getByLabel("Hide activities")).toBeChecked();
 });
@@ -1782,15 +1792,22 @@ test("not assigned can be sorted by most recent activity", async ({ page }) => {
   await expect(rows.first()).toContainText("Shared task");
 });
 
-test("the project filter shows a chip that returns to all projects", async ({
+test("project chips hide projects and the popup switches between all, custom and none", async ({
   page,
 }) => {
   await setup(page);
-  const chip = page.locator("#workload-chip");
-  await expect(chip).toBeHidden();
-  await page.getByLabel("Workload project").selectOption("demo");
-  await expect(chip).toContainText("Showing only Demo");
-  await chip.getByRole("button", { name: "Show all projects" }).click();
-  await expect(chip).toBeHidden();
-  await expect(page.getByLabel("Workload project")).toHaveValue("");
+  const chips = page.locator("#workload-project-chips .layer-chip");
+  const popup = page.getByLabel("Workload project");
+  await expect(popup).toHaveValue("");
+  const all = await chips.count();
+  expect(all).toBeGreaterThan(1);
+  await page.getByRole("button", { name: "Hide Demo" }).click();
+  await expect(popup).toHaveValue("custom");
+  await expect(chips).toHaveCount(all - 1);
+  await page.getByLabel("Show more projects").selectOption({ label: "Demo" });
+  await expect(popup).toHaveValue("");
+  await popup.selectOption("none");
+  await expect(chips).toHaveCount(0);
+  await popup.selectOption("demo");
+  await expect(chips).toHaveCount(1);
 });
