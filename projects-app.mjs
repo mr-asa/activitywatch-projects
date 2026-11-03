@@ -2,11 +2,17 @@ import { lockScrollBehindDialogs, openModal } from "./dialogs.mjs";
 import { setupActivities } from "./activity-ui.mjs";
 import { setupWorkload } from "./workload-ui.mjs";
 import { setPref } from "./ui-prefs.mjs";
+import { setupTodayLock } from "./today-lock.mjs";
 import { setupManicTime } from "./manictime-ui.mjs";
 import { setupMenuEntry } from "./menu-ui.mjs";
 import { setupUpdates } from "./update-ui.mjs";
 import { setupWorkflow } from "./workflow-ui.mjs";
-import { reportBounds, revisionHistory } from "./workflow-core.mjs";
+import {
+  periodDates,
+  reportBounds,
+  revisionHistory,
+  rollingStart,
+} from "./workflow-core.mjs";
 import { projectRules, stable, localDate } from "./rule-engine.mjs";
 import { setupRuleEditor } from "./compact-rule-editor.mjs";
 import { upgradeConfigTypes } from "./activity-core.mjs";
@@ -121,6 +127,35 @@ function todayDate() {
     d.setDate(d.getDate() - 1);
   return localDate(d);
 }
+const todayLock = setupTodayLock({
+  button: $("through-today"),
+  prefName: "throughToday",
+  onChange: (on, byUser) => {
+    document.dispatchEvent(new Event("range-sync"));
+    if (byUser) {
+      state.ownDate = true;
+      load();
+    }
+  },
+});
+const locked = () => todayLock.on;
+const setLocked = (on) => todayLock.set(on);
+// The chart's day clicks replace the report's lock.
+document.addEventListener("report-unlock", () => setLocked(false));
+// First and last day of the shown period. With the Today lock the last day is
+// today and a week or month starts relative to it.
+function rangeDates(mode) {
+  let from = $("date").value,
+    through = $("date-through").value || from;
+  if (locked()) through = todayDate();
+  if (mode === "week" || mode === "month")
+    [from, through] = locked()
+      ? [rollingStart(through, mode), through]
+      : periodDates(from, mode);
+  // A range never ends before it starts.
+  if (!(through >= from)) through = from;
+  return [from, through];
+}
 function period() {
   const [h, m] = (state.settings.startOfDay || "04:00").split(":").map(Number);
   let start, end;
@@ -129,15 +164,26 @@ function period() {
     end = new Date(params.get("end"));
   } else {
     const mode = $("report-period")?.value || "day";
-    // A range never ends before it starts.
-    if (mode === "range" && !($("date-through").value >= $("date").value))
-      $("date-through").value = $("date").value;
-    const bounds = reportBounds(
-      $("date").value,
-      mode,
-      state.settings.startOfDay || "04:00",
-      $("date-through").value,
-    );
+    let bounds;
+    if (mode === "day") {
+      if (locked()) $("date").value = todayDate();
+      bounds = reportBounds(
+        $("date").value,
+        "day",
+        state.settings.startOfDay || "04:00",
+      );
+    } else {
+      // Week, month and custom range all show their first and last day.
+      const [from, through] = rangeDates(mode);
+      $("date").value = from;
+      $("date-through").value = through;
+      bounds = reportBounds(
+        from,
+        "range",
+        state.settings.startOfDay || "04:00",
+        through,
+      );
+    }
     start = new Date(bounds[0]);
     end = new Date(bounds[1]);
   }
@@ -640,7 +686,19 @@ $("refresh").onclick = () => {
   load();
   workload.reload();
 };
-$("date").onchange = $("date-through").onchange = () => {
+$("date").onchange = () => {
+  // A week or month picked by its first day no longer follows today.
+  if (["week", "month"].includes($("report-period").value)) setLocked(false);
+  state.ownDate = true;
+  load();
+};
+$("date-through").onchange = () => {
+  // Choosing an end date by hand: a week or month becomes a custom range.
+  setLocked(false);
+  if (["week", "month"].includes($("report-period").value)) {
+    $("report-period").value = "range";
+    setPref("reportPeriod", "range");
+  }
   state.ownDate = true;
   load();
 };
@@ -651,6 +709,7 @@ for (const [id, delta] of [
   $(id).onclick = () => {
     const d = new Date($("date").value + "T12:00:00");
     const mode = $("report-period").value;
+    setLocked(false);
     if (mode === "range") {
       // Move the whole range by its own length.
       const last = new Date($("date-through").value + "T12:00:00");
@@ -670,7 +729,8 @@ for (const [id, delta] of [
 $("today").onclick = () => {
   $("report-period").value = "day";
   setPref("reportPeriod", "day");
-  $("date-through").hidden = true;
+  setLocked(false);
+  document.dispatchEvent(new Event("range-sync"));
   $("date").value = todayDate();
   state.ownDate = true;
   load();

@@ -20,6 +20,7 @@
   "activity-core.mjs",
   "activity-ui.mjs",
   "ui-prefs.mjs",
+  "today-lock.mjs",
   "dialogs.mjs",
   "regex-help.mjs",
   "add-rule-dialog.mjs",

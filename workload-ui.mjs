@@ -8,6 +8,8 @@ import {
   stable,
 } from "./rule-engine.mjs";
 import { pref, setPref, persistControl, restoredOption } from "./ui-prefs.mjs";
+import { rollingStart } from "./workflow-core.mjs";
+import { setupTodayLock } from "./today-lock.mjs";
 import {
   chartBuckets,
   daySummaries,
@@ -20,7 +22,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   section.className = "timeline-panel workload-panel";
   section.id = "workload-panel";
   section.innerHTML =
-    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-apply">Apply range</button><label>Fit to project<select id="workload-fit" aria-label="Fit range to project"></select></label></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div id="workload-stats" class="workload-stats"></div><div class="workload-toolbar"><div class="layer-row"><label>Projects<select id="workload-project" aria-label="Workload project"></select></label><div id="workload-project-chips" class="layer-chips"></div></div><div class="layer-row" id="workload-tag-row" hidden><label>Tags<select id="workload-tags" aria-label="Activity tags"><option value="all">All</option><option value="custom">Custom</option><option value="none">None</option></select></label><div id="workload-type-chips" class="layer-chips"></div></div><div class="workload-overlays"><label>View<select id="workload-mode" aria-label="Chart view"><option value="lines">Lines</option><option value="bars">Stacked bars</option></select></label><label class="check-label"><input type="checkbox" id="workload-full"> 100% of the day</label><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
+    '<div class="section-heading"><div><p class="eyebrow">HISTORY</p><h2>Daily workload</h2><p class="muted">Hours per day over this chart’s own range, independent of the report period above. The report’s days are highlighted.</p></div><div class="workload-controls"><button id="workload-open" type="button" title="Show this chart’s range in the report above">Open this range in the report</button><button id="workload-load" type="button" title="Ignore the browser cache and recalculate the range from ActivityWatch">Recalculate</button></div></div><div class="workload-controls workload-range"><label>Range<select id="workload-range" aria-label="Workload range"><option value="week">Week</option><option value="month">Month</option><option value="last7">Last 7 days</option><option value="last30">Last 30 days</option><option value="custom">Custom</option></select></label><button id="workload-prev" aria-label="Previous chart period">←</button><button id="workload-next" aria-label="Next chart period">→</button><label>From<input id="workload-from" type="date" aria-label="Chart from"></label><label>Through<input id="workload-through" type="date" aria-label="Chart through"></label><button id="workload-lock" type="button" aria-pressed="false" title="Today lock: the chart always ends today">Today lock</button><button id="workload-apply">Apply range</button><label>Fit to project<select id="workload-fit" aria-label="Fit range to project"></select></label></div><p id="workload-status" class="muted" role="status">Loading the current week…</p><div id="workload-stats" class="workload-stats"></div><div class="workload-toolbar"><div class="layer-row"><label>Projects<select id="workload-project" aria-label="Workload project"></select></label><div id="workload-project-chips" class="layer-chips"></div></div><div class="layer-row" id="workload-tag-row" hidden><label>Tags<select id="workload-tags" aria-label="Activity tags"><option value="all">All</option><option value="custom">Custom</option><option value="none">None</option></select></label><div id="workload-type-chips" class="layer-chips"></div></div><div class="workload-overlays"><label>View<select id="workload-mode" aria-label="Chart view"><option value="lines">Lines</option><option value="bars">Stacked bars</option></select></label><label class="check-label"><input type="checkbox" id="workload-full"> 100% of the day</label><label class="check-label"><input type="checkbox" id="workload-trend" checked> 7-day trend</label><label>Daily target (hours)<input id="workload-target" value="8" type="number" min="0.25" max="24" step="0.25" placeholder="Not set" aria-label="Daily work target"></label></div></div><div id="workload-chart" class="workload-chart"></div><p class="field-help workload-hint">Click a day to open it in the report above; drag across days, or click one and Shift+click another, to open a range.</p><div id="workload-detail" class="workload-detail" role="status"></div><details class="panel-help"><summary>How this chart is calculated</summary><p class="field-help">Active time only. With All projects, layers stack project work, then non-project categories, then unclassified time (not assigned and needs review), so the top of the stack is all active time for the day. Project totals exclude unresolved conflicts. Days follow your ActivityWatch start-of-day setting. Non-project % = non-project time / all recorded active time, not a procrastination score. Target excess uses work across all projects. Days without recordings break the lines. The chart always fits the panel: when days get too narrow, each point becomes a week or a month, showing the average per recorded day (so the axis stays in hours per day). The trend averages recorded days within the last seven calendar days. Click a point to open that day (week, month) in the report above; drag across points, or click one and Shift+click another, to open the span as a custom range.</p></details>';
   document.getElementById("history").append(section);
   const $ = (id) => document.getElementById(id);
   let summaries = null, // day summaries of the shown days
@@ -44,6 +46,31 @@ export function setupWorkload({ state, api, resizeFrame }) {
       .split(":")
       .map(Number);
     return localDate(new Date(ms - (h * 60 + m) * 60000));
+  }
+  const lock = setupTodayLock({
+    button: $("workload-lock"),
+    prefName: "workloadThroughToday",
+    onChange: (on, byUser) => {
+      $("workload-through").disabled = on;
+      if (byUser) {
+        applyLock();
+        load();
+      }
+    },
+  });
+  const locked = () => lock.on;
+  const setLocked = (on) => lock.set(on);
+  // With the Today lock the last day is today; a week or month starts
+  // relative to it (custom keeps its first day).
+  function applyLock() {
+    if (!locked()) return;
+    const through = reportDay(Date.now());
+    $("workload-through").value = through;
+    const mode = $("workload-range").value;
+    if (mode === "week" || mode === "month")
+      $("workload-from").value = rollingStart(through, mode);
+    else if (!($("workload-from").value <= through))
+      $("workload-from").value = through;
   }
   function preset(mode, anchor = new Date()) {
     if (mode === "last7" || mode === "last30") {
@@ -81,6 +108,8 @@ export function setupWorkload({ state, api, resizeFrame }) {
     $("workload-from").value = savedDates[0];
     $("workload-through").value = savedDates[1];
   } else preset(savedRange === "custom" ? "week" : savedRange);
+  $("workload-through").disabled = locked();
+  applyLock();
   $("workload-range").addEventListener("change", () =>
     setPref("workloadRange", $("workload-range").value),
   );
@@ -88,11 +117,14 @@ export function setupWorkload({ state, api, resizeFrame }) {
     const mode = $("workload-range").value;
     if (mode !== "custom") {
       preset($("workload-range").value);
+      applyLock();
       load();
     }
   };
   for (const id of ["workload-from", "workload-through"])
     $(id).onchange = () => {
+      // Picking the end by hand replaces the Today lock.
+      if (id === "workload-through") setLocked(false);
       $("workload-range").value = "custom";
       setPref("workloadRange", "custom");
     };
@@ -103,6 +135,7 @@ export function setupWorkload({ state, api, resizeFrame }) {
   ])
     $(id).onclick = () => {
       const mode = $("workload-range").value;
+      setLocked(false);
       const first = new Date($("workload-from").value + "T12:00:00");
       if (mode === "month") first.setMonth(first.getMonth() + direction);
       else if (mode === "week") first.setDate(first.getDate() + 7 * direction);
@@ -129,6 +162,8 @@ export function setupWorkload({ state, api, resizeFrame }) {
       period.value = unit;
       setPref("reportPeriod", unit);
     }
+    // Opening days from the chart replaces the report's Today lock.
+    document.dispatchEvent(new Event("report-unlock"));
     const input = document.getElementById("date");
     input.value = date;
     input.dispatchEvent(new Event("change"));
@@ -1106,7 +1141,10 @@ export function setupWorkload({ state, api, resizeFrame }) {
     // span is not rescanned after a settings change). fit: a project id whose
     // first to last day with time becomes the (custom) range.
     const projectMode = !keepRange && fit !== undefined;
-    if (projectMode) $("workload-range").value = "custom";
+    if (projectMode) {
+      $("workload-range").value = "custom";
+      setLocked(false);
+    } else if (!keepRange) applyLock();
     let from = keepRange && shown ? shown.from : $("workload-from").value,
       through =
         keepRange && shown ? shown.through : $("workload-through").value;

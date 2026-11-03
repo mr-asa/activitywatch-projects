@@ -1582,9 +1582,50 @@ test("selecting days on the chart opens them as a report range", async ({
   await expect(page.locator("#report-period")).toHaveValue("range");
   await expect(page.locator("#date")).toHaveValue("2026-09-22");
   await expect(page.locator("#date-through")).toHaveValue("2026-09-25");
-  // The range is remembered, and a plain period hides the second date.
+  // A week shows its first and last day; a day shows only one.
   await page.locator("#report-period").selectOption("week");
+  await expect(page.locator("#date")).toHaveValue("2026-09-21");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-27");
+  await page.locator("#report-period").selectOption("day");
   await expect(page.locator("#date-through")).toBeHidden();
+  // In Day mode the lock holds the date on today.
+  await page.locator("#date").fill("2026-09-20");
+  await page.locator("#date").dispatchEvent("change");
+  await page.locator("#through-today").click();
+  await expect(page.locator("#date")).toHaveValue("2026-09-27");
+  await expect(page.locator("#date")).toBeDisabled();
+});
+test("Today lock keeps the end of a week, month or range on today", async ({
+  page,
+}) => {
+  await setup(page);
+  await page.locator("#report-period").selectOption("week");
+  await page.locator("#through-today").click();
+  await expect(page.locator("#date")).toHaveValue("2026-09-21");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-27");
+  await page.locator("#report-period").selectOption("month");
+  await expect(page.locator("#date")).toHaveValue("2026-08-28");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-27");
+  await page.locator("#report-period").selectOption("range");
+  await page.locator("#date").fill("2026-09-01");
+  await page.locator("#date").dispatchEvent("change");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-27");
+  await expect(page.locator("#through-today")).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  // While locked the end date is disabled; the button unlocks it.
+  await expect(page.locator("#date-through")).toBeDisabled();
+  await page.locator("#through-today").click();
+  await expect(page.locator("#date-through")).toBeEnabled();
+  await page.locator("#date-through").fill("2026-09-25");
+  await page.locator("#date-through").dispatchEvent("change");
+  await expect(page.locator("#date-through")).toHaveValue("2026-09-25");
+  // The chart has its own lock.
+  await page.locator("#workload-range").selectOption("month");
+  await page.locator("#workload-lock").click();
+  await expect(page.getByLabel("Chart from")).toHaveValue("2026-08-28");
+  await expect(page.getByLabel("Chart through")).toHaveValue("2026-09-27");
 });
 test("adding a rule explains and widens project dates that exclude the activity", async ({
   page,

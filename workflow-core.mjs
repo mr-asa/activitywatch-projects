@@ -5,7 +5,7 @@ import {
   clipSorted,
   duration,
 } from "./projects-core.mjs";
-import { normalizeAssignment } from "./rule-engine.mjs";
+import { normalizeAssignment, localDate } from "./rule-engine.mjs";
 
 export function validateConfig(input) {
   if (
@@ -56,6 +56,35 @@ export function validateConfig(input) {
 }
 // Report days: "day", "week" (from Monday), "month", or "range" from
 // `date` through `through` (inclusive dates).
+// First and last day of the calendar week (Monday-based) or month of a date.
+export function periodDates(date, period) {
+  const first = new Date(date + "T12:00:00");
+  if (period === "week")
+    first.setDate(first.getDate() - ((first.getDay() + 6) % 7));
+  else first.setDate(1);
+  const last = new Date(first);
+  if (period === "week") last.setDate(last.getDate() + 6);
+  else {
+    last.setMonth(last.getMonth() + 1);
+    last.setDate(0);
+  }
+  return [localDate(first), localDate(last)];
+}
+// First day of a week or month that ends on `through` (the "Today lock").
+export function rollingStart(through, period) {
+  const d = new Date(through + "T12:00:00");
+  if (period === "week") d.setDate(d.getDate() - 6);
+  else {
+    const day = d.getDate();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - 1);
+    d.setDate(
+      Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()),
+    );
+    d.setDate(d.getDate() + 1);
+  }
+  return localDate(d);
+}
 export function reportBounds(
   date,
   period = "day",

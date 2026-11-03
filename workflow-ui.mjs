@@ -71,13 +71,16 @@ export function setupWorkflow({
     syncRangeInput();
     load();
   };
-  // "Custom range" shows a second date: the last day of the report.
+  // Week, month and custom range show a second date: the last day.
   function syncRangeInput() {
-    const range = $("report-period").value === "range";
-    $("date-through").hidden = !range;
-    if (range && !($("date-through").value >= $("date").value))
-      $("date-through").value = $("date").value;
+    const two = $("report-period").value !== "day";
+    $("date-through").hidden = !two;
+    const pinned = $("through-today").getAttribute("aria-pressed") === "true";
+    // The Today lock also holds a single day on today.
+    $("date").disabled = pinned && !two;
+    $("date-through").disabled = pinned;
   }
+  document.addEventListener("range-sync", syncRangeInput);
   $("show-archived").onchange = render;
   persistControl($("report-period"), "reportPeriod");
   syncRangeInput();

@@ -43,7 +43,14 @@
             type="date"
             aria-label="Report through"
             hidden
-          /><button id="next-day" aria-label="Next day">→</button
+          /><button
+            id="through-today"
+            type="button"
+            aria-pressed="false"
+            title="Today lock: the period always ends today"
+          >
+            Today lock</button
+          ><button id="next-day" aria-label="Next day">→</button
           ><button id="today" title="Back to today, one day">Today</button>
         </div>
         <span id="period-label" class="muted"></span>
