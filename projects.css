@@ -470,6 +470,7 @@ label {
     flex-wrap: wrap;
   }
   .date-controls {
+    flex-wrap: wrap;
     gap: 6px;
   }
   .date-controls button {
